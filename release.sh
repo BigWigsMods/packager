@@ -28,7 +28,7 @@ done
 # Path to root of Git checkout.
 topdir=..
 # Path to directory containing the generated addon.
-releasedir=$topdir/tmp
+releasedir=$topdir/release
 # Project name.
 project="Ovale Spell Priority"
 # Colon-separated list of patterns of files to be ignored when copying files.
