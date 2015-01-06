@@ -178,7 +178,7 @@ done
 
 # Create changelog of commits since the previous release tag.
 if [ -z "$changelog" ]; then
-	changelog="ChangeLog-$package-$version.txt"
+	changelog="CHANGELOG.txt"
 fi
 echo "Generating changelog of commits since $rtag into $changelog."
 cat > $pkgdir/$changelog << EOF
