@@ -8,7 +8,7 @@ project="Ovale Spell Priority"
 # Path to root of Git checkout.
 topdir=..
 # Path to directory containing the generated addon.
-releasedir=$topdir/release
+releasedir="$topdir/release"
 # Colon-separated list of patterns of files to be ignored when copying files.
 ignore=".*:tmp/*"
 
@@ -88,12 +88,12 @@ while read line; do
 	package-as:*)
 		phase=${line%%:*}
 		package=${line#*: }
-		pkgdir=$releasedir/$package
-		if [ -d $pkgdir -a -z "$skip_delete_pkgdir" ]; then
+		pkgdir="$releasedir/$package"
+		if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
 			echo "Removing previous package directory: $pkgdir"
-			rm -fr $pkgdir
+			rm -fr "$pkgdir"
 		fi
-		mkdir -p $pkgdir
+		mkdir -p "$pkgdir"
 		;;
 	externals:*)
 		phase=${line%%:*}
@@ -114,15 +114,15 @@ while read line; do
 		if [ "$phase" = "externals" -a -z "$skip_externals" ]; then
 			dir=${line%%:*}
 			uri=${line#*: }
-			mkdir -p $pkgdir/$dir
+			mkdir -p "$pkgdir/$dir"
 			case $uri in
 			git:*)
 				echo "Getting checkout for $uri"
-				git clone $uri $pkgdir/$dir
+				git clone $uri "$pkgdir/$dir"
 				;;
 			svn:*)
 				echo "Getting checkout for $uri"
-				svn checkout $uri $pkgdir/$dir
+				svn checkout $uri "$pkgdir/$dir"
 				;;
 			esac
 		fi
@@ -142,11 +142,11 @@ while read line; do
 		;;
 	esac
 done < ../.pkgmeta
-find $pkgdir -name .git -print -o -name .svn -print | xargs rm -fr
+find "$pkgdir" -name .git -print -o -name .svn -print | xargs rm -fr
 
 # Copy files from working directory into the package directory.
 echo "Copying files into \`\`$pkgdir''..."
-find $topdir -name .git -prune -o -name release -prune -o -print | while read file; do
+find "$topdir" -name .git -prune -o -name release -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
 		# Check if the file should be ignored.
@@ -165,7 +165,7 @@ find $topdir -name .git -prune -o -name release -prune -o -print | while read fi
 		if [ -z "$ignored" ]; then
 			dir=${file%/*}
 			if [ "$dir" != "$file" ]; then
-				mkdir -p $pkgdir/$dir
+				mkdir -p "$pkgdir/$dir"
 			fi
 			# Check if the file matches a pattern for keyword replacement.
 			keyword="*.lua:*.md:*.toc:*.xml"
@@ -182,14 +182,14 @@ find $topdir -name .git -prune -o -name release -prune -o -print | while read fi
 				esac
 			done
 			if [ -n "$replaced" -a -n "$version" ]; then
-				sed -b "s/@project-version@/$version/g" $topdir/$file > $pkgdir/$file
-				if cmp -s $topdir/$file $pkgdir/$file; then
+				sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
+				if cmp -s "$topdir/$file" "$pkgdir/$file"; then
 					echo "Copied: $file"
 				else
 					echo "Replaced repository keywords: $file"
 				fi
 			else
-				cp $topdir/$file $pkgdir/$dir
+				cp "$topdir/$file" "$pkgdir/$dir"
 				echo "Copied: $file"
 			fi
 		fi
@@ -201,15 +201,15 @@ if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.txt"
 fi
 echo "Generating changelog of commits since $rtag into $changelog."
-cat > $pkgdir/$changelog << EOF
+cat > "$pkgdir/$changelog" << EOF
 $project $version
 
 Changes from version $rtag:
 
 EOF
-git log $rtag..HEAD --pretty=format:"- %B" >> $pkgdir/$changelog
+git log $rtag..HEAD --pretty=format:"- %B" >> "$pkgdir/$changelog"
 
 # Creating the final zipfile for the addon using 7z.
 if [ -z "$skip_zipfile" ]; then
-	7z a -tzip $releasedir/$package-$version.zip $pkgdir
+	7z a -tzip "$releasedir/$package-$version.zip" "$pkgdir"
 fi
