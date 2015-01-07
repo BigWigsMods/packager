@@ -2,37 +2,54 @@
 #
 # Generate a zippable addon directory from a Git checkout.
 #
-# Usage: release.sh [-ez]
-#
+
+# Project name.
+project="Ovale Spell Priority"
+# Path to root of Git checkout.
+topdir=..
+# Path to directory containing the generated addon.
+releasedir=$topdir/release
+# Colon-separated list of patterns of files to be ignored when copying files.
+ignore=".*:tmp/*"
+
+usage() {
+	echo "Usage: release.sh [-eoz] [-r dir]" >&2
+	echo "  -e        Skip checkout of external repositories." >&2
+	echo "  -o        Keep existing package directory; just overwrite contents." >&2
+	echo "  -r dir    Set directory containing the package directory." >&2
+	echo "  -z        Skip zipfile creation." >&2
+	exit 1
+}
 
 # Process command-line options
-while getopts ":ez" opt; do
+while getopts ":eor:z" opt; do
 	case $opt in
 	e)
 		# Skip checkout of external repositories.
 		skip_externals=true
 		;;
+	o)
+		# Skip deleting any previous package directory.
+		skip_delete_pkgdir=true
+		;;
+	r)
+		# Set the release directory to a non-default value.
+		releasedir="$OPTARG"
+		;;
 	z)
 		# Skip generating the zipfile.
 		skip_zipfile=true
 		;;
+	:)
+		echo "Option \`\`-$OPTARG'' requires an argument." >&2
+		usage
+		;;
 	\?)
-		echo "Usage: release.sh [-ez]" >&2
-		echo "  -e    Skip checkout of external repositories." >&2
-		echo "  -z    Skip zipfile creation." >&2
-		exit 1
+		echo "Unknown option \`\`-$OPTARG''." >&2
+		usage
 		;;
 	esac
 done
-
-# Path to root of Git checkout.
-topdir=..
-# Path to directory containing the generated addon.
-releasedir=$topdir/release
-# Project name.
-project="Ovale Spell Priority"
-# Colon-separated list of patterns of files to be ignored when copying files.
-ignore=".*:tmp/*"
 
 # Get the tag for the HEAD.
 tag=`git describe HEAD --abbrev=0`
@@ -51,11 +68,13 @@ while true; do
 	esac
 	rtag=`git describe $rtag~1 --abbrev=0`
 done
-echo "Previous release tag: $rtag"
 # If the current and previous tags match, then the HEAD is not tagged.
 if [ "$tag" = "$rtag" ]; then
 	tag=
+else
+	echo "Current tag: $tag"
 fi
+echo "Previous release tag: $rtag"
 
 # Version number.
 version="$tag"
@@ -70,7 +89,7 @@ while read line; do
 		phase=${line%%:*}
 		package=${line#*: }
 		pkgdir=$releasedir/$package
-		if [ -d $pkgdir ]; then
+		if [ -d $pkgdir -a -z "$skip_delete_pkgdir" ]; then
 			echo "Removing previous package directory: $pkgdir"
 			rm -fr $pkgdir
 		fi
@@ -126,6 +145,7 @@ done < ../.pkgmeta
 find $pkgdir -name .git -print -o -name .svn -print | xargs rm -fr
 
 # Copy files from working directory into the package directory.
+echo "Copying files into \`\`$pkgdir''..."
 find $topdir -name .git -prune -o -name release -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
