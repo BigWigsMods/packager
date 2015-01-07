@@ -208,6 +208,7 @@ Changes from version $rtag:
 
 EOF
 git log $rtag..HEAD --pretty=format:"- %B" >> "$pkgdir/$changelog"
+sed -i "s/$/\r/" "$pkgdir/$changelog"
 
 # Creating the final zipfile for the addon using 7z.
 if [ -z "$skip_zipfile" ]; then
