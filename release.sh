@@ -9,8 +9,6 @@ project="Ovale Spell Priority"
 topdir=..
 # Path to directory containing the generated addon.
 releasedir="$topdir/release"
-# Colon-separated list of patterns of files to be ignored when copying files.
-ignore=".*:tmp/*"
 
 # POSIX tools.
 cat=cat
@@ -39,7 +37,6 @@ usage() {
 	echo "  -o        Keep existing package directory; just overwrite contents." >&2
 	echo "  -r dir    Set directory containing the package directory." >&2
 	echo "  -z        Skip zipfile creation." >&2
-	exit 1
 }
 
 # Process command-line options
@@ -64,13 +61,25 @@ while getopts ":eor:z" opt; do
 	:)
 		echo "Option \`\`-$OPTARG'' requires an argument." >&2
 		usage
+		exit 1
 		;;
 	\?)
 		echo "Unknown option \`\`-$OPTARG''." >&2
 		usage
+		exit 2
 		;;
 	esac
 done
+
+# $releasedir must be an absolute path or relative to $topdir.
+case $releasedir in
+/*)			;;
+$topdir/*)	;;
+*)
+	echo "The release directory \`\`$releasedir'' must be an absolute path or relative to \`\`$topdir''." >&2
+	exit 3
+	;;
+esac
 
 # Get the tag for the HEAD.
 tag=`$git describe HEAD --abbrev=0`
@@ -104,6 +113,7 @@ if [ -z "$version" ]; then
 fi
 
 # Simple .pkgmeta processor.
+ignore=
 while read line; do
 	case ${line} in
 	package-as:*)
@@ -169,22 +179,41 @@ done
 
 # Copy files from working directory into the package directory.
 echo "Copying files into \`\`$pkgdir''..."
-$find "$topdir" -name .git -prune -o -name release -prune -o -print | while read file; do
+$find "$topdir" -name .git -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
 		# Check if the file should be ignored.
-		list="$ignore:"
 		ignored=
-		while [ -n "$list" ]; do
-			pattern=${list%%:*}
-			list=${list#*:}
+		if [ -z "$ignored" ]; then
 			case $file in
-			$pattern)
+			# Ignore files that start with a dot.
+			.*)
+				echo "Ignoring: $file"
 				ignored=true
-				break
+				;;
+			# Ignore files within the release directory.
+			"$releasedir"/*)
+				echo "Ignoring: $file"
+				ignored=true
 				;;
 			esac
-		done
+		fi
+		# Ignore files matching patterns set via .pkgmeta "ignore".
+		if [ -z "$ignored" ]; then
+			list="$ignore:"
+			while [ -n "$list" ]; do
+				pattern=${list%%:*}
+				list=${list#*:}
+				case $file in
+				$pattern)
+					echo "Ignoring: $file"
+					ignored=true
+					break
+					;;
+				esac
+			done
+		fi
+		# Copy any unignored files into $pkgdir.
 		if [ -z "$ignored" ]; then
 			dir=${file%/*}
 			if [ "$dir" != "$file" ]; then
@@ -235,5 +264,10 @@ $sed -i "s/$/\r/" "$pkgdir/$changelog"
 
 # Creating the final zipfile for the addon using 7z.
 if [ -z "$skip_zipfile" ]; then
-	$zip "$releasedir/$package-$version.zip" "$pkgdir"
+	archive="$releasedir/$package-$version.zip"
+	if [ -f "$archive" ]; then
+		echo "Removing previous archive: $archive"
+		$rm -f "$archive"
+	fi
+	$zip "$archive" "$pkgdir"
 fi
