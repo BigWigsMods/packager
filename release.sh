@@ -12,6 +12,27 @@ releasedir="$topdir/release"
 # Colon-separated list of patterns of files to be ignored when copying files.
 ignore=".*:tmp/*"
 
+# POSIX tools.
+cat=cat
+cmp=cmp
+cp=cp
+find=find
+mkdir=mkdir
+rm=rm
+sed=sed
+
+# Non-POSIX tools.
+git=git
+svn=svn
+zip=zip
+
+# pkzip wrapper for 7z.
+sevenzip=7z
+zip() {
+	archive="$1"; shift
+	$sevenzip a -tzip $archive "$@"
+}
+
 usage() {
 	echo "Usage: release.sh [-eoz] [-r dir]" >&2
 	echo "  -e        Skip checkout of external repositories." >&2
@@ -52,9 +73,9 @@ while getopts ":eor:z" opt; do
 done
 
 # Get the tag for the HEAD.
-tag=`git describe HEAD --abbrev=0`
+tag=`$git describe HEAD --abbrev=0`
 # Find the previous release tag.
-rtag=`git describe HEAD~1 --abbrev=0`
+rtag=`$git describe HEAD~1 --abbrev=0`
 while true; do
 	case $rtag in
 	[0-9].[0-9]) break ;;
@@ -79,7 +100,7 @@ echo "Previous release tag: $rtag"
 # Version number.
 version="$tag"
 if [ -z "$version" ]; then
-	version=`git describe HEAD`
+	version=`$git describe HEAD`
 fi
 
 # Simple .pkgmeta processor.
@@ -91,9 +112,9 @@ while read line; do
 		pkgdir="$releasedir/$package"
 		if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
 			echo "Removing previous package directory: $pkgdir"
-			rm -fr "$pkgdir"
+			$rm -fr "$pkgdir"
 		fi
-		mkdir -p "$pkgdir"
+		$mkdir -p "$pkgdir"
 		;;
 	externals:*)
 		phase=${line%%:*}
@@ -114,15 +135,15 @@ while read line; do
 		if [ "$phase" = "externals" -a -z "$skip_externals" ]; then
 			dir=${line%%:*}
 			uri=${line#*: }
-			mkdir -p "$pkgdir/$dir"
+			$mkdir -p "$pkgdir/$dir"
 			case $uri in
 			git:*)
 				echo "Getting checkout for $uri"
-				git clone $uri "$pkgdir/$dir"
+				$git clone $uri "$pkgdir/$dir"
 				;;
 			svn:*)
 				echo "Getting checkout for $uri"
-				svn checkout $uri "$pkgdir/$dir"
+				$svn checkout $uri "$pkgdir/$dir"
 				;;
 			esac
 		fi
@@ -142,11 +163,13 @@ while read line; do
 		;;
 	esac
 done < ../.pkgmeta
-find "$pkgdir" -name .git -print -o -name .svn -print | xargs rm -fr
+$find "$pkgdir" -name .git -print -o -name .svn -print | while read dir; do
+	$rm -fr "$dir"
+done
 
 # Copy files from working directory into the package directory.
 echo "Copying files into \`\`$pkgdir''..."
-find "$topdir" -name .git -prune -o -name release -prune -o -print | while read file; do
+$find "$topdir" -name .git -prune -o -name release -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
 		# Check if the file should be ignored.
@@ -165,7 +188,7 @@ find "$topdir" -name .git -prune -o -name release -prune -o -print | while read 
 		if [ -z "$ignored" ]; then
 			dir=${file%/*}
 			if [ "$dir" != "$file" ]; then
-				mkdir -p "$pkgdir/$dir"
+				$mkdir -p "$pkgdir/$dir"
 			fi
 			# Check if the file matches a pattern for keyword replacement.
 			keyword="*.lua:*.md:*.toc:*.xml"
@@ -182,14 +205,14 @@ find "$topdir" -name .git -prune -o -name release -prune -o -print | while read 
 				esac
 			done
 			if [ -n "$replaced" -a -n "$version" ]; then
-				sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
-				if cmp -s "$topdir/$file" "$pkgdir/$file"; then
+				$sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
+				if $cmp -s "$topdir/$file" "$pkgdir/$file"; then
 					echo "Copied: $file"
 				else
 					echo "Replaced repository keywords: $file"
 				fi
 			else
-				cp "$topdir/$file" "$pkgdir/$dir"
+				$cp "$topdir/$file" "$pkgdir/$dir"
 				echo "Copied: $file"
 			fi
 		fi
@@ -201,16 +224,16 @@ if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.txt"
 fi
 echo "Generating changelog of commits since $rtag into $changelog."
-cat > "$pkgdir/$changelog" << EOF
+$cat > "$pkgdir/$changelog" << EOF
 $project $version
 
 Changes from version $rtag:
 
 EOF
-git log $rtag..HEAD --pretty=format:"- %B" >> "$pkgdir/$changelog"
-sed -i "s/$/\r/" "$pkgdir/$changelog"
+$git log $rtag..HEAD --pretty=format:"- %B" >> "$pkgdir/$changelog"
+$sed -i "s/$/\r/" "$pkgdir/$changelog"
 
 # Creating the final zipfile for the addon using 7z.
 if [ -z "$skip_zipfile" ]; then
-	7z a -tzip "$releasedir/$package-$version.zip" "$pkgdir"
+	$zip "$releasedir/$package-$version.zip" "$pkgdir"
 fi
