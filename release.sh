@@ -5,10 +5,6 @@
 
 # Project name.
 project="Ovale Spell Priority"
-# Path to root of Git checkout.
-topdir=..
-# Path to directory containing the generated addon.
-releasedir="$topdir/release"
 
 # POSIX tools.
 cat=cat
@@ -16,6 +12,7 @@ cmp=cmp
 cp=cp
 find=find
 mkdir=mkdir
+pwd=pwd
 rm=rm
 sed=sed
 
@@ -31,16 +28,42 @@ zip() {
 	$sevenzip a -tzip $archive "$@"
 }
 
+# Set $topdir to top-level directory of the Git checkout.
+topdir=
+if [ -z "$topdir" ]; then
+	dir=`pwd`
+	if [ -d "$dir/.git" ]; then
+		topdir=.
+	else
+		dir=${dir%/*}
+		topdir=..
+		while [ -n "$dir" ]; do
+			if [ -d "$topdir/.git" ]; then
+				break
+			fi
+			dir=${dir%/*}
+			topdir="$topdir/.."
+		done
+		if [ ! -d "$topdir/.git" ]; then
+			echo "No Git checkout found." >&2
+			exit 10
+		fi
+	fi
+fi
+# Set $releasedir to the directory which will contain the generated addon zipfile.
+releasedir="$topdir/release"
+
 usage() {
 	echo "Usage: release.sh [-eoz] [-r dir]" >&2
-	echo "  -e        Skip checkout of external repositories." >&2
-	echo "  -o        Keep existing package directory; just overwrite contents." >&2
-	echo "  -r dir    Set directory containing the package directory." >&2
-	echo "  -z        Skip zipfile creation." >&2
+	echo "  -e               Skip checkout of external repositories." >&2
+	echo "  -o               Keep existing package directory; just overwrite contents." >&2
+	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
+	echo "  -t topdir        Set top-level directory of Git checkout.  Defaults to \`\`$topdir''." >&2
+	echo "  -z               Skip zipfile creation." >&2
 }
 
 # Process command-line options
-while getopts ":eor:z" opt; do
+while getopts ":eor:t:z" opt; do
 	case $opt in
 	e)
 		# Skip checkout of external repositories.
@@ -53,6 +76,10 @@ while getopts ":eor:z" opt; do
 	r)
 		# Set the release directory to a non-default value.
 		releasedir="$OPTARG"
+		;;
+	t)
+		# Set the top-level directory of the Git checkout to a non-default value.
+		topdir="$OPTARG"
 		;;
 	z)
 		# Skip generating the zipfile.
@@ -71,15 +98,25 @@ while getopts ":eor:z" opt; do
 	esac
 done
 
+# Check that $topdir is actually a Git checkout.
+if [ ! -d "$topdir/.git" ]; then
+	echo "No Git checkout found in \`\`$topdir''." >&2
+	exit 11
+fi
+
 # $releasedir must be an absolute path or relative to $topdir.
 case $releasedir in
 /*)			;;
 $topdir/*)	;;
 *)
 	echo "The release directory \`\`$releasedir'' must be an absolute path or relative to \`\`$topdir''." >&2
-	exit 3
+	exit 20
 	;;
 esac
+
+# Expand $topdir and $releasedir to their absolute paths for string comparisons later.
+topdir=`cd "$topdir" && pwd`
+releasedir=`cd "$releasedir" && pwd`
 
 # Get the tag for the HEAD.
 tag=`$git describe HEAD --abbrev=0`
@@ -172,27 +209,23 @@ while read line; do
 		fi
 		;;
 	esac
-done < ../.pkgmeta
+done < "$topdir/.pkgmeta"
 $find "$pkgdir" -name .git -print -o -name .svn -print | while read dir; do
 	$rm -fr "$dir"
 done
 
 # Copy files from working directory into the package directory.
+# Prune away any files in the .git and release directories.
 echo "Copying files into \`\`$pkgdir''..."
-$find "$topdir" -name .git -prune -o -print | while read file; do
+$find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
 		# Check if the file should be ignored.
 		ignored=
+		# Ignore files that start with a dot.
 		if [ -z "$ignored" ]; then
 			case $file in
-			# Ignore files that start with a dot.
 			.*)
-				echo "Ignoring: $file"
-				ignored=true
-				;;
-			# Ignore files within the release directory.
-			"$releasedir"/*)
 				echo "Ignoring: $file"
 				ignored=true
 				;;
@@ -262,7 +295,7 @@ EOF
 $git log $rtag..HEAD --pretty=format:"- %B" >> "$pkgdir/$changelog"
 $sed -i "s/$/\r/" "$pkgdir/$changelog"
 
-# Creating the final zipfile for the addon using 7z.
+# Creating the final zipfile for the addon.
 if [ -z "$skip_zipfile" ]; then
 	archive="$releasedir/$package-$version.zip"
 	if [ -f "$archive" ]; then
