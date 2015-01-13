@@ -123,16 +123,11 @@ tag=`$git describe HEAD --abbrev=0`
 # Find the previous release tag.
 rtag=`$git describe HEAD~1 --abbrev=0`
 while true; do
-	case $rtag in
-	[0-9].[0-9]) break ;;
-	[0-9].[0-9].[0-9]) break ;;
-	[0-9].[0-9].[0-9][0-9]) break ;;
-	[0-9].[0-9].[0-9][0-9][0-9]) break ;;
-	[0-9].[0-9][0-9]) break ;;
-	[0-9].[0-9][0-9].[0-9]) break ;;
-	[0-9].[0-9][0-9].[0-9][0-9]) break ;;
-	[0-9].[0-9][0-9].[0-9][0-9][0-9]) break ;;
-	esac
+	# A version string must contain only dots and digits and optionally starts with the letter "v".
+	result=`echo "${rtag#v}" | $sed -e "s/[0-9.]*//"`
+	if [ -z "$result" ]; then
+		break
+	fi
 	rtag=`git describe $rtag~1 --abbrev=0`
 done
 # If the current and previous tags match, then the HEAD is not tagged.
