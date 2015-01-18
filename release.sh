@@ -54,6 +54,7 @@ zip() {
 project=
 topdir=
 releasedir=
+stagedir=
 
 # Set $topdir to top-level directory of the Git checkout.
 if [ -z "$topdir" ]; then
@@ -145,12 +146,16 @@ $topdir/*)	;;
 	;;
 esac
 
-# Create the release directory.
-$mkdir -p "$releasedir"
+# Set $stagedir to the directory which will contain everything to add to the zipfile.
+stagedir="$releasedir/stage"
 
-# Expand $topdir and $releasedir to their absolute paths for string comparisons later.
+# Create the staging directory.
+$mkdir -p "$stagedir"
+
+# Expand $topdir, $releasedir, and $stagedir to their absolute paths for string comparisons later.
 topdir=`cd "$topdir" && pwd`
 releasedir=`cd "$releasedir" && pwd`
+stagedir=`cd "$stagedir" && pwd`
 
 # Get the tag for the HEAD.
 tag=`$git describe HEAD --abbrev=0 2>/dev/null`
@@ -253,7 +258,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				;;
 			package-as)
 				package=$yaml_value
-				pkgdir="$releasedir/$package"
+				pkgdir="$stagedir/$package"
 				if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
 					echo "Removing previous package directory: $pkgdir"
 					$rm -fr "$pkgdir"
@@ -352,9 +357,9 @@ if [ -z "$package" ]; then
 	esac
 fi
 
-# Set $pkgdir to the path of the package directory inside $releasedir.
+# Set $pkgdir to the path of the package directory inside $stagedir.
 if [ -z "$pkgdir" ]; then
-	pkgdir="$releasedir/$package"
+	pkgdir="$stagedir/$package"
 	if [ ! -d "$pkgdir" ]; then
 		$mkdir -p "$pkgdir"
 	fi
@@ -483,5 +488,5 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Removing previous archive: $archive"
 		$rm -f "$archive"
 	fi
-	$zip "$archive" "$pkgdir"
+	$zip "$archive" "$stagedir"/*
 fi
