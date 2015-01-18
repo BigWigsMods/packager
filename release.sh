@@ -156,7 +156,7 @@ esac
 # Create the staging directory.
 $mkdir -p "$releasedir"
 
-# Expand $topdir, $releasedir, and $stagedir to their absolute paths for string comparisons later.
+# Expand $topdir and $releasedir to their absolute paths for string comparisons later.
 topdir=`cd "$topdir" && pwd`
 releasedir=`cd "$releasedir" && pwd`
 
@@ -199,6 +199,7 @@ changelog_markup=text
 enable_nolib_creation="not supported"
 ignore=
 license="LICENSE.txt"
+contents=
 
 ### Simple .pkgmeta YAML processor.
 
@@ -326,21 +327,18 @@ if [ -z "$package" ]; then
 	esac
 fi
 
-# Set $stagedir to the directory which will contain everything to add to the zipfile.
-stagedir="$releasedir/stage"
-if [ -d "$stagedir" -a -z "$overwrite" ]; then
-	echo "Removing previous staging directory: $stagedir"
-	$rm -fr "$stagedir"
+# Set $pkgdir to the path of the package directory inside $releasedir.
+: ${pkgdir:="$releasedir/$package"}
+if [ -d "$pkgdir" -a -z "$overwrite" ]; then
+	echo "Removing previous package directory: $pkgdir"
+	$rm -fr "$pkgdir"
 fi
-if [ ! -d "$stagedir" ]; then
-	$mkdir -p "$stagedir"
-fi
-
-# Set $pkgdir to the path of the package directory inside $stagedir.
-: ${pkgdir:="$stagedir/$package"}
 if [ ! -d "$pkgdir" ]; then
 	$mkdir -p "$pkgdir"
 fi
+
+# Set the contents of the addon zipfile.
+contents="$package"
 
 # Copy files from working directory into the package directory.
 # Prune away any files in the .git and release directories.
@@ -461,14 +459,32 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					fi
 					;;
 				move-folders)
-					srcdir="$stagedir/$yaml_key"
-					destdir="$stagedir/$yaml_value"
-					if [ -d "$destdir" ]; then
+					srcdir="$releasedir/$yaml_key"
+					destdir="$releasedir/$yaml_value"
+					if [ -d "$destdir" -a -z "$overwrite" ]; then
+						echo "Removing previous moved folder: $destdir"
 						$rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
-						echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
-						$mv "$srcdir" "$destdir"
+						if [ -z "$overwrite" ]; then
+							echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
+							$mv "$srcdir" "$destdir"
+						else
+							echo "Copying contents of \`\`$yaml_key'' to \`\`$destdir''"
+							$mkdir -p "$destdir"
+							$find "$srcdir" -print | while read file; do
+								file=${file#"$releasedir/"}
+								if [ "$file" != "$releasedir" -a -f "$releasedir/$file" ]; then
+									dir=${file%/*}
+									if [ "$dir" != "$file" ]; then
+										$mkdir -p "$destdir/$dir"
+									fi
+									$cp "$releasedir/$file" "$destdir/$dir"
+									echo "Copied: $file"
+								fi
+							done
+						fi
+						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
 						if [ ! -f "$destdir/$license" ]; then
 							$cp -f "$pkgdir/$license" "$destdir/$license"
@@ -539,5 +555,5 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Removing previous archive: $archive"
 		$rm -f "$archive"
 	fi
-	$zip "$archive" "$stagedir"/*
+	( cd "$releasedir" && $zip "$archive" $contents )
 fi
