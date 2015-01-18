@@ -54,7 +54,9 @@ zip() {
 project=
 topdir=
 releasedir=
-stagedir=
+overwrite=
+skip_externals=
+skip_zipfile=
 
 # Set $topdir to top-level directory of the Git checkout.
 if [ -z "$topdir" ]; then
@@ -103,7 +105,7 @@ while getopts ":eon:r:t:z" opt; do
 		;;
 	o)
 		# Skip deleting any previous package directory.
-		skip_delete_pkgdir=true
+		overwrite=true
 		;;
 	r)
 		# Set the release directory to a non-default value.
@@ -146,16 +148,12 @@ $topdir/*)	;;
 	;;
 esac
 
-# Set $stagedir to the directory which will contain everything to add to the zipfile.
-stagedir="$releasedir/stage"
-
 # Create the staging directory.
-$mkdir -p "$stagedir"
+$mkdir -p "$releasedir"
 
 # Expand $topdir, $releasedir, and $stagedir to their absolute paths for string comparisons later.
 topdir=`cd "$topdir" && pwd`
 releasedir=`cd "$releasedir" && pwd`
-stagedir=`cd "$stagedir" && pwd`
 
 # Get the tag for the HEAD.
 tag=`$git describe HEAD --abbrev=0 2>/dev/null`
@@ -179,6 +177,15 @@ if [ -z "$rtag" ]; then
 	echo "No previous release tag found."
 else
 	echo "Previous release tag: $rtag"
+fi
+
+# Set $version to the version number of HEAD.  May be empty if there are no commits.
+version="$tag"
+if [ -z "$version" ]; then
+	version=`$git describe HEAD 2>/dev/null`
+	if [ -z "$version" ]; then
+		version=`$git rev-parse --short HEAD 2>/dev/null`
+	fi
 fi
 
 # Variables set via .pkgmeta.
@@ -234,13 +241,11 @@ checkout_queued_external() {
 	external_tag=
 }
 
+# First scan of .pkgmeta to set variables.
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r line; do
 		case $line in
 		[!\ ]*:*)
-			# Started a new section, so checkout any queued externals.
-			checkout_queued_external
-
 			# Split $line into a $yaml_key, $yaml_value pair.
 			yaml_keyvalue "$line"
 			# Set the $pkgmeta_phase for stateful processing.
@@ -258,14 +263,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				;;
 			package-as)
 				package=$yaml_value
-				pkgdir="$stagedir/$package"
-				if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
-					echo "Removing previous package directory: $pkgdir"
-					$rm -fr "$pkgdir"
-				fi
-				if [ ! -d "$pkgdir" ]; then
-					$mkdir -p "$pkgdir"
-				fi
 				;;
 			esac
 			;;
@@ -293,30 +290,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				# Split $line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$line"
 				case $pkgmeta_phase in
-				externals)
-					if [ -z "$skip_externals" ]; then
-						case $yaml_key in
-						url)
-							# Queue external URI for checkout.
-							external_uri=$yaml_value
-							;;
-						tag)
-							# Queue external tag for checkout.
-							external_tag=$yaml_value
-							;;
-						*)
-							# Started a new external, so checkout any queued externals.
-							checkout_queued_external
-							external_dir=$yaml_key
-							if [ -n "$yaml_value" ]; then
-								external_uri=$yaml_value
-								# Immediately checkout this fully-specified external.
-								checkout_queued_external
-							fi
-							;;
-						esac
-					fi
-					;;
 				manual-changelog)
 					case $yaml_key in
 					filename)
@@ -335,15 +308,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
-# Set $version to the version number of HEAD.  May be empty if there are no commits.
-version="$tag"
-if [ -z "$version" ]; then
-	version=`$git describe HEAD 2>/dev/null`
-	if [ -z "$version" ]; then
-		version=`$git rev-parse --short HEAD 2>/dev/null`
-	fi
-fi
-
 # Set $package to the basename of the Git checkout directory if not already set.
 if [ -z "$package" ]; then
 	# Use the basename of the Git checkout directory as the package name.
@@ -357,17 +321,25 @@ if [ -z "$package" ]; then
 	esac
 fi
 
+# Set $stagedir to the directory which will contain everything to add to the zipfile.
+stagedir="$releasedir/stage"
+if [ -d "$stagedir" -a -z "$overwrite" ]; then
+	echo "Removing previous staging directory: $stagedir"
+	$rm -fr "$stagedir"
+fi
+if [ ! -d "$stagedir" ]; then
+	$mkdir -p "$stagedir"
+fi
+
 # Set $pkgdir to the path of the package directory inside $stagedir.
-if [ -z "$pkgdir" ]; then
-	pkgdir="$stagedir/$package"
-	if [ ! -d "$pkgdir" ]; then
-		$mkdir -p "$pkgdir"
-	fi
+: ${pkgdir:="$stagedir/$package"}
+if [ ! -d "$pkgdir" ]; then
+	$mkdir -p "$pkgdir"
 fi
 
 # Copy files from working directory into the package directory.
 # Prune away any files in the .git and release directories.
-echo "Copying files into \`\`$pkgdir''..."
+echo "Copying files into \`\`$pkgdir'':"
 $find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
 	file=${file#$topdir/}
 	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
@@ -431,6 +403,59 @@ $find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -p
 		fi
 	fi
 done
+
+# Second scan of .pkgmeta to perform actions.
+if [ -f "$topdir/.pkgmeta" ]; then
+	while IFS='' read -r line; do
+		case $line in
+		[!\ ]*:*)
+			# Started a new section, so checkout any queued externals.
+			checkout_queued_external
+			# Split $line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$line"
+			# Set the $pkgmeta_phase for stateful processing.
+			pkgmeta_phase=$yaml_key
+			;;
+		" "*)
+			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
+			case $line in
+			"- "*)
+				;;
+			*:*)
+				# Split $line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$line"
+				case $pkgmeta_phase in
+				externals)
+					if [ -z "$skip_externals" ]; then
+						case $yaml_key in
+						url)
+							# Queue external URI for checkout.
+							external_uri=$yaml_value
+							;;
+						tag)
+							# Queue external tag for checkout.
+							external_tag=$yaml_value
+							;;
+						*)
+							# Started a new external, so checkout any queued externals.
+							checkout_queued_external
+							external_dir=$yaml_key
+							if [ -n "$yaml_value" ]; then
+								external_uri=$yaml_value
+								# Immediately checkout this fully-specified external.
+								checkout_queued_external
+							fi
+							;;
+						esac
+					fi
+					;;
+				esac
+				;;
+			esac
+			;;
+		esac
+	done < "$topdir/.pkgmeta"
+fi
 
 # Find the name of the project if unset.
 if [ -z "$project" ]; then
