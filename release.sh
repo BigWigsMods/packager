@@ -34,6 +34,7 @@ cmp=cmp
 cp=cp
 find=find
 mkdir=mkdir
+mv=mv
 pwd=pwd
 rm=rm
 sed=sed
@@ -447,6 +448,17 @@ if [ -f "$topdir/.pkgmeta" ]; then
 							fi
 							;;
 						esac
+					fi
+					;;
+				move-folders)
+					srcdir="$stagedir/$yaml_key"
+					destdir="$stagedir/$yaml_value"
+					if [ -d "$destdir" ]; then
+						$rm -fr "$destdir"
+					fi
+					if [ -d "$srcdir" ]; then
+						echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
+						$mv "$srcdir" "$destdir"
 					fi
 					;;
 				esac
