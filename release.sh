@@ -176,73 +176,158 @@ else
 	echo "Previous release tag: $rtag"
 fi
 
-# Simple .pkgmeta processor.
+# Variables set via .pkgmeta.
+changelog=
+changelog_markup=text
+enable_nolib_creation="not supported"
 ignore=
+license="not supported"
+
+### Simple .pkgmeta YAML processor.
+
+yaml_keyvalue() {
+	yaml_key=${1%%:*}
+	yaml_value=${1#$yaml_key:}
+	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"}	# trim leading whitespace
+}
+
+yaml_listitem() {
+	yaml_item=${1#-}
+	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"}	# trim leading whitespace
+}
+
+# Queue for external checkouts.
+external_dir=
+external_uri=
+external_tag=
+
+checkout_queued_external() {
+	if [ -n "$external_dir" -a -n "$external_uri" ]; then
+		$mkdir -p "$pkgdir/$external_dir"
+		echo "Getting checkout for $external_uri"
+		case $external_uri in
+		git:*)
+			$git clone "$external_uri" "$pkgdir/$external_dir"
+			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
+				$rm -fr "$dir"
+			done
+			;;
+		svn:*)
+			$svn checkout "$external_uri" "$pkgdir/$external_dir"
+			$find "$pkgdir/$external_dir" -name .svn -print | while IFS='' read -r dir; do
+				$rm -fr "$dir"
+			done
+			;;
+		*)
+			echo "Unknown external: $external_uri" >&2
+			;;
+		esac
+	fi
+	# Clear the queue.
+	external_dir=
+	external_uri=
+	external_tag=
+}
+
 if [ -f "$topdir/.pkgmeta" ]; then
-	while read line; do
+	while IFS='' read -r line; do
 		case $line in
-		package-as:*)
-			phase=${line%%:*}
-			package=${line#*: }
-			pkgdir="$releasedir/$package"
-			if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
-				echo "Removing previous package directory: $pkgdir"
-				$rm -fr "$pkgdir"
-			fi
-			if [ ! -d "$pkgdir" ]; then
-				$mkdir -p "$pkgdir"
-			fi
+		[!\ ]*:*)
+			# Started a new section, so checkout any queued externals.
+			checkout_queued_external
+
+			# Split $line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$line"
+			# Set the $pkgmeta_phase for stateful processing.
+			pkgmeta_phase=$yaml_key
+
+			case $yaml_key in
+			enable-nolib-creation)
+				enable_nolib_creation=$yaml_value
+				;;
+			license-output)
+				license=$yaml_value
+				;;
+			manual-changelog)
+				changelog=$yaml_value
+				;;
+			package-as)
+				package=$yaml_value
+				pkgdir="$releasedir/$package"
+				if [ -d "$pkgdir" -a -z "$skip_delete_pkgdir" ]; then
+					echo "Removing previous package directory: $pkgdir"
+					$rm -fr "$pkgdir"
+				fi
+				if [ ! -d "$pkgdir" ]; then
+					$mkdir -p "$pkgdir"
+				fi
+				;;
+			esac
 			;;
-		externals:*)
-			phase=${line%%:*}
-			;;
-		ignore:*)
-			phase=${line%%:*}
-			;;
-		manual-changelog:*)
-			phase=${line%%:*}
-			changelog=${line#*: }
-			;;
-		filename:*)
-			if [ "$phase" = "manual-changelog" ]; then
-				changelog=${line#*: }
-			fi
-			;;
-		*git*|*svn*)
-			if [ "$phase" = "externals" -a -z "$skip_externals" ]; then
-				dir=${line%%:*}
-				uri=${line#*: }
-				$mkdir -p "$pkgdir/$dir"
-				case $uri in
-				git:*)
-					echo "Getting checkout for $uri"
-					$git clone $uri "$pkgdir/$dir"
-					;;
-				svn:*)
-					echo "Getting checkout for $uri"
-					$svn checkout $uri "$pkgdir/$dir"
+		" "*)
+			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
+			case $line in
+			"- "*)
+				# Get the YAML list item.
+				yaml_listitem "$line"
+				case $pkgmeta_phase in
+				ignore)
+					pattern=$yaml_item
+					if [ -d "$topdir/$pattern" ]; then
+						pattern="$pattern/*"
+					fi
+					if [ -z "$ignore" ]; then
+						ignore="$pattern"
+					else
+						ignore="$ignore:$pattern"
+					fi
 					;;
 				esac
-			fi
-			;;
-		*"- "*)
-			if [ "$phase" = "ignore" ]; then
-				pattern=${line#*- }
-				if [ -d "../$pattern" ]; then
-					pattern="$pattern/*"
-				fi
-				if [ -z "$ignore" ]; then
-					ignore="$pattern"
-				else
-					ignore="$ignore:$pattern"
-				fi
-			fi
+				;;
+			*:*)
+				# Split $line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$line"
+				case $pkgmeta_phase in
+				externals)
+					if [ -z "$skip_externals" ]; then
+						case $yaml_key in
+						url)
+							# Queue external URI for checkout.
+							external_uri=$yaml_value
+							;;
+						tag)
+							# Queue external tag for checkout.
+							external_tag=$yaml_value
+							;;
+						*)
+							# Started a new external, so checkout any queued externals.
+							checkout_queued_external
+							external_dir=$yaml_key
+							if [ -n "$yaml_value" ]; then
+								external_uri=$yaml_value
+								# Immediately checkout this fully-specified external.
+								checkout_queued_external
+							fi
+							;;
+						esac
+					fi
+					;;
+				manual-changelog)
+					case $yaml_key in
+					filename)
+						changelog=$yaml_value
+						;;
+					markup-type)
+						changelog_markup=$yaml_value
+						;;
+					esac
+					;;
+				esac
+				;;
+			esac
 			;;
 		esac
 	done < "$topdir/.pkgmeta"
-	$find "$pkgdir" -name .git -print -o -name .svn -print | while read dir; do
-		$rm -fr "$dir"
-	done
 fi
 
 # Set $version to the version number of HEAD.  May be empty if there are no commits.
