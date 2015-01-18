@@ -51,6 +51,10 @@ zip() {
 	$sevenzip a -tzip $archive "$@"
 }
 
+unix2dos() {
+	$sed -i "s/$/\r/" "$1"
+}
+
 # Variables set via options.
 project=
 topdir=
@@ -194,7 +198,7 @@ changelog=
 changelog_markup=text
 enable_nolib_creation="not supported"
 ignore=
-license="not supported"
+license="LICENSE.txt"
 
 ### Simple .pkgmeta YAML processor.
 
@@ -405,6 +409,12 @@ $find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -p
 	fi
 done
 
+# Create a default license if one doesn't exist.
+if [ -n "$license" -a ! -f "$pkgdir/$license" ]; then
+	echo "All Rights Reserved." > "$pkgdir/$license"
+	unix2dos "$pkgdir/$license"
+fi
+
 # Second scan of .pkgmeta to perform actions.
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r line; do
@@ -459,6 +469,10 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					if [ -d "$srcdir" ]; then
 						echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
 						$mv "$srcdir" "$destdir"
+						# Copy the license into $destdir if one doesn't already exist.
+						if [ ! -f "$destdir/$license" ]; then
+							$cp -f "$pkgdir/$license" "$destdir/$license"
+						fi
 					fi
 					;;
 				esac
@@ -511,7 +525,7 @@ $change_string
 
 EOF
 	$git log $git_commit_range --pretty=format:"- %B" >> "$pkgdir/$changelog"
-	$sed -i "s/$/\r/" "$pkgdir/$changelog"
+	unix2dos "$pkgdir/$changelog"
 fi
 
 # Creating the final zipfile for the addon.
