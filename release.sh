@@ -204,7 +204,7 @@ changelog=
 changelog_markup="plain"
 enable_nolib_creation="not supported"
 ignore=
-license="LICENSE.txt"
+license=
 contents=
 
 ### Simple .pkgmeta YAML processor.
@@ -423,7 +423,16 @@ if [ -z "$skip_copying" ]; then
 fi
 
 # Create a default license if one doesn't exist.
-if [ -n "$license" -a ! -f "$pkgdir/$license" ]; then
+create_license=
+if [ -z "$license" ]; then
+	license="LICENSE.txt"
+	create_license=true
+fi
+if [ ! -f "$pkgdir/$license" ]; then
+	create_license=true
+fi
+if [ -n "$create_license" ]; then
+	echo "Generating default license into $license."
 	echo "All Rights Reserved." > "$pkgdir/$license"
 	unix2dos "$pkgdir/$license"
 fi
