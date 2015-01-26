@@ -531,27 +531,33 @@ fi
 : ${project:="$package"}
 
 # Create changelog of commits since the previous release tag.
+create_changelog=
 if [ -n "$version" ]; then
 	if [ -z "$changelog" ]; then
 		changelog="CHANGELOG.md"
+		create_changelog=true
 	fi
-	if [ -n "$rtag" ]; then
-		echo "Generating changelog of commits since $rtag into $changelog."
-		change_string="Changes from version $rtag:"
-		git_commit_range="$rtag..HEAD"
-	else
-		echo "Generating changelog of commits into $changelog."
-		change_string="All changes:"
-		git_commit_range=
+	if [ ! -f "$pkgdir/$changelog" ]; then
+		create_changelog=true
 	fi
-	change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
-	if [ -n "$version" ]; then
-		project_string="$project $version"
-	else
-		project_string="$project (unreleased)"
-	fi
-	project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
-	$cat > "$pkgdir/$changelog" << EOF
+	if [ -n "$create_changelog" ]; then
+		if [ -n "$rtag" ]; then
+			echo "Generating changelog of commits since $rtag into $changelog."
+			change_string="Changes from version $rtag:"
+			git_commit_range="$rtag..HEAD"
+		else
+			echo "Generating changelog of commits into $changelog."
+			change_string="All changes:"
+			git_commit_range=
+		fi
+		change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
+		if [ -n "$version" ]; then
+			project_string="$project $version"
+		else
+			project_string="$project (unreleased)"
+		fi
+		project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
+		$cat > "$pkgdir/$changelog" << EOF
 $project_string
 $project_string_underline
 
@@ -559,9 +565,10 @@ $change_string
 $change_string_underline
 
 EOF
-	$git log $git_commit_range --pretty=format:"###   %B" |
-		$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
-	unix2dos "$pkgdir/$changelog"
+		$git log $git_commit_range --pretty=format:"###   %B" |
+			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
+		unix2dos "$pkgdir/$changelog"
+	fi
 fi
 
 # Creating the final zipfile for the addon.
