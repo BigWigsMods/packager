@@ -60,6 +60,7 @@ project=
 topdir=
 releasedir=
 overwrite=
+skip_copying=
 skip_externals=
 skip_zipfile=
 
@@ -90,6 +91,7 @@ fi
 
 usage() {
 	echo "Usage: release.sh [-eoz] [-n name] [-r releasedir] [-t topdir]" >&2
+	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -n name          Set the name of the addon." >&2
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
@@ -99,8 +101,12 @@ usage() {
 }
 
 # Process command-line options
-while getopts ":eon:r:t:z" opt; do
+while getopts ":ceon:r:t:z" opt; do
 	case $opt in
+	c)
+		# Skip copying files into the package directory.
+		skip_copying=true
+		;;
 	e)
 		# Skip checkout of external repositories.
 		skip_externals=true
@@ -349,70 +355,72 @@ contents="$package"
 
 # Copy files from working directory into the package directory.
 # Prune away any files in the .git and release directories.
-echo "Copying files into \`\`$pkgdir'':"
-$find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
-	file=${file#$topdir/}
-	if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
-		# Check if the file should be ignored.
-		ignored=
-		# Ignore files that start with a dot.
-		if [ -z "$ignored" ]; then
-			case $file in
-			.*)
-				echo "Ignoring: $file"
-				ignored=true
-				;;
-			esac
-		fi
-		# Ignore files matching patterns set via .pkgmeta "ignore".
-		if [ -z "$ignored" ]; then
-			list="$ignore:"
-			while [ -n "$list" ]; do
-				pattern=${list%%:*}
-				list=${list#*:}
+if [ -z "$skip_copying" ]; then
+	echo "Copying files into \`\`$pkgdir'':"
+	$find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
+		file=${file#$topdir/}
+		if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
+			# Check if the file should be ignored.
+			ignored=
+			# Ignore files that start with a dot.
+			if [ -z "$ignored" ]; then
 				case $file in
-				$pattern)
+				.*)
 					echo "Ignoring: $file"
 					ignored=true
-					break
 					;;
 				esac
-			done
-		fi
-		# Copy any unignored files into $pkgdir.
-		if [ -z "$ignored" ]; then
-			dir=${file%/*}
-			if [ "$dir" != "$file" ]; then
-				$mkdir -p "$pkgdir/$dir"
 			fi
-			# Check if the file matches a pattern for keyword replacement.
-			keyword="*.lua:*.md:*.toc:*.xml"
-			list="$keyword:"
-			replaced=
-			while [ -n "$list" ]; do
-				pattern=${list%%:*}
-				list=${list#*:}
-				case $file in
-				$pattern)
-					replaced=true
-					break
-					;;
-				esac
-			done
-			if [ -n "$replaced" -a -n "$version" ]; then
-				$sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
-				if $cmp -s "$topdir/$file" "$pkgdir/$file"; then
-					echo "Copied: $file"
-				else
-					echo "Replaced repository keywords: $file"
+			# Ignore files matching patterns set via .pkgmeta "ignore".
+			if [ -z "$ignored" ]; then
+				list="$ignore:"
+				while [ -n "$list" ]; do
+					pattern=${list%%:*}
+					list=${list#*:}
+					case $file in
+					$pattern)
+						echo "Ignoring: $file"
+						ignored=true
+						break
+						;;
+					esac
+				done
+			fi
+			# Copy any unignored files into $pkgdir.
+			if [ -z "$ignored" ]; then
+				dir=${file%/*}
+				if [ "$dir" != "$file" ]; then
+					$mkdir -p "$pkgdir/$dir"
 				fi
-			else
-				$cp "$topdir/$file" "$pkgdir/$dir"
-				echo "Copied: $file"
+				# Check if the file matches a pattern for keyword replacement.
+				keyword="*.lua:*.md:*.toc:*.xml"
+				list="$keyword:"
+				replaced=
+				while [ -n "$list" ]; do
+					pattern=${list%%:*}
+					list=${list#*:}
+					case $file in
+					$pattern)
+						replaced=true
+						break
+						;;
+					esac
+				done
+				if [ -n "$replaced" -a -n "$version" ]; then
+					$sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
+					if $cmp -s "$topdir/$file" "$pkgdir/$file"; then
+						echo "Copied: $file"
+					else
+						echo "Replaced repository keywords: $file"
+					fi
+				else
+					$cp "$topdir/$file" "$pkgdir/$dir"
+					echo "Copied: $file"
+				fi
 			fi
 		fi
-	fi
-done
+	done
+fi
 
 # Create a default license if one doesn't exist.
 if [ -n "$license" -a ! -f "$pkgdir/$license" ]; then
