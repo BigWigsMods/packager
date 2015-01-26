@@ -201,7 +201,7 @@ fi
 
 # Variables set via .pkgmeta.
 changelog=
-changelog_markup=text
+changelog_markup="plain"
 enable_nolib_creation="not supported"
 ignore=
 license="LICENSE.txt"
@@ -533,7 +533,7 @@ fi
 # Create changelog of commits since the previous release tag.
 if [ -n "$version" ]; then
 	if [ -z "$changelog" ]; then
-		changelog="CHANGELOG.txt"
+		changelog="CHANGELOG.md"
 	fi
 	if [ -n "$rtag" ]; then
 		echo "Generating changelog of commits since $rtag into $changelog."
@@ -544,18 +544,23 @@ if [ -n "$version" ]; then
 		change_string="All changes:"
 		git_commit_range=
 	fi
+	change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
 	if [ -n "$version" ]; then
 		project_string="$project $version"
 	else
 		project_string="$project (unreleased)"
 	fi
+	project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
 	$cat > "$pkgdir/$changelog" << EOF
 $project_string
+$project_string_underline
 
 $change_string
+$change_string_underline
 
 EOF
-	$git log $git_commit_range --pretty=format:"- %B" >> "$pkgdir/$changelog"
+	$git log $git_commit_range --pretty=format:"###   %B" |
+		$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
 	unix2dos "$pkgdir/$changelog"
 fi
 
