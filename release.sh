@@ -543,7 +543,7 @@ fi
 create_changelog=
 if [ -n "$version" ]; then
 	if [ -z "$changelog" ]; then
-		changelog="CHANGELOG.md"
+		changelog="CHANGELOG.txt"
 		create_changelog=true
 	fi
 	if [ ! -f "$pkgdir/$changelog" ]; then
