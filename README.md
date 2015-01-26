@@ -7,7 +7,7 @@ create a distributable addon zipfile.
 
 __release.sh__ reads .pkgmeta and supports the following directives:
 
-  - *externals*
+  - *externals* (Git and SVN)
   - *ignore*
   - *license-output* (for default "All Rights Reserved" license)
   - *manual-changelog*
