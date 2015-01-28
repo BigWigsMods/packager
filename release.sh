@@ -426,7 +426,6 @@ fi
 create_license=
 if [ -z "$license" ]; then
 	license="LICENSE.txt"
-	create_license=true
 fi
 if [ ! -f "$pkgdir/$license" ]; then
 	create_license=true
@@ -544,7 +543,6 @@ create_changelog=
 if [ -n "$version" ]; then
 	if [ -z "$changelog" ]; then
 		changelog="CHANGELOG.txt"
-		create_changelog=true
 	fi
 	if [ ! -f "$pkgdir/$changelog" ]; then
 		create_changelog=true
