@@ -438,7 +438,7 @@ if [ -n "$create_license" ]; then
 	unix2dos "$pkgdir/$license"
 fi
 
-# Second scan of .pkgmeta to perform actions.
+# Second scan of .pkgmeta to perform pre-move-folders actions.
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r line; do
 		case $line in
@@ -481,39 +481,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 							fi
 							;;
 						esac
-					fi
-					;;
-				move-folders)
-					srcdir="$releasedir/$yaml_key"
-					destdir="$releasedir/$yaml_value"
-					if [ -d "$destdir" -a -z "$overwrite" ]; then
-						echo "Removing previous moved folder: $destdir"
-						$rm -fr "$destdir"
-					fi
-					if [ -d "$srcdir" ]; then
-						if [ -z "$overwrite" ]; then
-							echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
-							$mv "$srcdir" "$destdir"
-						else
-							echo "Copying contents of \`\`$yaml_key'' to \`\`$destdir''"
-							$mkdir -p "$destdir"
-							$find "$srcdir" -print | while read file; do
-								file=${file#"$releasedir/"}
-								if [ "$file" != "$releasedir" -a -f "$releasedir/$file" ]; then
-									dir=${file%/*}
-									if [ "$dir" != "$file" ]; then
-										$mkdir -p "$destdir/$dir"
-									fi
-									$cp "$releasedir/$file" "$destdir/$dir"
-									echo "Copied: $file"
-								fi
-							done
-						fi
-						contents="$contents $yaml_value"
-						# Copy the license into $destdir if one doesn't already exist.
-						if [ ! -f "$destdir/$license" ]; then
-							$cp -f "$pkgdir/$license" "$destdir/$license"
-						fi
 					fi
 					;;
 				esac
@@ -580,6 +547,66 @@ EOF
 			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
 		unix2dos "$pkgdir/$changelog"
 	fi
+fi
+
+# Third scan of .pkgmeta to perform move-folders actions.
+if [ -f "$topdir/.pkgmeta" ]; then
+	while IFS='' read -r line; do
+		case $line in
+		[!\ ]*:*)
+			# Split $line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$line"
+			# Set the $pkgmeta_phase for stateful processing.
+			pkgmeta_phase=$yaml_key
+			;;
+		" "*)
+			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
+			case $line in
+			"- "*)
+				;;
+			*:*)
+				# Split $line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$line"
+				case $pkgmeta_phase in
+				move-folders)
+					srcdir="$releasedir/$yaml_key"
+					destdir="$releasedir/$yaml_value"
+					if [ -d "$destdir" -a -z "$overwrite" ]; then
+						echo "Removing previous moved folder: $destdir"
+						$rm -fr "$destdir"
+					fi
+					if [ -d "$srcdir" ]; then
+						if [ -z "$overwrite" ]; then
+							echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
+							$mv "$srcdir" "$destdir"
+						else
+							echo "Copying contents of \`\`$yaml_key'' to \`\`$destdir''"
+							$mkdir -p "$destdir"
+							$find "$srcdir" -print | while read file; do
+								file=${file#"$releasedir/"}
+								if [ "$file" != "$releasedir" -a -f "$releasedir/$file" ]; then
+									dir=${file%/*}
+									if [ "$dir" != "$file" ]; then
+										$mkdir -p "$destdir/$dir"
+									fi
+									$cp "$releasedir/$file" "$destdir/$dir"
+									echo "Copied: $file"
+								fi
+							done
+						fi
+						contents="$contents $yaml_value"
+						# Copy the license into $destdir if one doesn't already exist.
+						if [ ! -f "$destdir/$license" ]; then
+							$cp -f "$pkgdir/$license" "$destdir/$license"
+						fi
+					fi
+					;;
+				esac
+				;;
+			esac
+			;;
+		esac
+	done < "$topdir/.pkgmeta"
 fi
 
 # Creating the final zipfile for the addon.
