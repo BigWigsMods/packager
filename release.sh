@@ -427,7 +427,9 @@ create_license=
 if [ -z "$license" ]; then
 	license="LICENSE.txt"
 fi
-if [ ! -f "$pkgdir/$license" ]; then
+# Create a default license in the package directory if the source directory does
+# not contain a license file.
+if [ ! -f "$topdir/$license" ]; then
 	create_license=true
 fi
 if [ -n "$create_license" ]; then
@@ -544,7 +546,9 @@ if [ -n "$version" ]; then
 	if [ -z "$changelog" ]; then
 		changelog="CHANGELOG.txt"
 	fi
-	if [ ! -f "$pkgdir/$changelog" ]; then
+	# Create a changelog in the package directory if the source directory does
+	# not contain a manual changelog.
+	if [ ! -f "$topdir/$changelog" ]; then
 		create_changelog=true
 	fi
 	if [ -n "$create_changelog" ]; then
