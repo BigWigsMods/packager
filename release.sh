@@ -90,7 +90,7 @@ fi
 : ${releasedir:="$topdir/release"}
 
 usage() {
-	echo "Usage: release.sh [-eoz] [-n name] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-ceoz] [-n name] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -n name          Set the name of the addon." >&2
