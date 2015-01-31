@@ -220,46 +220,6 @@ yaml_listitem() {
 	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"}	# trim leading whitespace
 }
 
-# Queue for external checkouts.
-external_dir=
-external_uri=
-external_tag=
-
-checkout_queued_external() {
-	if [ -n "$external_dir" -a -n "$external_uri" ]; then
-		$mkdir -p "$pkgdir/$external_dir"
-		echo "Getting checkout for $external_uri"
-		case $external_uri in
-		git:*)
-			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				$git clone --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
-			else
-				$git clone "$external_uri" "$pkgdir/$external_dir"
-			fi
-			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
-				$rm -fr "$dir"
-			done
-			;;
-		svn:*)
-			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				echo "Warning: SVN tag checkout for \`\`$external_tag'' must be given in the URI."
-			fi
-			$svn checkout "$external_uri" "$pkgdir/$external_dir"
-			$find "$pkgdir/$external_dir" -name .svn -print | while IFS='' read -r dir; do
-				$rm -fr "$dir"
-			done
-			;;
-		*)
-			echo "Unknown external: $external_uri" >&2
-			;;
-		esac
-	fi
-	# Clear the queue.
-	external_dir=
-	external_uri=
-	external_tag=
-}
-
 # First scan of .pkgmeta to set variables.
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r line; do
@@ -437,6 +397,46 @@ if [ -n "$create_license" ]; then
 	echo "All Rights Reserved." > "$pkgdir/$license"
 	unix2dos "$pkgdir/$license"
 fi
+
+# Queue for external checkouts.
+external_dir=
+external_uri=
+external_tag=
+
+checkout_queued_external() {
+	if [ -n "$external_dir" -a -n "$external_uri" ]; then
+		$mkdir -p "$pkgdir/$external_dir"
+		echo "Getting checkout for $external_uri"
+		case $external_uri in
+		git:*)
+			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
+				$git clone --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
+			else
+				$git clone "$external_uri" "$pkgdir/$external_dir"
+			fi
+			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
+				$rm -fr "$dir"
+			done
+			;;
+		svn:*)
+			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
+				echo "Warning: SVN tag checkout for \`\`$external_tag'' must be given in the URI."
+			fi
+			$svn checkout "$external_uri" "$pkgdir/$external_dir"
+			$find "$pkgdir/$external_dir" -name .svn -print | while IFS='' read -r dir; do
+				$rm -fr "$dir"
+			done
+			;;
+		*)
+			echo "Unknown external: $external_uri" >&2
+			;;
+		esac
+	fi
+	# Clear the queue.
+	external_dir=
+	external_uri=
+	external_tag=
+}
 
 # Second scan of .pkgmeta to perform pre-move-folders actions.
 if [ -f "$topdir/.pkgmeta" ]; then
