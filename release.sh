@@ -432,7 +432,7 @@ if [ -z "$skip_copying" ]; then
 						;;
 					esac
 				done
-				if [ -n "$replaced" -a -n "$version" ]; then
+				if [ -n "$replaced" ]; then
 					filter=update_localization_filter
 					if [ -n "$skip_localization" ]; then
 						filter=cat
@@ -577,33 +577,28 @@ fi
 
 # Create changelog of commits since the previous release tag.
 create_changelog=
-if [ -n "$version" ]; then
-	if [ -z "$changelog" ]; then
-		changelog="CHANGELOG.txt"
+if [ -z "$changelog" ]; then
+	changelog="CHANGELOG.txt"
+fi
+# Create a changelog in the package directory if the source directory does
+# not contain a manual changelog.
+if [ ! -f "$topdir/$changelog" ]; then
+	create_changelog=true
+fi
+if [ -n "$create_changelog" ]; then
+	if [ -n "$rtag" ]; then
+		echo "Generating changelog of commits since $rtag into $changelog."
+		change_string="Changes from version $rtag:"
+		git_commit_range="$rtag..HEAD"
+	else
+		echo "Generating changelog of commits into $changelog."
+		change_string="All changes:"
+		git_commit_range=
 	fi
-	# Create a changelog in the package directory if the source directory does
-	# not contain a manual changelog.
-	if [ ! -f "$topdir/$changelog" ]; then
-		create_changelog=true
-	fi
-	if [ -n "$create_changelog" ]; then
-		if [ -n "$rtag" ]; then
-			echo "Generating changelog of commits since $rtag into $changelog."
-			change_string="Changes from version $rtag:"
-			git_commit_range="$rtag..HEAD"
-		else
-			echo "Generating changelog of commits into $changelog."
-			change_string="All changes:"
-			git_commit_range=
-		fi
-		change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
-		if [ -n "$version" ]; then
-			project_string="$project $version"
-		else
-			project_string="$project (unreleased)"
-		fi
-		project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
-		$cat > "$pkgdir/$changelog" << EOF
+	change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
+	project_string="$project $version"
+	project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
+	$cat > "$pkgdir/$changelog" << EOF
 $project_string
 $project_string_underline
 
@@ -611,10 +606,9 @@ $change_string
 $change_string_underline
 
 EOF
-		$git log $git_commit_range --pretty=format:"###   %B" |
-			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
-		unix2dos "$pkgdir/$changelog"
-	fi
+	$git log $git_commit_range --pretty=format:"###   %B" |
+		$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
+	unix2dos "$pkgdir/$changelog"
 fi
 
 # Third scan of .pkgmeta to perform move-folders actions.
@@ -679,11 +673,7 @@ fi
 
 # Creating the final zipfile for the addon.
 if [ -z "$skip_zipfile" ]; then
-	if [ -n "$version" ]; then
-		archive="$releasedir/$package-$version.zip"
-	else
-		archive="$releasedir/$package-unreleased.zip"
-	fi
+	archive="$releasedir/$package-$version.zip"
 	if [ -f "$archive" ]; then
 		echo "Removing previous archive: $archive"
 		$rm -f "$archive"
