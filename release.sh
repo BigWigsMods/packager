@@ -38,8 +38,10 @@ mv=mv
 pwd=pwd
 rm=rm
 sed=sed
+tr=tr
 
 # Non-POSIX tools.
+curl=curl
 git=git
 svn=svn
 zip=zip
@@ -60,8 +62,10 @@ project=
 topdir=
 releasedir=
 overwrite=
+site_url="http://wow.curseforge.com"
 skip_copying=
 skip_externals=
+skip_localization=
 skip_zipfile=
 
 # Set $topdir to top-level directory of the Git checkout.
@@ -90,18 +94,20 @@ fi
 : ${releasedir:="$topdir/release"}
 
 usage() {
-	echo "Usage: release.sh [-ceoz] [-n name] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celowz] [-n name] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
+	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -n name          Set the name of the addon." >&2
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -t topdir        Set top-level directory of Git checkout.  Defaults to \`\`$topdir''." >&2
+	echo "  -w               Project is hosted on Wowace instead of CurseForge." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
 
 # Process command-line options
-while getopts ":ceon:r:t:z" opt; do
+while getopts ":celn:or:t:wz" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -110,6 +116,10 @@ while getopts ":ceon:r:t:z" opt; do
 	e)
 		# Skip checkout of external repositories.
 		skip_externals=true
+		;;
+	l)
+		# Skip @localization@ keyword replacement.
+		skip_localization=true
 		;;
 	n)
 		project="$OPTARG"
@@ -125,6 +135,10 @@ while getopts ":ceon:r:t:z" opt; do
 	t)
 		# Set the top-level directory of the Git checkout to a non-default value.
 		topdir="$OPTARG"
+		;;
+	w)
+		# Project is hosted on Wowace instead of CurseForge.
+		site_url="http://www.wowace.com"
 		;;
 	z)
 		# Skip generating the zipfile.
@@ -313,6 +327,58 @@ fi
 # Set the contents of the addon zipfile.
 contents="$package"
 
+# Filter to handle @localization@ repository keyword replacement.
+update_localization_filter()
+{
+	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
+		case $_ul_line in
+		--@localization\(*\)@*)
+			# Strip everything but the localization parameters.
+			_ul_params=${_ul_line#*@localization(}
+			_ul_params=${_ul_params%)@}
+			# Generate a URL parameter string from the localization parameters.
+			set -- ${_ul_params}
+			_ul_url_params=
+			for _ul_param; do
+				_ul_key=${_ul_param%%=*}
+				_ul_value=${_ul_param#*=\"}
+				_ul_value=${_ul_value%\"*}
+				case ${_ul_key} in
+					escape-non-ascii)
+						if [ "$_ul_param" = "true" ]; then
+							_ul_url_params="${_ul_url_params}&escape_non_ascii=y"
+						fi
+						;;
+					format)
+						_ul_url_params="${_ul_url_params}&format=${_ul_value}"
+						;;
+					handle-unlocalized)
+						_ul_url_params="${_ul_url_params}&handle_unlocalized=${_ul_value}"
+						;;
+					handle-subnamespaces)
+						_ul_url_params="${_ul_url_params}&handle_subnamespaces=${_ul_value}"
+						;;
+					locale)
+						_ul_url_params="${_ul_url_params}&language=${_ul_value}"
+						;;
+					namespace)
+						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
+						;;
+				esac
+			done
+			# Strip any leading or trailing ampersands.
+			_ul_url_params=${_ul_url_params#&}
+			_ul_url_params=${_ul_url_params%&}
+			# Ensure that the CF/WA URL is lowercase.
+			_ul_url=`echo "$site_url/addons/$package" | $tr '[A-Z]' '[a-z]'`
+			$curl --progress-bar "${_ul_url}/localization/export.txt?${_ul_url_params}"
+			;;
+		*)
+			echo "$_ul_line"
+		esac
+	done
+}
+
 # Copy files from working directory into the package directory.
 # Prune away any files in the .git and release directories.
 if [ -z "$skip_copying" ]; then
@@ -353,7 +419,7 @@ if [ -z "$skip_copying" ]; then
 					$mkdir -p "$pkgdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				keyword="*.lua:*.md:*.toc:*.xml"
+				keyword="*.lua:*.md:*.toc:*.txt:*.xml"
 				list="$keyword:"
 				replaced=
 				while [ -n "$list" ]; do
@@ -367,16 +433,18 @@ if [ -z "$skip_copying" ]; then
 					esac
 				done
 				if [ -n "$replaced" -a -n "$version" ]; then
-					$sed -b "s/@project-version@/$version/g" "$topdir/$file" > "$pkgdir/$file"
-					if $cmp -s "$topdir/$file" "$pkgdir/$file"; then
-						echo "Copied: $file"
-					else
-						echo "Replaced repository keywords: $file"
+					filter=update_localization_filter
+					if [ -n "$skip_localization" ]; then
+						filter=cat
 					fi
+					# As a side-effect, files that don't end in a newline silently have one added.
+					# POSIX does imply that text files must end in a newline.
+					$sed "s/@project-version@/$version/g" "$topdir/$file" | $filter > "$pkgdir/$file"
+					unix2dos "$pkgdir/$file"
 				else
 					$cp "$topdir/$file" "$pkgdir/$dir"
-					echo "Copied: $file"
 				fi
+				echo "Copied: $file"
 			fi
 		fi
 	done

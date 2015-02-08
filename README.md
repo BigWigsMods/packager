@@ -17,6 +17,11 @@ __release.sh__ reads .pkgmeta and supports the following directives:
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the Git checkout into the project directory.
 
+  - *@localization(locale="locale", format="format", ...)@*
+    - *escape-non-ascii*
+    - *handle-subnamespaces*
+    - *handle-unlocalized*
+    - *namespace*
   - *@project-version@*
 
 __release.sh__ reads the TOC file, if present, to determine the name of the
