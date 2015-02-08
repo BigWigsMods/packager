@@ -222,11 +222,11 @@ yaml_listitem() {
 
 # First scan of .pkgmeta to set variables.
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r line; do
-		case $line in
+	while IFS='' read -r yaml_line || [ -n "$yaml_line" ]; do
+		case $yaml_line in
 		[!\ ]*:*)
-			# Split $line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$line"
+			# Split $yaml_line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$yaml_line"
 			# Set the $pkgmeta_phase for stateful processing.
 			pkgmeta_phase=$yaml_key
 
@@ -246,11 +246,11 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		" "*)
-			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
-			case $line in
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			case $yaml_line in
 			"- "*)
 				# Get the YAML list item.
-				yaml_listitem "$line"
+				yaml_listitem "$yaml_line"
 				case $pkgmeta_phase in
 				ignore)
 					pattern=$yaml_item
@@ -266,8 +266,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				esac
 				;;
 			*:*)
-				# Split $line into a $yaml_key, $yaml_value pair.
-				yaml_keyvalue "$line"
+				# Split $yaml_line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$yaml_line"
 				case $pkgmeta_phase in
 				manual-changelog)
 					case $yaml_key in
@@ -440,24 +440,24 @@ checkout_queued_external() {
 
 # Second scan of .pkgmeta to perform pre-move-folders actions.
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r line; do
-		case $line in
+	while IFS='' read -r yaml_line; do
+		case $yaml_line in
 		[!\ ]*:*)
 			# Started a new section, so checkout any queued externals.
 			checkout_queued_external
-			# Split $line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$line"
+			# Split $yaml_line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$yaml_line"
 			# Set the $pkgmeta_phase for stateful processing.
 			pkgmeta_phase=$yaml_key
 			;;
 		" "*)
-			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
-			case $line in
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			case $yaml_line in
 			"- "*)
 				;;
 			*:*)
-				# Split $line into a $yaml_key, $yaml_value pair.
-				yaml_keyvalue "$line"
+				# Split $yaml_line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$yaml_line"
 				case $pkgmeta_phase in
 				externals)
 					if [ -z "$skip_externals" ]; then
@@ -495,10 +495,10 @@ fi
 if [ -z "$project" ]; then
 	# Parse the TOC file if it exists for the title of the project.
 	if [ -f "$topdir/$package.toc" ]; then
-		while read line; do
-			case $line in
+		while read toc_line; do
+			case $toc_line in
 			"## Title: "*)
-				project=${line#"## Title: "}
+				project=${toc_line#"## Title: "}
 				;;
 			esac
 		done < "$topdir/$package.toc"
@@ -551,22 +551,22 @@ fi
 
 # Third scan of .pkgmeta to perform move-folders actions.
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r line; do
-		case $line in
+	while IFS='' read -r yaml_line; do
+		case $yaml_line in
 		[!\ ]*:*)
-			# Split $line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$line"
+			# Split $yaml_line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$yaml_line"
 			# Set the $pkgmeta_phase for stateful processing.
 			pkgmeta_phase=$yaml_key
 			;;
 		" "*)
-			line=${line#"${line%%[! ]*}"}	# trim leading whitespace
-			case $line in
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			case $yaml_line in
 			"- "*)
 				;;
 			*:*)
-				# Split $line into a $yaml_key, $yaml_value pair.
-				yaml_keyvalue "$line"
+				# Split $yaml_line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$yaml_line"
 				case $pkgmeta_phase in
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
