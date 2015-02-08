@@ -386,6 +386,7 @@ if [ -z "$skip_copying" ]; then
 	$find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
 		file=${file#$topdir/}
 		if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
+			unchanged=
 			# Check if the file should be ignored.
 			ignored=
 			# Ignore files that start with a dot.
@@ -412,6 +413,15 @@ if [ -z "$skip_copying" ]; then
 					esac
 				done
 			fi
+			# Special-case manual changelogs which should never be ignored.
+			if [ -n "$changelog" ]; then
+				case $file in
+				$changelog)
+					ignored=
+					unchanged=true
+					;;
+				esac
+			fi
 			# Copy any unignored files into $pkgdir.
 			if [ -z "$ignored" ]; then
 				dir=${file%/*}
@@ -432,7 +442,7 @@ if [ -z "$skip_copying" ]; then
 						;;
 					esac
 				done
-				if [ -n "$replaced" ]; then
+				if [ -n "$replaced" -a -z "$unchanged" ]; then
 					filter=update_localization_filter
 					if [ -n "$skip_localization" ]; then
 						filter=cat
