@@ -62,6 +62,7 @@ project=
 topdir=
 releasedir=
 overwrite=
+nolib=
 site_url="http://wow.curseforge.com"
 skip_copying=
 skip_externals=
@@ -101,13 +102,14 @@ usage() {
 	echo "  -n name          Set the name of the addon." >&2
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
+	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -t topdir        Set top-level directory of Git checkout.  Defaults to \`\`$topdir''." >&2
 	echo "  -w               Project is hosted on Wowace instead of CurseForge." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
 
 # Process command-line options
-while getopts ":celn:or:t:wz" opt; do
+while getopts ":celn:or:st:wz" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -131,6 +133,10 @@ while getopts ":celn:or:t:wz" opt; do
 	r)
 		# Set the release directory to a non-default value.
 		releasedir="$OPTARG"
+		;;
+	s)
+		# Create a nolib package.
+		nolib=true
 		;;
 	t)
 		# Set the top-level directory of the Git checkout to a non-default value.
@@ -186,8 +192,8 @@ tag=`$git describe HEAD --abbrev=0 2>/dev/null`
 rtag=`$git describe HEAD~1 --abbrev=0 2>/dev/null`
 while true; do
 	# A version string must contain only dots and digits and optionally starts with the letter "v".
-	result=`echo "${rtag#v}" | $sed -e "s/[0-9.]*//"`
-	if [ -z "$result" ]; then
+	is_release_rtag=`echo "${rtag#v}" | $sed -e "s/[0-9.]*//"`
+	if [ -z "$is_release_rtag" ]; then
 		break
 	fi
 	rtag=`$git describe $rtag~1 --abbrev=0 2>/dev/null`
@@ -327,8 +333,15 @@ fi
 # Set the contents of the addon zipfile.
 contents="$package"
 
+# Filter for simple repository keyword replacement.
+simple_filter()
+{
+	$sed \
+		-e "s/@project-version@/$version/g"
+}
+
 # Filter to handle @localization@ repository keyword replacement.
-update_localization_filter()
+localization_filter()
 {
 	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
 		case $_ul_line in
@@ -377,6 +390,118 @@ update_localization_filter()
 			echo "$_ul_line"
 		esac
 	done
+}
+
+lua_alpha_filter()
+{
+	$sed \
+		-e "s/--@alpha@/--[===[@alpha/g" \
+		-e "s/--@end-alpha@/--@end-alpha]===]/g" \
+		-e "s/--\[===\[@non-alpha@/--@non-alpha@/g" \
+		-e "s/--@end-non-alpha@\]===\]/--@end-non-alpha@/g"
+}
+
+lua_debug_filter()
+{
+	$sed \
+		-e "s/--@debug@/--[===[@debug/g" \
+		-e "s/--@end-debug@/--@end-debug]===]/g" \
+		-e "s/--\[===\[@non-debug@/--@non-debug@/g" \
+		-e "s/--@end-non-debug@\]===\]/--@end-non-debug@/g"
+}
+
+toc_alpha_filter()
+{
+	_trf_alpha=
+	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
+		_trf_replace=true
+		case $_trf_line in
+		"#@alpha@")
+			_trf_alpha="#"
+			_trf_replace=
+			;;
+		"#@end-alpha@")
+			_trf_alpha=
+			_trf_replace=
+			;;
+		esac
+		if [ -z "$_trf_replace" ]; then
+			echo "$_trf_line"
+		else
+			echo "$_trf_alpha$_trf_line"
+		fi
+	done
+}
+
+toc_debug_filter()
+{
+	_trf_debug=
+	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
+		_trf_replace=true
+		case $_trf_line in
+		"#@debug@")
+			_trf_debug="#"
+			_trf_replace=
+			;;
+		"#@end-debug@")
+			_trf_debug=
+			_trf_replace=
+			;;
+		esac
+		if [ -z "$_trf_replace" ]; then
+			echo "$_trf_line"
+		else
+			echo "$_trf_debug$_trf_line"
+		fi
+	done
+}
+
+toc_nolib_filter()
+{
+	_trf_nolib=
+	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
+		_trf_replace=true
+		case $_trf_line in
+		"#@no-lib-strip@")
+			_trf_nolib="#"
+			_trf_replace=
+			;;
+		"#@end-no-lib-strip@")
+			_trf_nolib=
+			_trf_replace=
+			;;
+		esac
+		if [ -z "$_trf_replace" ]; then
+			echo "$_trf_line"
+		else
+			echo "$_trf_nolib$_trf_line"
+		fi
+	done
+}
+
+xml_alpha_filter()
+{
+	$sed \
+		-e "s/<!--@alpha@-->/<!--@alpha/g" \
+		-e "s/<!--@end-alpha@-->/@end-alpha@-->/g" \
+		-e "s/<!--@non-alpha@/<!--@non-alpha@-->/g" \
+		-e "s/@end-non-alpha@-->/<!--@end-non-alpha@-->/g"
+}
+
+xml_debug_filter()
+{
+	$sed \
+		-e "s/<!--@debug@-->/<!--@debug/g" \
+		-e "s/<!--@end-debug@-->/@end-debug@-->/g" \
+		-e "s/<!--@non-debug@/<!--@non-debug@-->/g" \
+		-e "s/@end-non-debug@-->/<!--@end-non-debug@-->/g"
+}
+
+xml_nolib_filter()
+{
+	$sed \
+		-e "s/<!--@no-lib-strip@-->/<!--@no-lib-strip/g" \
+		-e "s/<!--@end-no-lib-strip@-->/@end-no-lib-strip@-->/g"
 }
 
 # Copy files from working directory into the package directory.
@@ -443,13 +568,41 @@ if [ -z "$skip_copying" ]; then
 					esac
 				done
 				if [ -n "$replaced" -a -z "$unchanged" ]; then
-					filter=update_localization_filter
+					# Set the filter for @localization@ replacement.
+					localization_filter=localization_filter
 					if [ -n "$skip_localization" ]; then
-						filter=cat
+						localization_filter=cat
+					fi
+					# Set the alpha, debug, and nolib filters for replacement based on file extension.
+					alpha_filter=cat
+					debug_filter=cat
+					nolib_filter=cat
+					if [ -z "$tag" ]; then
+						# HEAD is not tagged, so this is an alpha.
+						case $file in
+						*.lua)	alpha_filter=lua_alpha_filter ;;
+						*.toc)	alpha_filter=toc_alpha_filter ;;
+						*.xml)	alpha_filter=xml_alpha_filter ;;
+						esac
+					fi
+					if true; then
+						# Debug is always "false" in a packaged addon.
+						case $file in
+						*.lua)	debug_filter=lua_debug_filter ;;
+						*.toc)	debug_filter=toc_debug_filter ;;
+						*.xml)	debug_filter=xml_debug_filter ;;
+						esac
+					fi
+					if [ -n "$nolib" ]; then
+						# Create a "nolib" package.
+						case $file in
+						*.toc)	nolib_filter=toc_nolib_filter ;;
+						*.xml)	nolib_filter=xml_nolib_filter ;;
+						esac
 					fi
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
-					$sed "s/@project-version@/$version/g" "$topdir/$file" | $filter > "$pkgdir/$file"
+					$cat "$topdir/$file" | simple_filter | $alpha_filter | $debug_filter | $nolib_filter | $localization_filter > "$pkgdir/$file"
 					unix2dos "$pkgdir/$file"
 				else
 					$cp "$topdir/$file" "$pkgdir/$dir"
@@ -538,7 +691,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				yaml_keyvalue "$yaml_line"
 				case $pkgmeta_phase in
 				externals)
-					if [ -z "$skip_externals" ]; then
+					if [ -z "$skip_externals" -a -z "$nolib" ]; then
 						case $yaml_key in
 						url)
 							# Queue external URI for checkout.
