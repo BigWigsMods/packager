@@ -1,4 +1,7 @@
-__release.sh__ generates a zippable addon directory from a Git checkout.
+release.sh
+==========
+
+__release.sh__ generates an addon zipfile from a Git checkout.
 
 __release.sh__ works by creating a new project directory, checking out external
 repositories within the project directory, then copying files from the Git
@@ -43,3 +46,13 @@ the contents "All Rights Reserved" if a license file does not already exist.
 
 By default, __release.sh__ creates releases in a *release* subdirectory of the
 top-level directory of the Git checkout.
+
+Using release.sh
+================
+
+The recommended way to include __release.sh__ in a project is to:
+
+1.  Create a *release* subdirectory in your top-level Git checkout.
+2.  Copy __release.sh__ into the *release* directory.
+3.  Ignore the *release* subdirectory in __.pkgmeta__.
+4.  Run __release.sh__.
