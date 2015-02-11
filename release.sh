@@ -338,19 +338,22 @@ simple_filter()
 		-e "s/@project-version@/$version/g"
 }
 
-# Filter to handle @localization@ repository keyword replacement.
-localization_filter()
-{
-	# Find URL of localization app.
-	_ul_localization_url=
+# Find URL of localization app.
+localization_url=
+if [ -z "$skip_localization" -a -z "$localization_url" ]; then
 	for _ul_site_url in $site_url; do
 		# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
-		_ul_localization_url=`echo "$_ul_site_url/addons/$package/localization/" | $tr '[A-Z]' '[a-z]'`
-		if $curl -s -I "$_ul_localization_url" | $grep -q "200 OK"; then
+		localization_url=`echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]'`
+		if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
+			echo ">>> HERE" >&2
 			break
 		fi
 	done
+fi
 
+# Filter to handle @localization@ repository keyword replacement.
+localization_filter()
+{
 	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
 		case $_ul_line in
 		--@localization\(*\)@*)
@@ -360,6 +363,7 @@ localization_filter()
 			# Generate a URL parameter string from the localization parameters.
 			set -- ${_ul_params}
 			_ul_url_params=
+			_ul_skip_fetch=
 			for _ul_param; do
 				_ul_key=${_ul_param%%=*}
 				_ul_value=${_ul_param#*=\"}
@@ -383,6 +387,15 @@ localization_filter()
 						_ul_url_params="${_ul_url_params}&language=${_ul_value}"
 						;;
 					namespace)
+						# Verify that the localization namespace is valid.  The CF packager will silently allow
+						# and remove @localization@ calls with invalid namespaces.
+						_ul_namespace_url=`echo "${localization_url}/namespaces/${_ul_value}" | $tr '[A-Z]' '[a-z]'`
+						if $curl -s -I "$_ul_namespace_url/" | $grep -q "200 OK"; then
+							: "valid namespace"
+						else
+							echo "Invalid localization namespace \`\`$_ul_value''." >&2
+							_ul_skip_fetch=true
+						fi
 						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
 						;;
 				esac
@@ -390,7 +403,9 @@ localization_filter()
 			# Strip any leading or trailing ampersands.
 			_ul_url_params=${_ul_url_params#&}
 			_ul_url_params=${_ul_url_params%&}
-			$curl --progress-bar "${_ul_localization_url}export.txt?${_ul_url_params}"
+			if [ -z "$_ul_skip_fetch" ]; then
+				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}"
+			fi
 			;;
 		*)
 			echo "$_ul_line"
