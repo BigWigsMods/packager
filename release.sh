@@ -33,6 +33,7 @@ cat=cat
 cmp=cmp
 cp=cp
 find=find
+grep=grep
 mkdir=mkdir
 mv=mv
 pwd=pwd
@@ -57,13 +58,15 @@ unix2dos() {
 	$sed -i "s/$/\r/" "$1"
 }
 
+# Site URLs, used to find the localization web app.
+site_url="http://wow.curseforge.com http://www.wowace.com"
+
 # Variables set via options.
 project=
 topdir=
 releasedir=
 overwrite=
 nolib=
-site_url="http://wow.curseforge.com"
 skip_copying=
 skip_externals=
 skip_localization=
@@ -95,7 +98,7 @@ fi
 : ${releasedir:="$topdir/release"}
 
 usage() {
-	echo "Usage: release.sh [-celowz] [-n name] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celoz] [-n name] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
@@ -104,12 +107,11 @@ usage() {
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -t topdir        Set top-level directory of Git checkout.  Defaults to \`\`$topdir''." >&2
-	echo "  -w               Project is hosted on Wowace instead of CurseForge." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
 
 # Process command-line options
-while getopts ":celn:or:st:wz" opt; do
+while getopts ":celn:or:st:z" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -141,10 +143,6 @@ while getopts ":celn:or:st:wz" opt; do
 	t)
 		# Set the top-level directory of the Git checkout to a non-default value.
 		topdir="$OPTARG"
-		;;
-	w)
-		# Project is hosted on Wowace instead of CurseForge.
-		site_url="http://www.wowace.com"
 		;;
 	z)
 		# Skip generating the zipfile.
@@ -343,6 +341,16 @@ simple_filter()
 # Filter to handle @localization@ repository keyword replacement.
 localization_filter()
 {
+	# Find URL of localization app.
+	_ul_localization_url=
+	for _ul_site_url in $site_url; do
+		# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
+		_ul_localization_url=`echo "$_ul_site_url/addons/$package/localization/" | $tr '[A-Z]' '[a-z]'`
+		if $curl -s -I "$_ul_localization_url" | $grep -q "200 OK"; then
+			break
+		fi
+	done
+
 	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
 		case $_ul_line in
 		--@localization\(*\)@*)
@@ -382,9 +390,7 @@ localization_filter()
 			# Strip any leading or trailing ampersands.
 			_ul_url_params=${_ul_url_params#&}
 			_ul_url_params=${_ul_url_params%&}
-			# Ensure that the CF/WA URL is lowercase.
-			_ul_url=`echo "$site_url/addons/$package" | $tr '[A-Z]' '[a-z]'`
-			$curl --progress-bar "${_ul_url}/localization/export.txt?${_ul_url_params}"
+			$curl --progress-bar "${_ul_localization_url}export.txt?${_ul_url_params}"
 			;;
 		*)
 			echo "$_ul_line"
