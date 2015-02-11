@@ -406,6 +406,8 @@ localization_filter()
 			if [ -z "$_ul_skip_fetch" ]; then
 				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}"
 			fi
+			# Insert a trailing blank line to match CF packager.
+			echo ""
 			;;
 		*)
 			echo "$_ul_line"
