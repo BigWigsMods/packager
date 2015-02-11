@@ -50,7 +50,7 @@ zip=zip
 sevenzip=7z
 zip() {
 	archive="$1"; shift
-	$sevenzip a -tzip $archive "$@"
+	$sevenzip a -tzip "$archive" "$@"
 }
 
 unix2dos() {
