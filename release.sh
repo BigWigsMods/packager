@@ -352,7 +352,7 @@ if [ -z "$skip_localization" -a -z "$localization_url" ]; then
 		# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
 		localization_url=`echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]'`
 		if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
-			echo ">>> HERE" >&2
+			echo "Localization URL is: $localization_url"
 			break
 		fi
 	done
