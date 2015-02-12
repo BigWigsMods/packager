@@ -630,7 +630,23 @@ checkout_queued_external() {
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
 				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
 			else
-				$git clone --depth 1 "$external_uri" "$pkgdir/$external_dir"
+				# We need to determine the latest tag in a remote Git repository:
+				#
+				#	1. Clone the latest 100 commits from the remote repository.
+				#	2. Find the most recent annotated tag.
+				#	3. Checkout that tag into the working directory.
+				#	4. If no tag is found, then leave the latest commit as the checkout.
+				#
+				$git clone --depth 100 "$external_uri" "$pkgdir/$external_dir"
+				(
+					cd "$pkgdir/$external_dir"
+					latest_tag=`$git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1`
+					latest_tag=${latest_tag#refs/tags/}
+					if [ -n "$latest_tag" ]; then
+						echo "Checking out latest tag: $latest_tag"
+						$git checkout "$latest_tag"
+					fi
+				)
 			fi
 			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
 				$rm -fr "$dir"
