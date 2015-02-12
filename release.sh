@@ -217,15 +217,7 @@ if [ -z "$version" ]; then
 	fi
 fi
 
-# Variables set via .pkgmeta.
-changelog=
-changelog_markup="plain"
-enable_nolib_creation="not supported"
-ignore=
-license=
-contents=
-
-### Simple .pkgmeta YAML processor.
+# Simple .pkgmeta YAML processor.
 
 yaml_keyvalue() {
 	yaml_key=${1%%:*}
@@ -238,7 +230,18 @@ yaml_listitem() {
 	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"}	# trim leading whitespace
 }
 
-# First scan of .pkgmeta to set variables.
+###
+### Process .pkgmeta to set variables used later in the script.
+###
+
+# Variables set via .pkgmeta.
+changelog=
+changelog_markup="plain"
+enable_nolib_creation="not supported"
+ignore=
+license=
+contents=
+
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r yaml_line || [ -n "$yaml_line" ]; do
 		case $yaml_line in
@@ -330,6 +333,10 @@ fi
 
 # Set the contents of the addon zipfile.
 contents="$package"
+
+###
+### Create filters for pass-through processing of files to replace repository keywords.
+###
 
 # Filter for simple repository keyword replacement.
 simple_filter()
@@ -527,6 +534,10 @@ xml_nolib_filter()
 		-e "s/<!--@end-no-lib-strip@-->/@end-no-lib-strip@-->/g"
 }
 
+###
+### Copy files from the working directory into the package directory.
+###
+
 # Copy files from working directory into the package directory.
 # Prune away any files in the .git and release directories.
 if [ -z "$skip_copying" ]; then
@@ -652,6 +663,10 @@ if [ -n "$create_license" ]; then
 	unix2dos "$pkgdir/$license"
 fi
 
+###
+### Process .pkgmeta again to perform any pre-move-folders actions.
+###
+
 # Queue for external checkouts.
 external_dir=
 external_uri=
@@ -692,7 +707,6 @@ checkout_queued_external() {
 	external_tag=
 }
 
-# Second scan of .pkgmeta to perform pre-move-folders actions.
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r yaml_line; do
 		case $yaml_line in
@@ -744,6 +758,10 @@ if [ -f "$topdir/.pkgmeta" ]; then
 		checkout_queued_external
 	done < "$topdir/.pkgmeta"
 fi
+
+###
+### Create the changelog of commits since the previous release tag.
+###
 
 # Find the name of the project if unset.
 if [ -z "$project" ]; then
@@ -797,7 +815,10 @@ EOF
 	unix2dos "$pkgdir/$changelog"
 fi
 
-# Third scan of .pkgmeta to perform move-folders actions.
+###
+### Process .pkgmeta to perform move-folders actions.
+###
+
 if [ -f "$topdir/.pkgmeta" ]; then
 	while IFS='' read -r yaml_line; do
 		case $yaml_line in
@@ -857,7 +878,10 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
-# Creating the final zipfile for the addon.
+###
+### Create the final zipfile for the addon.
+###
+
 if [ -z "$skip_zipfile" ]; then
 	archive="$releasedir/$package-$version.zip"
 	if [ -f "$archive" ]; then
