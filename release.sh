@@ -422,116 +422,46 @@ localization_filter()
 	done
 }
 
-lua_alpha_filter()
+lua_filter()
 {
 	$sed \
-		-e "s/--@alpha@/--[===[@alpha/g" \
-		-e "s/--@end-alpha@/--@end-alpha]===]/g" \
-		-e "s/--\[===\[@non-alpha@/--@non-alpha@/g" \
-		-e "s/--@end-non-alpha@\]===\]/--@end-non-alpha@/g"
+		-e "s/--@$1@/--[===[@$1/g" \
+		-e "s/--@end-$1@/--@end-$1]===]/g" \
+		-e "s/--\[===\[@non-$1@/--@non-$1@/g" \
+		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
 }
 
-lua_debug_filter()
+toc_filter()
 {
-	$sed \
-		-e "s/--@debug@/--[===[@debug/g" \
-		-e "s/--@end-debug@/--@end-debug]===]/g" \
-		-e "s/--\[===\[@non-debug@/--@non-debug@/g" \
-		-e "s/--@end-non-debug@\]===\]/--@end-non-debug@/g"
-}
-
-toc_alpha_filter()
-{
-	_trf_alpha=
+	_trf_token=$1; shift
+	_trf_comment=
 	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
-		_trf_replace=true
+		_trf_passthrough=
 		case $_trf_line in
-		"#@alpha@")
-			_trf_alpha="#"
-			_trf_replace=
+		"#@${_trf_token}@"*)
+			_trf_comment="#"
+			_trf_passthrough=true
 			;;
-		"#@end-alpha@")
-			_trf_alpha=
-			_trf_replace=
+		"#@end-${_trf_token}@"*)
+			_trf_comment=
+			_trf_passthrough=true
 			;;
 		esac
-		if [ -z "$_trf_replace" ]; then
+		if [ -n "$_trf_passthrough" ]; then
 			echo "$_trf_line"
 		else
-			echo "$_trf_alpha$_trf_line"
+			echo "$_trf_comment$_trf_line"
 		fi
 	done
 }
 
-toc_debug_filter()
-{
-	_trf_debug=
-	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
-		_trf_replace=true
-		case $_trf_line in
-		"#@debug@")
-			_trf_debug="#"
-			_trf_replace=
-			;;
-		"#@end-debug@")
-			_trf_debug=
-			_trf_replace=
-			;;
-		esac
-		if [ -z "$_trf_replace" ]; then
-			echo "$_trf_line"
-		else
-			echo "$_trf_debug$_trf_line"
-		fi
-	done
-}
-
-toc_nolib_filter()
-{
-	_trf_nolib=
-	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
-		_trf_replace=true
-		case $_trf_line in
-		"#@no-lib-strip@")
-			_trf_nolib="#"
-			_trf_replace=
-			;;
-		"#@end-no-lib-strip@")
-			_trf_nolib=
-			_trf_replace=
-			;;
-		esac
-		if [ -z "$_trf_replace" ]; then
-			echo "$_trf_line"
-		else
-			echo "$_trf_nolib$_trf_line"
-		fi
-	done
-}
-
-xml_alpha_filter()
+xml_filter()
 {
 	$sed \
-		-e "s/<!--@alpha@-->/<!--@alpha/g" \
-		-e "s/<!--@end-alpha@-->/@end-alpha@-->/g" \
-		-e "s/<!--@non-alpha@/<!--@non-alpha@-->/g" \
-		-e "s/@end-non-alpha@-->/<!--@end-non-alpha@-->/g"
-}
-
-xml_debug_filter()
-{
-	$sed \
-		-e "s/<!--@debug@-->/<!--@debug/g" \
-		-e "s/<!--@end-debug@-->/@end-debug@-->/g" \
-		-e "s/<!--@non-debug@/<!--@non-debug@-->/g" \
-		-e "s/@end-non-debug@-->/<!--@end-non-debug@-->/g"
-}
-
-xml_nolib_filter()
-{
-	$sed \
-		-e "s/<!--@no-lib-strip@-->/<!--@no-lib-strip/g" \
-		-e "s/<!--@end-no-lib-strip@-->/@end-no-lib-strip@-->/g"
+		-e "s/<!--@$1@-->/<!--@$1/g" \
+		-e "s/<!--@end-$1@-->/@end-$1@-->/g" \
+		-e "s/<!--@non-$1@/<!--@non-$1@-->/g" \
+		-e "s/@end-non-$1@-->/<!--@end-non-$1@-->/g"
 }
 
 ###
@@ -614,24 +544,24 @@ if [ -z "$skip_copying" ]; then
 					if [ -z "$tag" ]; then
 						# HEAD is not tagged, so this is an alpha.
 						case $file in
-						*.lua)	alpha_filter=lua_alpha_filter ;;
-						*.toc)	alpha_filter=toc_alpha_filter ;;
-						*.xml)	alpha_filter=xml_alpha_filter ;;
+						*.lua)	alpha_filter="lua_filter alpha" ;;
+						*.toc)	alpha_filter="toc_filter alpha" ;;
+						*.xml)	alpha_filter="xml_filter alpha" ;;
 						esac
 					fi
 					if true; then
 						# Debug is always "false" in a packaged addon.
 						case $file in
-						*.lua)	debug_filter=lua_debug_filter ;;
-						*.toc)	debug_filter=toc_debug_filter ;;
-						*.xml)	debug_filter=xml_debug_filter ;;
+						*.lua)	debug_filter="lua_filter debug" ;;
+						*.toc)	debug_filter="toc_filter debug" ;;
+						*.xml)	debug_filter="xml_filter debug" ;;
 						esac
 					fi
 					if [ -n "$nolib" ]; then
 						# Create a "nolib" package.
 						case $file in
-						*.toc)	nolib_filter=toc_nolib_filter ;;
-						*.xml)	nolib_filter=xml_nolib_filter ;;
+						*.toc)	nolib_filter="toc_filter no-lib-strip" ;;
+						*.xml)	nolib_filter="xml_filter no-lib-strip" ;;
 						esac
 					fi
 					# As a side-effect, files that don't end in a newline silently have one added.
