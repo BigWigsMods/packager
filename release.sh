@@ -664,9 +664,9 @@ checkout_queued_external() {
 		case $external_uri in
 		git:*|http://git*|https://git*)
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				$git clone --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
+				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
 			else
-				$git clone "$external_uri" "$pkgdir/$external_dir"
+				$git clone --depth 1 "$external_uri" "$pkgdir/$external_dir"
 			fi
 			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
 				$rm -fr "$dir"
