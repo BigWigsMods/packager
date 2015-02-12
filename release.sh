@@ -662,7 +662,7 @@ checkout_queued_external() {
 		$mkdir -p "$pkgdir/$external_dir"
 		echo "Getting checkout for $external_uri"
 		case $external_uri in
-		git:*)
+		git:*|http://git*|https://git*)
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
 				$git clone --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
 			else
@@ -672,7 +672,7 @@ checkout_queued_external() {
 				$rm -fr "$dir"
 			done
 			;;
-		svn:*)
+		svn:*|http://svn*|https://svn*)
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
 				echo "Warning: SVN tag checkout for \`\`$external_tag'' must be given in the URI."
 			fi
