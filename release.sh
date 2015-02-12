@@ -672,8 +672,27 @@ external_dir=
 external_uri=
 external_tag=
 
+# Sites that are skipped for checking out externals if creating a "nolib" package.
+external_nolib_sites="curseforge.com wowace.com"
+
 checkout_queued_external() {
-	if [ -z "$skip_externals" -a -z "$nolib" -a -n "$external_dir" -a -n "$external_uri" ]; then
+	_cqe_skip_external=$skip_externals
+	if [ -z "$external_dir" -o -z "$external_uri" ]; then
+		# The queue is empty.
+		_cqe_skip_external=true
+	elif [ -n "$nolib" ]; then
+		for _cqe_nolib_site in $external_nolib_sites; do
+			case $external_uri in
+			*${_cqe_nolib_site}/*)
+				# The URI points to a Curse repository, so we can skip this external
+				# for a "nolib" package.
+				echo "Ignoring external to Curse repository: $external_uri"
+				_cqe_skip_external=true
+				;;
+			esac
+		done
+	fi
+	if [ -z "$_cqe_skip_external" ]; then
 		$mkdir -p "$pkgdir/$external_dir"
 		echo "Getting checkout for $external_uri"
 		case $external_uri in
