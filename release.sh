@@ -742,6 +742,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		esac
+		# Reached end of file, so checkout any remaining queued externals.
+		checkout_queued_external
 	done < "$topdir/.pkgmeta"
 fi
 
