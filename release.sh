@@ -685,17 +685,20 @@ checkout_queued_external() {
 				# for a "nolib" package.
 				echo "Ignoring external to Curse repository: $external_uri"
 				_cqe_skip_external=true
+				break
 				;;
 			esac
 		done
 	fi
 	if [ -z "$_cqe_skip_external" ]; then
-		$mkdir -p "$pkgdir/$external_dir"
-		echo "Getting checkout for $external_uri"
+		# Checkout the external into a ".checkout" subdirectory of the final directory.
+		_cqe_checkout_dir="$pkgdir/$external_dir/.checkout"
+		$mkdir -p "$_cqe_checkout_dir"
 		case $external_uri in
 		git:*|http://git*|https://git*)
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$pkgdir/$external_dir"
+				echo "Fetching external $external_uri."
+				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$_cqe_checkout_dir"
 			else
 				# We need to determine the latest tag in a remote Git repository:
 				#
@@ -704,34 +707,99 @@ checkout_queued_external() {
 				#	3. Checkout that tag into the working directory.
 				#	4. If no tag is found, then leave the latest commit as the checkout.
 				#
-				$git clone --depth 100 "$external_uri" "$pkgdir/$external_dir"
-				(
-					cd "$pkgdir/$external_dir"
+				echo "Fetching external $external_uri."
+				$git clone --depth 100 "$external_uri" "$_cqe_checkout_dir"
+				external_tag=$(
+					cd "$_cqe_checkout_dir"
 					latest_tag=`$git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1`
 					latest_tag=${latest_tag#refs/tags/}
 					if [ -n "$latest_tag" ]; then
-						echo "Checking out latest tag: $latest_tag"
-						$git checkout "$latest_tag"
+						echo "$latest_tag"
+					else
+						echo "latest"
 					fi
 				)
+				if [ "$external_tag" != "latest" ]; then
+					echo "Checking out \`\`$external_tag'' into \`\`$_cqe_checkout_dir''."
+					( cd "$_cqe_checkout_dir" && $git checkout "$external_tag" )
+				fi
 			fi
-			$find "$pkgdir/$external_dir" -name .git -print | while IFS='' read -r dir; do
-				$rm -fr "$dir"
-			done
 			;;
 		svn:*|http://svn*|https://svn*)
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
 				echo "Warning: SVN tag checkout for \`\`$external_tag'' must be given in the URI."
 			fi
-			$svn checkout "$external_uri" "$pkgdir/$external_dir"
-			$find "$pkgdir/$external_dir" -name .svn -print | while IFS='' read -r dir; do
-				$rm -fr "$dir"
-			done
+			echo "Fetching external $external_uri."
+			$svn checkout "$external_uri" "$_cqe_checkout_dir"
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
 			;;
 		esac
+		# Copy the checkout into the proper external directory and remove the checkout.
+		(
+			cd "$_cqe_checkout_dir"
+			# Set variables needed for filters.
+			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
+				version="$external_tag"
+			else
+				version=`$git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1`
+				version=${version#refs/tags/}
+			fi
+			package=${external_dir##*/}
+			for _cqe_nolib_site in $external_nolib_sites; do
+				case $external_uri in
+				*${_cqe_nolib_site}/*)
+					# The URI points to a Curse repository.
+					package=${external_uri#*${_cqe_nolib_site}/wow/}
+					package=${package%%/*}
+					break
+					;;
+				esac
+			done
+			localization_url=
+			# If a .pkgmeta file is present, process it for an "ignore" list.
+			ignore=
+			if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
+				while IFS='' read -r yaml_line; do
+					case $yaml_line in
+					[!\ ]*:*)
+						# Split $yaml_line into a $yaml_key, $yaml_value pair.
+						yaml_keyvalue "$yaml_line"
+						# Set the $pkgmeta_phase for stateful processing.
+						pkgmeta_phase=$yaml_key
+						;;
+					" "*)
+						yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+						case $yaml_line in
+						"- "*)
+							# Get the YAML list item.
+							yaml_listitem "$yaml_line"
+							case $pkgmeta_phase in
+							ignore)
+								pattern=$yaml_item
+								if [ -d "$topdir/$pattern" ]; then
+									pattern="$pattern/*"
+								fi
+								if [ -z "$ignore" ]; then
+									ignore="$pattern"
+								else
+									ignore="$ignore:$pattern"
+								fi
+								;;
+							esac
+							;;
+						esac
+						;;
+					esac
+				done < "$_cqe_checkout_dir/.pkgmeta"
+			fi
+			copy_directory_tree -dln -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$external_dir"
+		)
+		# Remove the ".checkout" subdirectory containing the full checkout.
+		if [ -d "$_cqe_checkout_dir" ]; then
+			rm -fr "$_cqe_checkout_dir"
+		fi
 	fi
 	# Clear the queue.
 	external_dir=
