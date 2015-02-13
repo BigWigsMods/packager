@@ -111,6 +111,7 @@ usage() {
 }
 
 # Process command-line options
+OPTIND=1
 while getopts ":celn:or:st:z" opt; do
 	case $opt in
 	c)
@@ -160,6 +161,7 @@ while getopts ":celn:or:st:z" opt; do
 		;;
 	esac
 done
+shift $((OPTIND - 1))
 
 # Check that $topdir is actually a Git checkout.
 if [ ! -d "$topdir/.git" ]; then
