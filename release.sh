@@ -470,113 +470,175 @@ xml_filter()
 ### Copy files from the working directory into the package directory.
 ###
 
-# Copy files from working directory into the package directory.
-# Prune away any files in the .git and release directories.
-if [ -z "$skip_copying" ]; then
-	echo "Copying files into \`\`$pkgdir'':"
-	$find "$topdir" -name .git -prune -o -name "${releasedir#$topdir/}" -prune -o -print | while read file; do
-		file=${file#$topdir/}
-		if [ "$file" != "$topdir" -a -f "$topdir/$file" ]; then
-			unchanged=
+# Copy of the contents of the source directory into the destination directory.
+# Dotfiles and any files matching the ignore pattern are skipped.  Copied files
+# are subject to repository keyword replacement.
+#
+copy_directory_tree() {
+	_cdt_alpha=
+	_cdt_debug=
+	_cdt_ignored_patterns=
+	_cdt_localization=
+	_cdt_nolib=
+	_cdt_unchanged_patterns=
+	OPTIND=1
+	while getopts :adi:lnu: _cdt_opt "$@"; do
+		case $_cdt_opt in
+		a)	_cdt_alpha=true ;;
+		d)	_cdt_debug=true ;;
+		i)	_cdt_ignored_patterns=$OPTARG ;;
+		l)	_cdt_localization=true ;;
+		n)	_cdt_nolib=true ;;
+		u)	_cdt_unchanged_patterns=$OPTARG ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	_cdt_srcdir=$1
+	_cdt_destdir=$2
+
+	echo "Copying files from \`\`$_cdt_srcdir'' into \`\`$_cdt_destdir'':"
+	if [ ! -d "$_cdt_destdir" ]; then
+		$mkdir -p "$_cdt_destdir"
+	fi
+	# Create a "find" command to list all of the files in the source directory, minus any ones we need to prune.
+	_cdt_find_cmd="$find \"$_cdt_srcdir\""
+	# If the basename of the source directory begins with a dot, always descend into it, but prune everything else
+	# that begins with a dot.
+	case ${_cdt_srcdir##*/} in
+	.*)	_cdt_find_cmd="$_cdt_find_cmd -name \"${_cdt_srcdir##*/}\" -print -o -name \".*\" -prune" ;;
+	*)	_cdt_find_cmd="$_cdt_find_cmd -name \".*\" -prune" ;;
+	esac
+	# The destination directory needs to be pruned if it is a subdirectory of the source directory.
+	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
+	case $_cdt_dest_subdir in
+	/*)	;;
+	*)	_cdt_find_cmd="$_cdt_find_cmd -o -name \"$_cdt_dest_subdir\" -prune" ;;
+	esac
+	_cdt_find_cmd="$_cdt_find_cmd -o -print"
+	eval $_cdt_find_cmd | while read file; do
+		file=${file#$_cdt_srcdir/}
+		if [ "$file" != "$_cdt_srcdir" -a -f "$_cdt_srcdir/$file" ]; then
 			# Check if the file should be ignored.
-			ignored=
-			# Ignore files that start with a dot.
-			if [ -z "$ignored" ]; then
-				case $file in
-				.*)
-					echo "Ignoring: $file"
-					ignored=true
-					;;
-				esac
-			fi
-			# Ignore files matching patterns set via .pkgmeta "ignore".
-			if [ -z "$ignored" ]; then
-				list="$ignore:"
+			skip_copy=
+			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
+			if [ -z "$skip_copy" ]; then
+				list="$_cdt_ignored_patterns:"
 				while [ -n "$list" ]; do
 					pattern=${list%%:*}
 					list=${list#*:}
 					case $file in
 					$pattern)
-						echo "Ignoring: $file"
-						ignored=true
+						skip_copy=true
 						break
 						;;
 					esac
 				done
 			fi
-			# Special-case manual changelogs which should never be ignored.
-			if [ -n "$changelog" ]; then
-				case $file in
-				$changelog)
-					ignored=
-					unchanged=true
-					;;
-				esac
+			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
+			unchanged=
+			if [ -n "$skip_copy" ]; then
+				list="$_cdt_unchanged_patterns:"
+				while [ -n "$list" ]; do
+					pattern=${list%%:*}
+					list=${list#*:}
+					case $file in
+					$pattern)
+						skip_copy=
+						unchanged=true
+						break
+						;;
+					esac
+				done
 			fi
-			# Copy any unignored files into $pkgdir.
-			if [ -z "$ignored" ]; then
+			# Copy unskipped files into $_cdt_destdir.
+			if [ -n "$skip_copy" ]; then
+				echo "Ignoring: $file"
+			else
 				dir=${file%/*}
 				if [ "$dir" != "$file" ]; then
-					$mkdir -p "$pkgdir/$dir"
+					$mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
 				keyword="*.lua:*.md:*.toc:*.txt:*.xml"
 				list="$keyword:"
-				replaced=
+				skip_filter=true
 				while [ -n "$list" ]; do
 					pattern=${list%%:*}
 					list=${list#*:}
 					case $file in
 					$pattern)
-						replaced=true
+						skip_filter=
 						break
 						;;
 					esac
 				done
-				if [ -n "$replaced" -a -z "$unchanged" ]; then
+				if [ -n "$skip_filter" -o -n "$unchanged" ]; then
+					echo "Copying: $file"
+					$cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
+				else
 					# Set the filter for @localization@ replacement.
-					localization_filter=localization_filter
-					if [ -n "$skip_localization" ]; then
-						localization_filter=cat
+					_cdt_localization_filter=cat
+					if [ -n "$_cdt_localization" ]; then
+						_cdt_localization_filter=localization_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
-					alpha_filter=cat
-					debug_filter=cat
-					nolib_filter=cat
-					if [ -z "$tag" ]; then
-						# HEAD is not tagged, so this is an alpha.
+					_cdt_alpha_filter=cat
+					if [ -n "$_cdt_alpha" ]; then
 						case $file in
-						*.lua)	alpha_filter="lua_filter alpha" ;;
-						*.toc)	alpha_filter="toc_filter alpha" ;;
-						*.xml)	alpha_filter="xml_filter alpha" ;;
+						*.lua)	_cdt_alpha_filter="lua_filter alpha" ;;
+						*.toc)	_cdt_alpha_filter="toc_filter alpha" ;;
+						*.xml)	_cdt_alpha_filter="xml_filter alpha" ;;
 						esac
 					fi
-					if true; then
-						# Debug is always "false" in a packaged addon.
+					_cdt_debug_filter=cat
+					if [ -n "$_cdt_debug" ]; then
 						case $file in
-						*.lua)	debug_filter="lua_filter debug" ;;
-						*.toc)	debug_filter="toc_filter debug" ;;
-						*.xml)	debug_filter="xml_filter debug" ;;
+						*.lua)	_cdt_debug_filter="lua_filter debug" ;;
+						*.toc)	_cdt_debug_filter="toc_filter debug" ;;
+						*.xml)	_cdt_debug_filter="xml_filter debug" ;;
 						esac
 					fi
-					if [ -n "$nolib" ]; then
-						# Create a "nolib" package.
+					_cdt_nolib_filter=cat
+					if [ -n "$_cdt_nolib" ]; then
 						case $file in
-						*.toc)	nolib_filter="toc_filter no-lib-strip" ;;
-						*.xml)	nolib_filter="xml_filter no-lib-strip" ;;
+						*.toc)	_cdt_nolib_filter="toc_filter no-lib-strip" ;;
+						*.xml)	_cdt_nolib_filter="xml_filter no-lib-strip" ;;
 						esac
 					fi
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
-					$cat "$topdir/$file" | simple_filter | $alpha_filter | $debug_filter | $nolib_filter | $localization_filter > "$pkgdir/$file"
-					unix2dos "$pkgdir/$file"
-				else
-					$cp "$topdir/$file" "$pkgdir/$dir"
+					echo "Copying: $file"
+					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_localization_filter > "$_cdt_destdir/$file"
+					unix2dos "$_cdt_destdir/$file"
 				fi
-				echo "Copied: $file"
 			fi
 		fi
 	done
+}
+
+if [ -z "$skip_copying" ]; then
+	cdt_args=
+	if [ -z "$tag" ]; then
+		# HEAD is not tagged, so this is an alpha.
+		cdt_args="$cdt_args -a"
+	fi
+	if true; then
+		# Debug is always "false" in a packaged addon.
+		cdt_args="$cdt_args -d"
+	fi
+	if [ -z "$skip_localization" ]; then
+		cdt_args="$cdt_args -l"
+	fi
+	if [ -n "$nolib" ]; then
+		cdt_args="$cdt_args -n"
+	fi
+	if [ -n "$ignore" ]; then
+		cdt_args="$cdt_args -i \"$ignore\""
+	fi
+	if [ -n "$changelog" ]; then
+		cdt_args="$cdt_args -u \"$changelog\""
+	fi
+	eval copy_directory_tree $cdt_args "\"$topdir\"" "\"$pkgdir\""
 fi
 
 # Create a default license if one doesn't exist.
