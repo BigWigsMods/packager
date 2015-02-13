@@ -30,7 +30,6 @@
 
 # POSIX tools.
 cat=cat
-cmp=cmp
 cp=cp
 find=find
 grep=grep
@@ -74,7 +73,7 @@ skip_zipfile=
 
 # Set $topdir to top-level directory of the Git checkout.
 if [ -z "$topdir" ]; then
-	dir=$( pwd )
+	dir=$( $pwd )
 	if [ -d "$dir/.git" ]; then
 		topdir=.
 	else
@@ -183,8 +182,8 @@ esac
 $mkdir -p "$releasedir"
 
 # Expand $topdir and $releasedir to their absolute paths for string comparisons later.
-topdir=$( cd "$topdir" && pwd )
-releasedir=$( cd "$releasedir" && pwd )
+topdir=$( cd "$topdir" && $pwd )
+releasedir=$( cd "$releasedir" && $pwd )
 
 # Get the tag for the HEAD.
 tag=$( $git describe HEAD --abbrev=0 2>/dev/null )
@@ -565,13 +564,13 @@ copy_directory_tree() {
 					$cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
 					# Set the filter for @localization@ replacement.
-					_cdt_localization_filter=cat
+					_cdt_localization_filter=$cat
 					if [ -n "$_cdt_localization" ]; then
 						cache_localization_url
 						_cdt_localization_filter=localization_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
-					_cdt_alpha_filter=cat
+					_cdt_alpha_filter=$cat
 					if [ -n "$_cdt_alpha" ]; then
 						case $file in
 						*.lua)	_cdt_alpha_filter="lua_filter alpha" ;;
@@ -579,7 +578,7 @@ copy_directory_tree() {
 						*.xml)	_cdt_alpha_filter="xml_filter alpha" ;;
 						esac
 					fi
-					_cdt_debug_filter=cat
+					_cdt_debug_filter=$cat
 					if [ -n "$_cdt_debug" ]; then
 						case $file in
 						*.lua)	_cdt_debug_filter="lua_filter debug" ;;
@@ -587,7 +586,7 @@ copy_directory_tree() {
 						*.xml)	_cdt_debug_filter="xml_filter debug" ;;
 						esac
 					fi
-					_cdt_nolib_filter=cat
+					_cdt_nolib_filter=$cat
 					if [ -n "$_cdt_nolib" ]; then
 						case $file in
 						*.toc)	_cdt_nolib_filter="toc_filter no-lib-strip" ;;
@@ -885,9 +884,9 @@ if [ -n "$create_changelog" ]; then
 		change_string="All changes:"
 		git_commit_range=
 	fi
-	change_string_underline=$( echo "$change_string" | sed -e "s/./-/g" )
+	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
 	project_string="$project $version"
-	project_string_underline=$( echo "$project_string" | sed -e "s/./=/g" )
+	project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
 	$cat > "$pkgdir/$changelog" << EOF
 $project_string
 $project_string_underline
