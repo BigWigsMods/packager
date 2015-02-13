@@ -32,6 +32,7 @@
 cat=cat
 cp=cp
 find=find
+getopts=getopts
 grep=grep
 mkdir=mkdir
 mv=mv
@@ -111,7 +112,7 @@ usage() {
 
 # Process command-line options
 OPTIND=1
-while getopts ":celn:or:st:z" opt; do
+while $getopts ":celn:or:st:z" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -498,7 +499,7 @@ copy_directory_tree() {
 	_cdt_nolib=
 	_cdt_unchanged_patterns=
 	OPTIND=1
-	while getopts :adi:lnu: _cdt_opt "$@"; do
+	while $getopts :adi:lnu: _cdt_opt "$@"; do
 		case $_cdt_opt in
 		a)	_cdt_alpha=true ;;
 		d)	_cdt_debug=true ;;
