@@ -74,7 +74,7 @@ skip_zipfile=
 
 # Set $topdir to top-level directory of the Git checkout.
 if [ -z "$topdir" ]; then
-	dir=`pwd`
+	dir=$( pwd )
 	if [ -d "$dir/.git" ]; then
 		topdir=.
 	else
@@ -183,20 +183,20 @@ esac
 $mkdir -p "$releasedir"
 
 # Expand $topdir and $releasedir to their absolute paths for string comparisons later.
-topdir=`cd "$topdir" && pwd`
-releasedir=`cd "$releasedir" && pwd`
+topdir=$( cd "$topdir" && pwd )
+releasedir=$( cd "$releasedir" && pwd )
 
 # Get the tag for the HEAD.
-tag=`$git describe HEAD --abbrev=0 2>/dev/null`
+tag=$( $git describe HEAD --abbrev=0 2>/dev/null )
 # Find the previous release tag.
-rtag=`$git describe HEAD~1 --abbrev=0 2>/dev/null`
+rtag=$( $git describe HEAD~1 --abbrev=0 2>/dev/null )
 while true; do
 	# A version string must contain only dots and digits and optionally starts with the letter "v".
-	is_release_rtag=`echo "${rtag#v}" | $sed -e "s/[0-9.]*//"`
+	is_release_rtag=$( echo "${rtag#v}" | $sed -e "s/[0-9.]*//" )
 	if [ -z "$is_release_rtag" ]; then
 		break
 	fi
-	rtag=`$git describe $rtag~1 --abbrev=0 2>/dev/null`
+	rtag=$( $git describe $rtag~1 --abbrev=0 2>/dev/null )
 done
 # If the current and previous tags match, then the HEAD is not tagged.
 if [ "$tag" = "$rtag" ]; then
@@ -213,9 +213,9 @@ fi
 # Set $version to the version number of HEAD.  May be empty if there are no commits.
 version="$tag"
 if [ -z "$version" ]; then
-	version=`$git describe HEAD 2>/dev/null`
+	version=$( $git describe HEAD 2>/dev/null )
 	if [ -z "$version" ]; then
-		version=`$git rev-parse --short HEAD 2>/dev/null`
+		version=$( $git rev-parse --short HEAD 2>/dev/null )
 	fi
 fi
 
@@ -353,7 +353,7 @@ cache_localization_url() {
 	if [ -z "$localization_url" ]; then
 		for _ul_site_url in $site_url; do
 			# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
-			localization_url=`echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]'`
+			localization_url=$( echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]' )
 			if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
 				echo "Localization URL is: $localization_url"
 				break
@@ -400,7 +400,7 @@ localization_filter()
 					namespace)
 						# Verify that the localization namespace is valid.  The CF packager will silently allow
 						# and remove @localization@ calls with invalid namespaces.
-						_ul_namespace_url=`echo "${localization_url}/namespaces/${_ul_value}" | $tr '[A-Z]' '[a-z]'`
+						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | $tr '[A-Z]' '[a-z]' )
 						if $curl -s -I "$_ul_namespace_url/" | $grep -q "200 OK"; then
 							: "valid namespace"
 						else
@@ -711,7 +711,7 @@ checkout_queued_external() {
 				$git clone --depth 100 "$external_uri" "$_cqe_checkout_dir"
 				external_tag=$(
 					cd "$_cqe_checkout_dir"
-					latest_tag=`$git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1`
+					latest_tag=$( $git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
 					latest_tag=${latest_tag#refs/tags/}
 					if [ -n "$latest_tag" ]; then
 						echo "$latest_tag"
@@ -743,7 +743,7 @@ checkout_queued_external() {
 			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
 				version="$external_tag"
 			else
-				version=`$git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1`
+				version=$( $git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
 				version=${version#refs/tags/}
 			fi
 			package=${external_dir##*/}
@@ -899,9 +899,9 @@ if [ -n "$create_changelog" ]; then
 		change_string="All changes:"
 		git_commit_range=
 	fi
-	change_string_underline=`echo "$change_string" | sed -e "s/./-/g"`
+	change_string_underline=$( echo "$change_string" | sed -e "s/./-/g" )
 	project_string="$project $version"
-	project_string_underline=`echo "$project_string" | sed -e "s/./=/g"`
+	project_string_underline=$( echo "$project_string" | sed -e "s/./=/g" )
 	$cat > "$pkgdir/$changelog" << EOF
 $project_string
 $project_string_underline
