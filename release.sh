@@ -349,16 +349,18 @@ simple_filter()
 
 # Find URL of localization app.
 localization_url=
-if [ -z "$skip_localization" -a -z "$localization_url" ]; then
-	for _ul_site_url in $site_url; do
-		# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
-		localization_url=`echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]'`
-		if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
-			echo "Localization URL is: $localization_url"
-			break
-		fi
-	done
-fi
+cache_localization_url() {
+	if [ -z "$localization_url" ]; then
+		for _ul_site_url in $site_url; do
+			# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
+			localization_url=`echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]'`
+			if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
+				echo "Localization URL is: $localization_url"
+				break
+			fi
+		done
+	fi
+}
 
 # Filter to handle @localization@ repository keyword replacement.
 localization_filter()
@@ -579,6 +581,7 @@ copy_directory_tree() {
 					# Set the filter for @localization@ replacement.
 					_cdt_localization_filter=cat
 					if [ -n "$_cdt_localization" ]; then
+						cache_localization_url
 						_cdt_localization_filter=localization_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
