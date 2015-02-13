@@ -219,8 +219,23 @@ if [ -z "$version" ]; then
 	fi
 fi
 
-# Simple .pkgmeta YAML processor.
+# Returns 0 if $1 matches one of the colon-separated patterns in $2.
+match_pattern() {
+	_mp_file=$1
+	_mp_list="$2:"
+	while [ -n "$_mp_list" ]; do
+		_mp_pattern=${_mp_list%%:*}
+		_mp_list=${_mp_list#*:}
+		case $_mp_file in
+		$_mp_pattern)
+			return 0
+			;;
+		esac
+	done
+	return 1
+}
 
+# Simple .pkgmeta YAML processor.
 yaml_keyvalue() {
 	yaml_key=${1%%:*}
 	yaml_value=${1#$yaml_key:}
@@ -523,34 +538,14 @@ copy_directory_tree() {
 			# Check if the file should be ignored.
 			skip_copy=
 			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
-			if [ -z "$skip_copy" ]; then
-				list="$_cdt_ignored_patterns:"
-				while [ -n "$list" ]; do
-					pattern=${list%%:*}
-					list=${list#*:}
-					case $file in
-					$pattern)
-						skip_copy=true
-						break
-						;;
-					esac
-				done
+			if [ -z "$skip_copy" ] && match_pattern "$file" "$_cdt_ignored_patterns"; then
+				skip_copy=true
 			fi
 			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
 			unchanged=
-			if [ -n "$skip_copy" ]; then
-				list="$_cdt_unchanged_patterns:"
-				while [ -n "$list" ]; do
-					pattern=${list%%:*}
-					list=${list#*:}
-					case $file in
-					$pattern)
-						skip_copy=
-						unchanged=true
-						break
-						;;
-					esac
-				done
+			if [ -n "$skip_copy" ] && match_pattern "$file" "$_cdt_unchanged_patterns"; then
+				skip_copy=
+				unchanged=true
 			fi
 			# Copy unskipped files into $_cdt_destdir.
 			if [ -n "$skip_copy" ]; then
@@ -561,19 +556,10 @@ copy_directory_tree() {
 					$mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				keyword="*.lua:*.md:*.toc:*.txt:*.xml"
-				list="$keyword:"
 				skip_filter=true
-				while [ -n "$list" ]; do
-					pattern=${list%%:*}
-					list=${list#*:}
-					case $file in
-					$pattern)
-						skip_filter=
-						break
-						;;
-					esac
-				done
+				if match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
+					skip_filter=
+				fi
 				if [ -n "$skip_filter" -o -n "$unchanged" ]; then
 					echo "Copying: $file"
 					$cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
