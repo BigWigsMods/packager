@@ -754,14 +754,10 @@ if [ -z "$skip_copying" ]; then
 	eval copy_directory_tree $cdt_args "\"$topdir\"" "\"$pkgdir\""
 fi
 
-# Create a default license if one doesn't exist.
-create_license=
-if [ -z "$license" ]; then
-	license="LICENSE.txt"
-fi
 # Create a default license in the package directory if the source directory does
-# not contain a license file.
-if [ ! -f "$topdir/$license" ]; then
+# not contain a license file and .pkgmeta requests one.
+create_license=
+if [ -n "$license" -a ! -f "$topdir/$license" ]; then
 	create_license=true
 fi
 if [ -n "$create_license" ]; then
@@ -1133,7 +1129,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 						fi
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
-						if [ ! -f "$destdir/$license" ]; then
+						if [ -n "$license" -a -f "$pkgdir/$license" -a ! -f "$destdir/$license" ]; then
 							$cp -f "$pkgdir/$license" "$destdir/$license"
 						fi
 					fi
