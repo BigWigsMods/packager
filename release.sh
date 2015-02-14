@@ -714,6 +714,14 @@ checkout_queued_external() {
 					( cd "$_cqe_checkout_dir" && $git checkout "$external_tag" )
 				fi
 			fi
+			# Set _cqe_external_version to the external project version.
+			_cqe_external_version=$external_tag
+			if [ -z "$_cqe_external_version" ]; then
+				_cqe_external_version=$( cd "$_cqe_checkout_dir" && $git describe HEAD 2>/dev/null )
+				if [ -z "$_cqe_external_version" ]; then
+					_cqe_external_version=$( cd "$_cqe_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
+				fi
+			fi
 			;;
 		svn:*|http://svn*|https://svn*)
 			if [ -z "$external_tag" ]; then
@@ -760,6 +768,11 @@ checkout_queued_external() {
 					$svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
 				fi
 			fi
+			# Set _cqe_external_version to the external project version.
+			_cqe_external_version=$external_tag
+			if [ -z "$_cqe_external_version" ]; then
+				_cqe_external_version=$( cd "$_cqe_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision: / { print $2; exit }' )
+			fi
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
@@ -769,14 +782,7 @@ checkout_queued_external() {
 		(
 			cd "$_cqe_checkout_dir"
 			# Set variables needed for filters.
-			if [ -z "$external_tag" ]; then
-				version=$( $git describe HEAD 2>/dev/null )
-				if [ -z "$version" ]; then
-					version=$( $git rev-parse --short HEAD 2>/dev/null )
-				fi
-			else
-				version="$external_tag"
-			fi
+			version=$_cqe_external_version
 			package=${external_dir##*/}
 			for _cqe_nolib_site in $external_nolib_sites; do
 				case $external_uri in
