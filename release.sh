@@ -682,8 +682,11 @@ checkout_queued_external() {
 		$mkdir -p "$_cqe_checkout_dir"
 		case $external_uri in
 		git:*|http://git*|https://git*)
-			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				echo "Fetching external $external_uri."
+			if [ -z "$external_tag" ]; then
+				echo "Fetching latest version of external $external_uri."
+				$git clone --depth 1 "$external_uri" "$_cqe_checkout_dir"
+			elif [ "$external_tag" != "latest" ]; then
+				echo "Fetching tag \`\`$external_tag'' of external $external_uri."
 				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$_cqe_checkout_dir"
 			else
 				# We need to determine the latest tag in a remote Git repository:
@@ -726,7 +729,12 @@ checkout_queued_external() {
 		(
 			cd "$_cqe_checkout_dir"
 			# Set variables needed for filters.
-			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
+			if [ -z "$external_tag" ]; then
+				version=$( $git describe HEAD 2>/dev/null )
+				if [ -z "$version" ]; then
+					version=$( $git rev-parse --short HEAD 2>/dev/null )
+				fi
+			elif [ "$external_tag" != "latest" ]; then
 				version="$external_tag"
 			else
 				version=$( $git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
