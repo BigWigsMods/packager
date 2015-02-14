@@ -30,6 +30,7 @@ copying the files from the Git checkout into the project directory.
   - *@no-lib-strip@*...*@end-no-lib-strip@*
   - *@non-alpha@*...*@end-non-alpha@*
   - *@non-debug@*...*@end-non-debug@*
+  - *@project-revision@*
   - *@project-version@*
 
 __release.sh__ reads the TOC file, if present, to determine the name of the

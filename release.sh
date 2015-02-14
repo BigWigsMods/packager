@@ -220,6 +220,9 @@ if [ -z "$version" ]; then
 	fi
 fi
 
+# Set $project_revision to the highest revision of the project (not for Git).
+project_revision=
+
 # Returns 0 if $1 matches one of the colon-separated patterns in $2.
 match_pattern() {
 	_mp_file=$1
@@ -360,6 +363,7 @@ contents="$package"
 simple_filter()
 {
 	$sed \
+		-e "s/@project-revision@/$project_revision/g" \
 		-e "s/@project-version@/$version/g"
 }
 
@@ -722,6 +726,7 @@ checkout_queued_external() {
 					_cqe_external_version=$( cd "$_cqe_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
 				fi
 			fi
+			_cqe_external_project_revision=
 			;;
 		svn:*|http://svn*|https://svn*)
 			if [ -z "$external_tag" ]; then
@@ -768,10 +773,12 @@ checkout_queued_external() {
 					$svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
 				fi
 			fi
+			# Set _cqe_external_project_revision to the latest project revision.
+			_cqe_external_project_revision=$( cd "$_cqe_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision: / { print $2; exit }' )
 			# Set _cqe_external_version to the external project version.
 			_cqe_external_version=$external_tag
 			if [ -z "$_cqe_external_version" ]; then
-				_cqe_external_version=$( cd "$_cqe_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision: / { print $2; exit }' )
+				_cqe_external_version=$_cqe_external_project_revision
 			fi
 			;;
 		*)
@@ -783,6 +790,7 @@ checkout_queued_external() {
 			cd "$_cqe_checkout_dir"
 			# Set variables needed for filters.
 			version=$_cqe_external_version
+			project_revision=$_cqe_external_project_revision
 			package=${external_dir##*/}
 			for _cqe_nolib_site in $external_nolib_sites; do
 				case $external_uri in
