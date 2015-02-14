@@ -29,6 +29,7 @@
 # release.sh generates a zippable addon directory from a Git checkout.
 
 # POSIX tools.
+awk=awk
 cat=cat
 cp=cp
 find=find
@@ -715,11 +716,50 @@ checkout_queued_external() {
 			fi
 			;;
 		svn:*|http://svn*|https://svn*)
-			if [ -n "$external_tag" -a "$external_tag" != "latest" ]; then
-				echo "Warning: SVN tag checkout for \`\`$external_tag'' must be given in the URI."
+			if [ -z "$external_tag" ]; then
+				echo "Fetching latest version of external $external_uri."
+				$svn checkout "$external_uri" "$_cqe_checkout_dir"
+			else
+				case $external_uri in
+				*/trunk)
+					_cqe_svn_trunk_url=$external_uri
+					_cqe_svn_subdir=
+					;;
+				*)
+					_cqe_svn_trunk_url="${external_uri%/trunk/*}/trunk"
+					_cqe_svn_subdir=${external_uri#${_cqe_svn_trunk_url}/}
+					;;
+				esac
+				_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
+				if [ "$external_tag" = "latest" ]; then
+					# Determine the latest tag in the SVN repository.
+					#
+					#	1. Get the last 100 commits in the /tags URL for the SVN repository.
+					#	2. Find the most recent commit that added files and extract the tag for that commit.
+					#	3. Checkout that tag into the working directory.
+					#	4. If no tag is found, then checkout the latest version.
+					#
+					external_tag=$(	$svn log --verbose --limit 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
+					# Strip leading and trailing bits.
+					external_tag=${external_tag#/tags/}
+					external_tag=${external_tag%%/*}
+					if [ -z "$external_tag" ]; then
+						external_tag="latest"
+					fi
+				fi
+				if [ "$external_tag" = "latest" ]; then
+					echo "No tags found in $_cqe_svn_tag_url."
+					echo "Fetching latest version of external $external_uri."
+					$svn checkout "$external_uri" "$_cqe_checkout_dir"
+				else
+					_cqe_external_uri="${_cqe_svn_tag_url}/$external_tag"
+					if [ -n "$_cqe_svn_subdir" ]; then
+						_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
+					fi
+					echo "Fetching tag \`\`$external_tag'' from external $_cqe_external_uri."
+					$svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
+				fi
 			fi
-			echo "Fetching external $external_uri."
-			$svn checkout "$external_uri" "$_cqe_checkout_dir"
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
