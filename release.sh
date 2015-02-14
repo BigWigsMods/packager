@@ -734,11 +734,8 @@ checkout_queued_external() {
 				if [ -z "$version" ]; then
 					version=$( $git rev-parse --short HEAD 2>/dev/null )
 				fi
-			elif [ "$external_tag" != "latest" ]; then
-				version="$external_tag"
 			else
-				version=$( $git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
-				version=${version#refs/tags/}
+				version="$external_tag"
 			fi
 			package=${external_dir##*/}
 			for _cqe_nolib_site in $external_nolib_sites; do
