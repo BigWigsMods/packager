@@ -73,23 +73,23 @@ skip_externals=
 skip_localization=
 skip_zipfile=
 
-# Set $topdir to top-level directory of the Git checkout.
+# Set $topdir to top-level directory of the checkout.
 if [ -z "$topdir" ]; then
 	dir=$( $pwd )
-	if [ -d "$dir/.git" ]; then
+	if [ -d "$dir/.git" -o -d "$dir/.svn" ]; then
 		topdir=.
 	else
 		dir=${dir%/*}
 		topdir=..
 		while [ -n "$dir" ]; do
-			if [ -d "$topdir/.git" ]; then
+			if [ -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
 				break
 			fi
 			dir=${dir%/*}
 			topdir="$topdir/.."
 		done
-		if [ ! -d "$topdir/.git" ]; then
-			echo "No Git checkout found." >&2
+		if [ ! -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
+			echo "No Git or SVN checkout found." >&2
 			exit 10
 		fi
 	fi
@@ -107,7 +107,7 @@ usage() {
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
-	echo "  -t topdir        Set top-level directory of Git checkout.  Defaults to \`\`$topdir''." >&2
+	echo "  -t topdir        Set top-level directory of checkout.  Defaults to \`\`$topdir''." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
 
@@ -143,7 +143,7 @@ while $getopts ":celn:or:st:z" opt; do
 		nolib=true
 		;;
 	t)
-		# Set the top-level directory of the Git checkout to a non-default value.
+		# Set the top-level directory of the checkout to a non-default value.
 		topdir="$OPTARG"
 		;;
 	z)
@@ -164,9 +164,14 @@ while $getopts ":celn:or:st:z" opt; do
 done
 shift $((OPTIND - 1))
 
-# Check that $topdir is actually a Git checkout.
-if [ ! -d "$topdir/.git" ]; then
-	echo "No Git checkout found in \`\`$topdir''." >&2
+# Set $repository_type to "git" or "svn".
+repository_type=
+if [ -d "$topdir/.git" ]; then
+	repository_type=git
+elif [ -d "$topdir/.svn" ]; then
+	repository_type=svn
+else
+	echo "No Git or SVN checkout found in \`\`$topdir''." >&2
 	exit 11
 fi
 
@@ -187,41 +192,155 @@ $mkdir -p "$releasedir"
 topdir=$( cd "$topdir" && $pwd )
 releasedir=$( cd "$releasedir" && $pwd )
 
-# Get the tag for the HEAD.
-tag=$( $git describe HEAD --abbrev=0 2>/dev/null )
-# Find the previous release tag.
-rtag=$( $git describe HEAD~1 --abbrev=0 2>/dev/null )
-while true; do
-	# A version string must contain only dots and digits and optionally starts with the letter "v".
-	is_release_rtag=$( echo "${rtag#v}" | $sed -e "s/[0-9.]*//" )
-	if [ -z "$is_release_rtag" ]; then
-		break
+# set_info_<repo> returns the following information:
+#
+#	si_tag					tag for the HEAD
+#	si_release_tag			previous release tag
+#	si_release_revision		revision of previous release tag
+#	si_version				version number of HEAD
+#	si_project_revision		revision of HEAD
+#
+si_tag=
+si_release_tag=
+si_release_revision=
+si_version=
+si_project_revision=
+
+set_info_git() {
+	# The default checkout directory is $topdir.
+	_si_checkout_dir=${1:-$topdir}
+
+	# Get the tag for the HEAD.
+	si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD --abbrev=0 2>/dev/null )
+	# Find the previous release tag.
+	si_release_tag=$( cd "$_si_checkout_dir" && $git describe HEAD~1 --abbrev=0 2>/dev/null )
+	while true; do
+		case $si_release_tag in
+		*[Rr][Ee][Ll][Ee][Aa][Ss][Ee]*)
+			break
+			;;
+		*)
+			# A version string must contain only dots and digits and optionally starts with the letter "v".
+			if [ -z "$( echo "${si_release_tag#v}" | $sed -e "s/[0-9.]*//" )" ]; then
+				break
+			fi
+			si_release_tag=$( cd "$_si_checkout_dir" && $git describe $si_release_tag~1 --abbrev=0 2>/dev/null )
+			;;
+		esac
+	done
+	# If the current and previous tags match, then the HEAD is not tagged.
+	if [ "$si_tag" = "$si_release_tag" ]; then
+		si_tag=
 	fi
-	rtag=$( $git describe $rtag~1 --abbrev=0 2>/dev/null )
-done
-# If the current and previous tags match, then the HEAD is not tagged.
-if [ "$tag" = "$rtag" ]; then
-	tag=
-else
+
+	# Set $si_version to the version number of HEAD.  May be empty if there are no commits.
+	si_version=$si_tag
+	if [ -z "$si_version" ]; then
+		si_version=$( cd "$_si_checkout_dir" && $git describe HEAD 2>/dev/null )
+		if [ -z "$si_version" ]; then
+			si_version=$( cd "$_si_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
+		fi
+	fi
+
+	# Git repositories have no project revision.
+	si_project_revision=
+	si_release_revision=
+}
+
+set_info_svn() {
+	# The default checkout directory is $topdir.
+	_si_checkout_dir=${1:-$topdir}
+
+	# Temporary file to hold results of "svn info".
+	_si_svninfo="${_si_checkout_dir}/.svn/release_sh_svninfo"
+	( cd "$_si_checkout_dir" && $svn info ) > "$_si_svninfo"
+
+	_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
+	_si_url=$( $awk '/^URL:/ { print $2; exit }' < "$_si_svninfo" )
+
+	# Set $si_project_revision to the highest revision of the project.
+	case ${_si_url#${_si_root}/} in
+	tags/*)
+		# Extract the tag from the URL.
+		si_tag=${_si_url#${_si_root}/tags/}
+		si_tag=${si_tag%%/*}
+		si_project_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+		;;
+	*)
+		si_project_revision=$( cd "$_si_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision:/ { print $2; exit }' )
+		;;
+	esac
+	rm -f "$_si_svninfo"
+
+	# Temporary file to hold list of tags.
+	_si_tag_list="${_si_checkout_dir}/.svn/release_sh_tag_listing"
+	( cd "$_si_checkout_dir" && $svn log --verbose ^/tags/ | $awk '/^   A \/tags\// { print $2 }' | $awk -F/ '{ print $3 }' ) > "$_si_tag_list"
+
+	# Get the tag of the HEAD.
+	_si_record_num=1
+	if [ -z "$si_tag" ]; then
+		si_tag=$( $awk 'NR == '"${_si_record_num}"' { print ; exit }' < "$_si_tag_list" )
+	fi
+	# Get the project revision number for $si_tag.
+	_si_tag_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+	# If the project revision and the tag revision don't match, then the HEAD isn't tagged.
+	if [ "$_si_tag_revision" != "$si_project_revision" ]; then
+		si_tag=
+	else
+		# Set the next record number to examine to one past the HEAD tag.
+		_si_record_num=$( $awk '/^'"$si_tag"'$/ { print NR + 1; exit }' < "$_si_tag_list" )
+	fi
+
+	# Find the previous release tag.
+	si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
+	si_release_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_release_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+	while true; do
+		case $si_release_tag in
+		*[Rr][Ee][Ll][Ee][Aa][Ss][Ee]*)
+			break
+			;;
+		*)
+			# A version string must contain only dots and digits and optionally starts with the letter "v".
+			if [ -z "$( echo "${si_release_tag#v}" | $sed -e "s/[0-9.]*//" )" ]; then
+				break
+			fi
+			_si_record_num=$((_si_record_num + 1))
+			si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
+			si_release_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_release_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+			;;
+		esac
+	done
+	rm -f "$_si_tag_list"
+
+	# Set $si_version to the version number of HEAD.  May be empty if there are no commits.
+	si_version=$si_tag
+	if [ -z "$si_version" ]; then
+		si_version="r$si_project_revision"
+	fi
+}
+
+case $repository_type in
+git)	set_info_git "$topdir" ;;
+svn)	set_info_svn "$topdir" ;;
+esac
+
+tag=$si_tag
+release_tag=$si_release_tag
+release_revision=$si_release_revision
+version=$si_version
+project_revision=$si_project_revision
+
+if [ -n "$version" ]; then
+	echo "Current version: $version"
+fi
+if [ -n "$tag" ]; then
 	echo "Current tag: $tag"
 fi
-if [ -z "$rtag" ]; then
+if [ -z "$release_tag" ]; then
 	echo "No previous release tag found."
 else
-	echo "Previous release tag: $rtag"
+	echo "Previous release tag: $release_tag"
 fi
-
-# Set $version to the version number of HEAD.  May be empty if there are no commits.
-version="$tag"
-if [ -z "$version" ]; then
-	version=$( $git describe HEAD 2>/dev/null )
-	if [ -z "$version" ]; then
-		version=$( $git rev-parse --short HEAD 2>/dev/null )
-	fi
-fi
-
-# Set $project_revision to the highest revision of the project (not for Git).
-project_revision=
 
 # Returns 0 if $1 matches one of the colon-separated patterns in $2.
 match_pattern() {
@@ -329,9 +448,9 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
-# Set $package to the basename of the Git checkout directory if not already set.
+# Set $package to the basename of the checkout directory if not already set.
 if [ -z "$package" ]; then
-	# Use the basename of the Git checkout directory as the package name.
+	# Use the basename of the checkout directory as the package name.
 	case $topdir in
 	/*/*)
 		package=${topdir##/*/}
@@ -718,15 +837,10 @@ checkout_queued_external() {
 					( cd "$_cqe_checkout_dir" && $git checkout "$external_tag" )
 				fi
 			fi
+			set_info_git "$_cqe_checkout_dir"
 			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$external_tag
-			if [ -z "$_cqe_external_version" ]; then
-				_cqe_external_version=$( cd "$_cqe_checkout_dir" && $git describe HEAD 2>/dev/null )
-				if [ -z "$_cqe_external_version" ]; then
-					_cqe_external_version=$( cd "$_cqe_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
-				fi
-			fi
-			_cqe_external_project_revision=
+			_cqe_external_version=$si_version
+			_cqe_external_project_revision=$si_project_revision
 			;;
 		svn:*|http://svn*|https://svn*)
 			if [ -z "$external_tag" ]; then
@@ -773,13 +887,11 @@ checkout_queued_external() {
 					$svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
 				fi
 			fi
+			set_info_svn "$_cqe_checkout_dir"
 			# Set _cqe_external_project_revision to the latest project revision.
-			_cqe_external_project_revision=$( cd "$_cqe_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision: / { print $2; exit }' )
+			_cqe_external_project_revision=$si_project_revision
 			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$external_tag
-			if [ -z "$_cqe_external_version" ]; then
-				_cqe_external_version=$_cqe_external_project_revision
-			fi
+			_cqe_external_version=$si_version
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
@@ -935,14 +1047,16 @@ if [ ! -f "$topdir/$changelog" ]; then
 	create_changelog=true
 fi
 if [ -n "$create_changelog" ]; then
-	if [ -n "$rtag" ]; then
-		echo "Generating changelog of commits since $rtag into $changelog."
-		change_string="Changes from version $rtag:"
-		git_commit_range="$rtag..HEAD"
+	if [ -n "$release_tag" ]; then
+		echo "Generating changelog of commits since $release_tag into $changelog."
+		change_string="Changes from version $release_tag:"
+		git_commit_range="$release_tag..HEAD"
+		svn_revision_range="-r$project_revision:$release_revision"
 	else
 		echo "Generating changelog of commits into $changelog."
 		change_string="All changes:"
 		git_commit_range=
+		svn_revision_range=
 	fi
 	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
 	project_string="$project $version"
@@ -955,8 +1069,17 @@ $change_string
 $change_string_underline
 
 EOF
-	$git log $git_commit_range --pretty=format:"###   %B" |
-		$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
+	case $repository_type in
+	git)
+		# The Git changelog is Markdown-friendly.
+		$git log $git_commit_range --pretty=format:"###   %B" |
+			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
+		;;
+	svn)
+		# The SVN changelog is plain text.
+		$svn log -v $svn_revision_range >> "$pkgdir/$changelog"
+		;;
+	esac
 	unix2dos "$pkgdir/$changelog"
 fi
 
