@@ -211,6 +211,7 @@ set_info_git() {
 	_si_checkout_dir=${1:-$topdir}
 
 	# Get the tag for the HEAD.
+	_si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD 2>/dev/null )
 	si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD --abbrev=0 2>/dev/null )
 	# Find the previous release tag.
 	si_release_tag=$( cd "$_si_checkout_dir" && $git describe HEAD~1 --abbrev=0 2>/dev/null )
@@ -228,15 +229,18 @@ set_info_git() {
 			;;
 		esac
 	done
-	# If the current and previous tags match, then the HEAD is not tagged.
+	# The HEAD is not tagged if the best tag description doesn't match the previous release tag,
+	# or if the HEAD is several commits past the most recent tag.
 	if [ "$si_tag" = "$si_release_tag" ]; then
+		si_tag=
+	elif [ "$_si_tag" != "$si_tag" ]; then
 		si_tag=
 	fi
 
 	# Set $si_version to the version number of HEAD.  May be empty if there are no commits.
 	si_version=$si_tag
 	if [ -z "$si_version" ]; then
-		si_version=$( cd "$_si_checkout_dir" && $git describe HEAD 2>/dev/null )
+		si_version=$_si_tag
 		if [ -z "$si_version" ]; then
 			si_version=$( cd "$_si_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
 		fi
