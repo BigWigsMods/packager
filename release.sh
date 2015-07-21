@@ -63,6 +63,7 @@ unix2dos() {
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
 # Variables set via options.
+slug=
 project=
 topdir=
 releasedir=
@@ -98,13 +99,28 @@ fi
 # Set $releasedir to the directory which will contain the generated addon zipfile.
 : ${releasedir:="$topdir/release"}
 
+# Set $basedir to the basename of the checkout directory.
+basedir=$( cd "$topdir" && $pwd )
+case $basedir in
+/*/*)
+	basedir=${basedir##/*/}
+	;;
+/*)
+	basedir=${basedir##/}
+	;;
+esac
+
+# The default slug is the lowercase basename of the checkout directory.
+slug_default=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
+
 usage() {
-	echo "Usage: release.sh [-celoz] [-n name] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celoz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -n name          Set the name of the addon." >&2
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
+	echo "  -p slug          Set the project slug used on WowAce or CurseForge. Defaults to \`\`$slug_default''." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -t topdir        Set top-level directory of checkout.  Defaults to \`\`$topdir''." >&2
@@ -113,7 +129,7 @@ usage() {
 
 # Process command-line options
 OPTIND=1
-while $getopts ":celn:or:st:z" opt; do
+while $getopts ":celn:op:r:st:z" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -133,6 +149,9 @@ while $getopts ":celn:or:st:z" opt; do
 	o)
 		# Skip deleting any previous package directory.
 		overwrite=true
+		;;
+	p)
+		slug="$OPTARG"
 		;;
 	r)
 		# Set the release directory to a non-default value.
@@ -452,18 +471,11 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
+# Set $slug to the basename of the checkout directory if not already set.
+: ${slug:="$slug_default"}
+
 # Set $package to the basename of the checkout directory if not already set.
-if [ -z "$package" ]; then
-	# Use the basename of the checkout directory as the package name.
-	case $topdir in
-	/*/*)
-		package=${topdir##/*/}
-		;;
-	/*)
-		package=${topdir##/}
-		;;
-	esac
-fi
+: ${package:=$basedir}
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 : ${pkgdir:="$releasedir/$package"}
@@ -495,8 +507,7 @@ localization_url=
 cache_localization_url() {
 	if [ -z "$localization_url" ]; then
 		for _ul_site_url in $site_url; do
-			# Ensure that the CF/WA URL is lowercase, since project slugs are always in lowercase.
-			localization_url=$( echo "${_ul_site_url}/addons/$package/localization" | $tr '[A-Z]' '[a-z]' )
+			localization_url="${_ul_site_url}/addons/$slug/localization"
 			if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
 				echo "Localization URL is: $localization_url"
 				break
@@ -719,7 +730,7 @@ copy_directory_tree() {
 					skip_filter=
 				fi
 				if [ -n "$skip_filter" -o -n "$unchanged" ]; then
-					echo "Copying: $file"
+					echo "Copying: $file (unchanged)"
 					$cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
 					# Set the filter for @localization@ replacement.
@@ -946,12 +957,13 @@ checkout_queued_external() {
 			version=$_cqe_external_version
 			project_revision=$_cqe_external_project_revision
 			package=${external_dir##*/}
+			slug=$( echo "$package" | $tr '[A-Z]' '[a-z]' )
 			for _cqe_nolib_site in $external_nolib_sites; do
 				case $external_uri in
 				*${_cqe_nolib_site}/*)
 					# The URI points to a Curse repository.
-					package=${external_uri#*${_cqe_nolib_site}/wow/}
-					package=${package%%/*}
+					slug=${external_uri#*${_cqe_nolib_site}/wow/}
+					slug=${slug%%/*}
 					break
 					;;
 				esac
