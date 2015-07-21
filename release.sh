@@ -572,7 +572,8 @@ localization_filter()
 			_ul_url_params=${_ul_url_params%&}
 			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
-				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}"
+				# Fetch the localization data, but don't output anything if the namespace was not valid.
+				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}" | $awk '/namespace.*Not a valid choice/ { skip = 1; next } skip == 1 { next } { print }'
 			fi
 			# Insert a trailing blank line to match CF packager.
 			echo ""
