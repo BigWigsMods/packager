@@ -521,7 +521,9 @@ localization_filter()
 {
 	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
 		case $_ul_line in
-		--@localization\(*\)@*)
+		*--@localization\(*\)@*)
+			# Get the prefix of the line before the comment.
+			_ul_prefix=${_ul_line%%--*}
 			# Strip everything but the localization parameters.
 			_ul_params=${_ul_line#*@localization(}
 			_ul_params=${_ul_params%)@}
@@ -568,6 +570,7 @@ localization_filter()
 			# Strip any leading or trailing ampersands.
 			_ul_url_params=${_ul_url_params#&}
 			_ul_url_params=${_ul_url_params%&}
+			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
 				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}"
 			fi
