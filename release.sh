@@ -406,7 +406,9 @@ license=
 contents=
 
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r yaml_line || [ -n "$yaml_line" ]; do
+	yaml_eof=
+	while [ -z "$yaml_eof" ]; do
+		IFS='' read -r yaml_line || yaml_eof=true
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -519,7 +521,9 @@ cache_localization_url() {
 # Filter to handle @localization@ repository keyword replacement.
 localization_filter()
 {
-	while IFS='' read -r _ul_line || [ -n "$_ul_line" ]; do
+	_ul_eof=
+	while [ -z "$_ul_eof" ]; do
+		IFS='' read -r _ul_line || _ul_eof=true
 		case $_ul_line in
 		*--@localization\(*\)@*)
 			# Get the prefix of the line before the comment.
@@ -576,10 +580,16 @@ localization_filter()
 				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}" | $awk '/namespace.*Not a valid choice/ { skip = 1; next } skip == 1 { next } { print }'
 			fi
 			# Insert a trailing blank line to match CF packager.
-			echo ""
+			if [ -z "$_ul_eof" ]; then
+				echo ""
+			fi
 			;;
 		*)
-			echo "$_ul_line"
+			if [ -n "$_ul_eof" ]; then
+				echo -n "$_ul_line"
+			else
+				echo "$_ul_line"
+			fi
 		esac
 	done
 }
@@ -597,7 +607,9 @@ toc_filter()
 {
 	_trf_token=$1; shift
 	_trf_comment=
-	while IFS='' read -r _trf_line || [ -n "$_trf_line" ]; do
+	_trf_eof=
+	while [ -z "$_trf_eof" ]; do
+		IFS='' read -r _trf_line || _trf_eof=true
 		_trf_passthrough=
 		case $_trf_line in
 		"#@${_trf_token}@"*)
@@ -609,10 +621,13 @@ toc_filter()
 			_trf_passthrough=true
 			;;
 		esac
-		if [ -n "$_trf_passthrough" ]; then
-			echo "$_trf_line"
+		if [ -z "$_trf_passthrough" ]; then
+			_trf_line="$_trf_comment$_trf_line"
+		fi
+		if [ -n "$_trf_eof" ]; then
+			echo -n "$_trf_line"
 		else
-			echo "$_trf_comment$_trf_line"
+			echo "$_trf_line"
 		fi
 	done
 }
@@ -650,7 +665,32 @@ do_not_package_filter()
 		$cat
 	else
 		# Replace all content between the start and end tokens, inclusive, with a newline to match CF packager.
-		$awk '/'"$_dnpf_start_token"'/ { skip = 1; sub("'"$_dnpf_start_token"'.*", ""); printf "%s", $0; next } /'"$_dnpf_end_token"'/ { skip = 0; print ""; next } skip == 1 { next } { print }'
+		_dnpf_eof=
+		_dnpf_skip=
+		while [ -z "$_dnpf_eof" ]; do
+			IFS='' read -r _dnpf_line || _dnpf_eof=true
+			case $_dnpf_line in
+			*$_dnpf_start_token*)
+				_dnpf_skip=true
+				echo -n "${_dnpf_line%%${_dnpf_start_token}*}"
+				;;
+			*$_dnpf_end_token*)
+				_dnpf_skip=
+				if [ -z "$_dnpf_eof" ]; then
+					echo ""
+				fi
+				;;
+			*)
+				if [ -z "$_dnpf_skip" ]; then
+					if [ -n "$_dnpf_eof" ]; then
+						echo -n "$_dnpf_line"
+					else
+						echo "$_dnpf_line"
+					fi
+				fi
+				;;
+			esac
+		done
 	fi
 }
 
@@ -976,7 +1016,9 @@ checkout_queued_external() {
 			# If a .pkgmeta file is present, process it for an "ignore" list.
 			ignore=
 			if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
-				while IFS='' read -r yaml_line; do
+				yaml_eof=
+				while [ -z "$yaml_eof" ]; do
+					IFS='' read -r yaml_line || yaml_eof=true
 					case $yaml_line in
 					[!\ ]*:*)
 						# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -1023,7 +1065,9 @@ checkout_queued_external() {
 }
 
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r yaml_line; do
+	yaml_eof=
+	while [ -z "$yaml_eof" ]; do
+		IFS='' read -r yaml_line || yaml_eof=true
 		case $yaml_line in
 		[!\ ]*:*)
 			# Started a new section, so checkout any queued externals.
@@ -1146,7 +1190,9 @@ fi
 ###
 
 if [ -f "$topdir/.pkgmeta" ]; then
-	while IFS='' read -r yaml_line; do
+	yaml_eof=
+	while [ -z "$yaml_eof" ]; do
+		IFS='' read -r yaml_line || yaml_eof=true
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
