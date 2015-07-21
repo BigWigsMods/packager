@@ -22,6 +22,7 @@ copying the files from the checkout into the project directory.
 
   - *@alpha@*...*@end-alpha@*
   - *@debug@*...*@end-debug@*
+  - *@do-not-package@*...*@end-do-not-package@*
   - *@localization(locale="locale", format="format", ...)@*
     - *escape-non-ascii*
     - *handle-subnamespaces*

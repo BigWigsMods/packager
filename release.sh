@@ -611,6 +611,34 @@ xml_filter()
 		-e "s/@end-non-$1@-->/<!--@end-non-$1@-->/g"
 }
 
+do_not_package_filter()
+{
+	_dnpf_token=$1; shift
+	_dnpf_string="do-not-package"
+	_dnpf_start_token=
+	_dnpf_end_token=
+	case $_dnpf_token in
+	lua)
+		_dnpf_start_token="--@$_dnpf_string@"
+		_dnpf_end_token="--@end-$_dnpf_string@"
+		;;
+	toc)
+		_dnpf_start_token="#@$_dnpf_string@"
+		_dnpf_end_token="#@end-$_dnpf_string@"
+		;;
+	xml)
+		_dnpf_start_token="<!--@$_dnpf_string@-->"
+		_dnpf_end_token="<!--@end-$_dnpf_string@-->"
+		;;
+	esac
+	if [ -z "$_dnpf_start_token" -o -z "$_dnpf_end_token" ]; then
+		$cat
+	else
+		# Replace all content between the start and end tokens, inclusive, with a newline to match CF packager.
+		$awk '/'"$_dnpf_start_token"'/ { skip = 1; sub("'"$_dnpf_start_token"'.*", ""); printf "%s", $0; next } /'"$_dnpf_end_token"'/ { skip = 0; print ""; next } skip == 1 { next } { print }'
+	fi
+}
+
 ###
 ### Copy files from the working directory into the package directory.
 ###
@@ -625,15 +653,17 @@ copy_directory_tree() {
 	_cdt_ignored_patterns=
 	_cdt_localization=
 	_cdt_nolib=
+	_cdt_do_not_package=
 	_cdt_unchanged_patterns=
 	OPTIND=1
-	while $getopts :adi:lnu: _cdt_opt "$@"; do
+	while $getopts :adi:lnpu: _cdt_opt "$@"; do
 		case $_cdt_opt in
 		a)	_cdt_alpha=true ;;
 		d)	_cdt_debug=true ;;
 		i)	_cdt_ignored_patterns=$OPTARG ;;
 		l)	_cdt_localization=true ;;
 		n)	_cdt_nolib=true ;;
+		p)	_cdt_do_not_package=true ;;
 		u)	_cdt_unchanged_patterns=$OPTARG ;;
 		esac
 	done
@@ -722,10 +752,18 @@ copy_directory_tree() {
 						*.xml)	_cdt_nolib_filter="xml_filter no-lib-strip" ;;
 						esac
 					fi
+					_cdt_do_not_package_filter=$cat
+					if [ -n "$_cdt_do_not_package" ]; then
+						case $file in
+						*.lua)	_cdt_do_not_package_filter="do_not_package_filter lua" ;;
+						*.toc)	_cdt_do_not_package_filter="do_not_package_filter toc" ;;
+						*.xml)	_cdt_do_not_package_filter="do_not_package_filter xml" ;;
+						esac
+					fi
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
 					echo "Copying: $file"
-					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_localization_filter > "$_cdt_destdir/$file"
+					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_do_not_package_filter | $_cdt_localization_filter > "$_cdt_destdir/$file"
 					unix2dos "$_cdt_destdir/$file"
 				fi
 			fi
@@ -748,6 +786,10 @@ if [ -z "$skip_copying" ]; then
 	fi
 	if [ -n "$nolib" ]; then
 		cdt_args="$cdt_args -n"
+	fi
+	if true; then
+		# We always strip out "do-not-package" in a packaged addon.
+		cdt_args="$cdt_args -p"
 	fi
 	if [ -n "$ignore" ]; then
 		cdt_args="$cdt_args -i \"$ignore\""
