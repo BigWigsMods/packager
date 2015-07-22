@@ -37,6 +37,7 @@ getopts=getopts
 grep=grep
 mkdir=mkdir
 mv=mv
+printf=printf
 pwd=pwd
 rm=rm
 sed=sed
@@ -55,10 +56,6 @@ zip() {
 	$sevenzip a -tzip "$archive" "$@"
 }
 
-unix2dos() {
-	$sed -i "s/$/\r/" "$1"
-}
-
 # Site URLs, used to find the localization web app.
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
@@ -69,6 +66,7 @@ topdir=
 releasedir=
 overwrite=
 nolib=
+line_ending=dos
 skip_copying=
 skip_externals=
 skip_localization=
@@ -114,7 +112,7 @@ esac
 slug_default=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
 
 usage() {
-	echo "Usage: release.sh [-celoz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celouz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
@@ -124,12 +122,13 @@ usage() {
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -t topdir        Set top-level directory of checkout.  Defaults to \`\`$topdir''." >&2
+	echo "  -u               Use Unix line-endings." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
 
 # Process command-line options
 OPTIND=1
-while $getopts ":celn:op:r:st:z" opt; do
+while $getopts ":celn:op:r:st:uz" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -164,6 +163,10 @@ while $getopts ":celn:op:r:st:z" opt; do
 	t)
 		# Set the top-level directory of the checkout to a non-default value.
 		topdir="$OPTARG"
+		;;
+	u)
+		# Skip Unix-to-DOS line-ending translation.
+		line_ending=unix
 		;;
 	z)
 		# Skip generating the zipfile.
@@ -694,6 +697,29 @@ do_not_package_filter()
 	fi
 }
 
+line_ending_filter()
+{
+	_lef_eof=
+	while [ -z "$_lef_eof" ]; do
+		IFS='' read -r _lef_line || _lef_eof=true
+		if [ -n "$_lef_eof" ]; then
+			# Preserve EOF not preceded by newlines.
+			echo -n "$_lef_line"
+		else
+			case $line_ending in
+			dos)
+				# Terminate lines with CR LF.
+				$printf "%s\r\n" "$_lef_line"
+				;;
+			unix)
+				# Terminate lines with LF.
+				$printf "%s\n" "$_lef_line"
+				;;
+			esac
+		fi
+	done
+}
+
 ###
 ### Copy files from the working directory into the package directory.
 ###
@@ -818,8 +844,7 @@ copy_directory_tree() {
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
 					echo "Copying: $file"
-					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_do_not_package_filter | $_cdt_localization_filter > "$_cdt_destdir/$file"
-					unix2dos "$_cdt_destdir/$file"
+					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_do_not_package_filter | $_cdt_localization_filter | line_ending_filter > "$_cdt_destdir/$file"
 				fi
 			fi
 		fi
@@ -862,9 +887,9 @@ if [ -n "$license" -a ! -f "$topdir/$license" ]; then
 	create_license=true
 fi
 if [ -n "$create_license" ]; then
-	echo "Generating default license into $license."
-	echo "All Rights Reserved." > "$pkgdir/$license"
-	unix2dos "$pkgdir/$license"
+	( echo "Generating default license into $license."
+	  echo "All Rights Reserved."
+	) | line_ending_filter > "$pkgdir/$license"
 fi
 
 ###
@@ -1175,14 +1200,14 @@ EOF
 	git)
 		# The Git changelog is Markdown-friendly.
 		$git log $git_commit_range --pretty=format:"###   %B" |
-			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" >> "$pkgdir/$changelog"
+			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" |
+			line_ending_filter >> "$pkgdir/$changelog"
 		;;
 	svn)
 		# The SVN changelog is plain text.
-		$svn log -v $svn_revision_range >> "$pkgdir/$changelog"
+		$svn log -v $svn_revision_range | line_ending_filter >> "$pkgdir/$changelog"
 		;;
 	esac
-	unix2dos "$pkgdir/$changelog"
 fi
 
 ###
