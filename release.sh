@@ -616,7 +616,7 @@ toc_filter()
 		_trf_passthrough=
 		case $_trf_line in
 		"#@${_trf_token}@"*)
-			_trf_comment="#"
+			_trf_comment="# "
 			_trf_passthrough=true
 			;;
 		"#@end-${_trf_token}@"*)
