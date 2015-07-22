@@ -52,8 +52,8 @@ zip=zip
 # pkzip wrapper for 7z.
 sevenzip=7z
 zip() {
-	archive="$1"; shift
-	$sevenzip a -tzip "$archive" "$@"
+	_zip_archive="$1"; shift
+	$sevenzip a -tzip "$_zip_archive" "$@"
 }
 
 # Site URLs, used to find the localization web app.
