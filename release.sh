@@ -1154,7 +1154,7 @@ if [ -z "$project" ]; then
 		while read toc_line; do
 			case $toc_line in
 			"## Title: "*)
-				project=${toc_line#"## Title: "}
+				project=$( echo ${toc_line#"## Title: "} | $sed -e "s/|c[0-9A-Fa-f]\{8\}//g" -e "s/|r//g" )
 				;;
 			esac
 		done < "$topdir/$package.toc"
