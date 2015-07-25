@@ -1188,7 +1188,8 @@ if [ -n "$create_changelog" ]; then
 	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
 	project_string="$project $version"
 	project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
-	$cat > "$pkgdir/$changelog" << EOF
+	(
+		$cat << EOF
 $project_string
 $project_string_underline
 
@@ -1196,18 +1197,18 @@ $change_string
 $change_string_underline
 
 EOF
-	case $repository_type in
-	git)
-		# The Git changelog is Markdown-friendly.
-		$git log $git_commit_range --pretty=format:"###   %B" |
-			$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" |
-			line_ending_filter >> "$pkgdir/$changelog"
-		;;
-	svn)
-		# The SVN changelog is plain text.
-		$svn log -v $svn_revision_range | line_ending_filter >> "$pkgdir/$changelog"
-		;;
-	esac
+		case $repository_type in
+		git)
+			# The Git changelog is Markdown-friendly.
+			$git log $git_commit_range --pretty=format:"###   %B" |
+				$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g"
+			;;
+		svn)
+			# The SVN changelog is plain text.
+			$svn log -v $svn_revision_range
+			;;
+		esac
+	) | line_ending_filter > "$pkgdir/$changelog"
 fi
 
 ###
