@@ -1260,6 +1260,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 									echo "Copied: $file"
 								fi
 							done
+							$rm -fr "$srcdir"
 						fi
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
