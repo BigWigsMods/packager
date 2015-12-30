@@ -781,7 +781,7 @@ copy_directory_tree() {
 	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
 	case $_cdt_dest_subdir in
 	/*)	;;
-	*)	_cdt_find_cmd="$_cdt_find_cmd -o -name \"$_cdt_dest_subdir\" -prune" ;;
+	*)	_cdt_find_cmd="$_cdt_find_cmd -o -path \"$_cdt_destdir\" -prune" ;;
 	esac
 	_cdt_find_cmd="$_cdt_find_cmd -o -print"
 	eval $_cdt_find_cmd | while read file; do
