@@ -368,6 +368,9 @@ else
 	echo "Previous release tag: $release_tag"
 fi
 
+# Bare carriage-return character.
+carriage_return=$( $printf "\r" )
+
 # Returns 0 if $1 matches one of the colon-separated patterns in $2.
 match_pattern() {
 	_mp_file=$1
@@ -412,6 +415,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
+		# Strip any trailing CR character.
+		yaml_line=${yaml_line%$carriage_return}
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -527,6 +532,8 @@ localization_filter()
 	_ul_eof=
 	while [ -z "$_ul_eof" ]; do
 		IFS='' read -r _ul_line || _ul_eof=true
+		# Strip any trailing CR character.
+		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
 		*--@localization\(*\)@*)
 			# Get the prefix of the line before the comment.
@@ -613,6 +620,8 @@ toc_filter()
 	_trf_eof=
 	while [ -z "$_trf_eof" ]; do
 		IFS='' read -r _trf_line || _trf_eof=true
+		# Strip any trailing CR character.
+		_trf_line=${_trf_line%$carriage_return}
 		_trf_passthrough=
 		case $_trf_line in
 		"#@${_trf_token}@"*)
@@ -672,6 +681,8 @@ do_not_package_filter()
 		_dnpf_skip=
 		while [ -z "$_dnpf_eof" ]; do
 			IFS='' read -r _dnpf_line || _dnpf_eof=true
+			# Strip any trailing CR character.
+			_dnpf_line=${_dnpf_line%$carriage_return}
 			case $_dnpf_line in
 			*$_dnpf_start_token*)
 				_dnpf_skip=true
@@ -702,6 +713,8 @@ line_ending_filter()
 	_lef_eof=
 	while [ -z "$_lef_eof" ]; do
 		IFS='' read -r _lef_line || _lef_eof=true
+		# Strip any trailing CR character.
+		_lef_line=${_lef_line%$carriage_return}
 		if [ -n "$_lef_eof" ]; then
 			# Preserve EOF not preceded by newlines.
 			echo -n "$_lef_line"
@@ -1044,6 +1057,8 @@ checkout_queued_external() {
 				yaml_eof=
 				while [ -z "$yaml_eof" ]; do
 					IFS='' read -r yaml_line || yaml_eof=true
+					# Strip any trailing CR character.
+					yaml_line=${yaml_line%$carriage_return}
 					case $yaml_line in
 					[!\ ]*:*)
 						# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -1093,6 +1108,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
+		# Strip any trailing CR character.
+		yaml_line=${yaml_line%$carriage_return}
 		case $yaml_line in
 		[!\ ]*:*)
 			# Started a new section, so checkout any queued externals.
@@ -1219,6 +1236,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
+		# Strip any trailing CR character.
+		yaml_line=${yaml_line%$carriage_return}
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
