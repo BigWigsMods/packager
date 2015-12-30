@@ -290,7 +290,7 @@ set_info_svn() {
 		# Extract the tag from the URL.
 		si_tag=${_si_url#${_si_root}/tags/}
 		si_tag=${si_tag%%/*}
-		si_project_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+		si_project_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
 		;;
 	*)
 		si_project_revision=$( $awk '/^Revision:/ { print $2; exit }' < "$_si_svninfo" )
@@ -300,7 +300,7 @@ set_info_svn() {
 
 	# Temporary file to hold list of tags.
 	_si_tag_list="${_si_checkout_dir}/.svn/release_sh_tag_listing"
-	( cd "$_si_checkout_dir" && $svn log --verbose ^/tags/ | $awk '/^   A \/tags\// { print $2 }' | $awk -F/ '{ print $3 }' ) > "$_si_tag_list"
+	( cd "$_si_checkout_dir" && $svn log --verbose "$_si_root/tags" 2>/dev/null | $awk '/^   A \/tags\// { print $2 }' | $awk -F/ '{ print $3 }' ) > "$_si_tag_list"
 
 	# Get the tag of the HEAD.
 	_si_record_num=1
@@ -308,7 +308,7 @@ set_info_svn() {
 		si_tag=$( $awk 'NR == '"${_si_record_num}"' { print ; exit }' < "$_si_tag_list" )
 	fi
 	# Get the project revision number for $si_tag.
-	_si_tag_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+	_si_tag_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
 	# If the project revision and the tag revision don't match, then the HEAD isn't tagged.
 	if [ "$_si_tag_revision" != "$si_project_revision" ]; then
 		si_tag=
@@ -319,7 +319,7 @@ set_info_svn() {
 
 	# Find the previous release tag.
 	si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
-	si_release_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_release_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+	si_release_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_release_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
 	while true; do
 		case $si_release_tag in
 		*[Rr][Ee][Ll][Ee][Aa][Ss][Ee]*)
@@ -332,7 +332,7 @@ set_info_svn() {
 			fi
 			_si_record_num=$((_si_record_num + 1))
 			si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
-			si_release_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_release_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
+			si_release_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_release_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
 			;;
 		esac
 	done
