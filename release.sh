@@ -293,7 +293,7 @@ set_info_svn() {
 		si_project_revision=$( cd "$_si_checkout_dir" && $svn info ^/tags/$si_tag 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
 		;;
 	*)
-		si_project_revision=$( cd "$_si_checkout_dir" && $svn info 2>/dev/null | $awk '/^Revision:/ { print $2; exit }' )
+		si_project_revision=$( $awk '/^Revision:/ { print $2; exit }' < "$_si_svninfo" )
 		;;
 	esac
 	rm -f "$_si_svninfo"
