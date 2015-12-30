@@ -769,24 +769,21 @@ copy_directory_tree() {
 	if [ ! -d "$_cdt_destdir" ]; then
 		$mkdir -p "$_cdt_destdir"
 	fi
-	# Create a "find" command to list all of the files in the source directory, minus any ones we need to prune.
-	_cdt_find_cmd="$find \"$_cdt_srcdir\""
-	# If the basename of the source directory begins with a dot, always descend into it, but prune everything else
-	# that begins with a dot.
-	case ${_cdt_srcdir##*/} in
-	.*)	_cdt_find_cmd="$_cdt_find_cmd -name \"${_cdt_srcdir##*/}\" -print -o -name \".*\" -prune" ;;
-	*)	_cdt_find_cmd="$_cdt_find_cmd -name \".*\" -prune" ;;
-	esac
-	# The destination directory needs to be pruned if it is a subdirectory of the source directory.
+	# Create a "find" command to list all of the files in the current directory, minus any ones we need to prune.
+	_cdt_find_cmd="$find ."
+	# Prune everything that begins with a dot except for the current directory ".".
+	_cdt_find_cmd="$_cdt_find_cmd \( -name \".*\" -a \! -name \".\" \) -prune"
+	# Prune the destination directory if it is a subdirectory of the source directory.
 	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
 	case $_cdt_dest_subdir in
 	/*)	;;
-	*)	_cdt_find_cmd="$_cdt_find_cmd -o -path \"$_cdt_destdir\" -prune" ;;
+	*)	_cdt_find_cmd="$_cdt_find_cmd -o -path \"./$_cdt_dest_subdir\" -prune" ;;
 	esac
-	_cdt_find_cmd="$_cdt_find_cmd -o -print"
-	eval $_cdt_find_cmd | while read file; do
-		file=${file#$_cdt_srcdir/}
-		if [ "$file" != "$_cdt_srcdir" -a -f "$_cdt_srcdir/$file" ]; then
+	# Print the filename, but suppress the current directory ".".
+	_cdt_find_cmd="$_cdt_find_cmd -o \! -name \".\" -print"
+	( cd "$_cdt_srcdir" && eval $_cdt_find_cmd ) | while read file; do
+		file=${file#./}
+		if [ -f "$_cdt_srcdir/$file" ]; then
 			# Check if the file should be ignored.
 			skip_copy=
 			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
