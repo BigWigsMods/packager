@@ -1098,7 +1098,6 @@ checkout_queued_external() {
 		# Remove the ".checkout" subdirectory containing the full checkout.
 		if [ -d "$_cqe_checkout_dir" ]; then
 			echo "Removing repository checkout in \`\`$_cqe_checkout_dir''."
-			$rm -fr "$_cqe_checkout_dir/$_cqe_meta_subdir"
 			$rm -fr "$_cqe_checkout_dir"
 		fi
 	fi
