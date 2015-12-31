@@ -216,6 +216,7 @@ releasedir=$( cd "$releasedir" && $pwd )
 
 # set_info_<repo> returns the following information:
 #
+#	si_meta_subdir			subdirectory containing metadata for the repository checkout
 #	si_tag					tag for the HEAD
 #	si_release_tag			previous release tag
 #	si_release_revision		revision of previous release tag
@@ -231,6 +232,7 @@ si_project_revision=
 set_info_git() {
 	# The default checkout directory is $topdir.
 	_si_checkout_dir=${1:-$topdir}
+	si_meta_subdir=".git"
 
 	# Get the tag for the HEAD.
 	_si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD 2>/dev/null )
@@ -276,6 +278,7 @@ set_info_git() {
 set_info_svn() {
 	# The default checkout directory is $topdir.
 	_si_checkout_dir=${1:-$topdir}
+	si_meta_subdir=".svn"
 
 	# Temporary file to hold results of "svn info".
 	_si_svninfo="${_si_checkout_dir}/.svn/release_sh_svninfo"
@@ -970,6 +973,7 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_git "$_cqe_checkout_dir"
+			_cqe_meta_subdir=$si_meta_subdir
 			# Set _cqe_external_version to the external project version.
 			_cqe_external_version=$si_version
 			_cqe_external_project_revision=$si_project_revision
@@ -1020,6 +1024,7 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_svn "$_cqe_checkout_dir"
+			_cqe_meta_subdir=$si_meta_subdir
 			# Set _cqe_external_project_revision to the latest project revision.
 			_cqe_external_project_revision=$si_project_revision
 			# Set _cqe_external_version to the external project version.
@@ -1029,7 +1034,7 @@ checkout_queued_external() {
 			echo "Unknown external: $external_uri" >&2
 			;;
 		esac
-		# Copy the checkout into the proper external directory and remove the checkout.
+		# Copy the checkout into the proper external directory.
 		(
 			cd "$_cqe_checkout_dir"
 			# Set variables needed for filters.
@@ -1092,7 +1097,9 @@ checkout_queued_external() {
 		)
 		# Remove the ".checkout" subdirectory containing the full checkout.
 		if [ -d "$_cqe_checkout_dir" ]; then
-			rm -fr "$_cqe_checkout_dir"
+			echo "Removing repository checkout in \`\`$_cqe_checkout_dir''."
+			$rm -fr "$_cqe_checkout_dir/$_cqe_meta_subdir"
+			$rm -fr "$_cqe_checkout_dir"
 		fi
 	fi
 	# Clear the queue.
