@@ -1225,7 +1225,7 @@ EOF
 			;;
 		svn)
 			# The SVN changelog is plain text.
-			$svn log -v $svn_revision_range
+			$svn log $topdir -v $svn_revision_range
 			;;
 		esac
 	) | line_ending_filter > "$pkgdir/$changelog"
