@@ -87,7 +87,7 @@ if [ -z "$topdir" ]; then
 			dir=${dir%/*}
 			topdir="$topdir/.."
 		done
-		if [ ! -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
+		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" ]; then
 			echo "No Git or SVN checkout found." >&2
 			exit 10
 		fi
