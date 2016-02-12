@@ -80,10 +80,10 @@ usage() {
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -n name          Set the name of the addon." >&2
 	echo "  -o               Keep existing package directory; just overwrite contents." >&2
-	echo "  -p slug          Set the project slug used on WowAce or CurseForge. Defaults to \`\`$slug_default''." >&2
+	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
-	echo "  -t topdir        Set top-level directory of checkout.  Defaults to \`\`$topdir''." >&2
+	echo "  -t topdir        Set top-level directory of checkout." >&2
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -z               Skip zipfile creation." >&2
 }
@@ -139,7 +139,9 @@ while $getopts ":celn:op:r:st:uz" opt; do
 		exit 1
 		;;
 	\?)
-		echo "Unknown option \`\`-$OPTARG''." >&2
+		if [ "$OPTARG" != "?" ]; then
+			echo "Unknown option \`\`-$OPTARG''." >&2
+		fi
 		usage
 		exit 2
 		;;
