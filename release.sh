@@ -1222,7 +1222,7 @@ EOF
 		case $repository_type in
 		git)
 			# The Git changelog is Markdown-friendly.
-			$git log $git_commit_range --pretty=format:"###   %B" |
+			$git --git-dir $topdir/.git log $git_commit_range --pretty=format:"###   %B" |
 				$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g"
 			;;
 		svn)
