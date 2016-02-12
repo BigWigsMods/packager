@@ -72,45 +72,7 @@ skip_externals=
 skip_localization=
 skip_zipfile=
 
-# Set $topdir to top-level directory of the checkout.
-if [ -z "$topdir" ]; then
-	dir=$( $pwd )
-	if [ -d "$dir/.git" -o -d "$dir/.svn" ]; then
-		topdir=.
-	else
-		dir=${dir%/*}
-		topdir=..
-		while [ -n "$dir" ]; do
-			if [ -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
-				break
-			fi
-			dir=${dir%/*}
-			topdir="$topdir/.."
-		done
-		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" ]; then
-			echo "No Git or SVN checkout found." >&2
-			exit 10
-		fi
-	fi
-fi
-
-# Set $releasedir to the directory which will contain the generated addon zipfile.
-: ${releasedir:="$topdir/release"}
-
-# Set $basedir to the basename of the checkout directory.
-basedir=$( cd "$topdir" && $pwd )
-case $basedir in
-/*/*)
-	basedir=${basedir##/*/}
-	;;
-/*)
-	basedir=${basedir##/}
-	;;
-esac
-
-# The default slug is the lowercase basename of the checkout directory.
-slug_default=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
-
+# Process command-line options
 usage() {
 	echo "Usage: release.sh [-celouz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
@@ -126,7 +88,6 @@ usage() {
 	echo "  -z               Skip zipfile creation." >&2
 }
 
-# Process command-line options
 OPTIND=1
 while $getopts ":celn:op:r:st:uz" opt; do
 	case $opt in
@@ -185,6 +146,45 @@ while $getopts ":celn:op:r:st:uz" opt; do
 	esac
 done
 shift $((OPTIND - 1))
+
+# Set $topdir to top-level directory of the checkout.
+if [ -z "$topdir" ]; then
+	dir=$( $pwd )
+	if [ -d "$dir/.git" -o -d "$dir/.svn" ]; then
+		topdir=.
+	else
+		dir=${dir%/*}
+		topdir=..
+		while [ -n "$dir" ]; do
+			if [ -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
+				break
+			fi
+			dir=${dir%/*}
+			topdir="$topdir/.."
+		done
+		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" ]; then
+			echo "No Git or SVN checkout found." >&2
+			exit 10
+		fi
+	fi
+fi
+
+# Set $releasedir to the directory which will contain the generated addon zipfile.
+: ${releasedir:="$topdir/release"}
+
+# Set $basedir to the basename of the checkout directory.
+basedir=$( cd "$topdir" && $pwd )
+case $basedir in
+/*/*)
+	basedir=${basedir##/*/}
+	;;
+/*)
+	basedir=${basedir##/}
+	;;
+esac
+
+# The default slug is the lowercase basename of the checkout directory.
+slug_default=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
 
 # Set $repository_type to "git" or "svn".
 repository_type=
