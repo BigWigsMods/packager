@@ -73,14 +73,13 @@ wowi_pass=$WOWI_PASSWORD
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzus] [-n name] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celzus] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -z               Skip zipfile creation." >&2
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
-	echo "  -n               Set the project name." >&2
 	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
@@ -88,7 +87,7 @@ usage() {
 }
 
 OPTIND=1
-while $getopts ":celzusn:p:w:r:t:" opt; do
+while $getopts ":celzus:p:w:r:t:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -101,9 +100,6 @@ while $getopts ":celzusn:p:w:r:t:" opt; do
 	l)
 		# Skip @localization@ keyword replacement.
 		skip_localization=true
-		;;
-	n)
-		project="$OPTARG"
 		;;
 	p)
 		slug="$OPTARG"
