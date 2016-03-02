@@ -860,16 +860,14 @@ if [ -z "$skip_copying" ]; then
 	eval copy_directory_tree $cdt_args "\"$topdir\"" "\"$pkgdir\""
 fi
 
-# Create a default license in the package directory if the source directory does
-# not contain a license file and .pkgmeta requests one.
-create_license=
+###
+### Create a default license if not present and .pkgmeta requests one.
+###
+
 if [ -n "$license" -a ! -f "$topdir/$license" ]; then
-	create_license=true
-fi
-if [ -n "$create_license" ]; then
-	( echo "Generating default license into $license."
-	  echo "All Rights Reserved."
-	) | line_ending_filter > "$pkgdir/$license"
+	echo
+	echo "Generating license into $license."
+	echo "All Rights Reserved." | line_ending_filter > "$pkgdir/$license"
 fi
 
 ###
