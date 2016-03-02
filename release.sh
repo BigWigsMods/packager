@@ -118,6 +118,7 @@ while $getopts ":celzusn:p:w:r:t:" opt; do
 	s)
 		# Create a nolib package.
 		nolib=true
+		skip_externals=true
 		;;
 	t)
 		# Set the top-level directory of the checkout to a non-default value.
@@ -884,24 +885,7 @@ external_tag=
 external_nolib_sites="curseforge.com wowace.com"
 
 checkout_queued_external() {
-	_cqe_skip_external=$skip_externals
-	if [ -z "$external_dir" -o -z "$external_uri" ]; then
-		# The queue is empty.
-		_cqe_skip_external=true
-	elif [ -n "$nolib" ]; then
-		for _cqe_nolib_site in $external_nolib_sites; do
-			case $external_uri in
-			*${_cqe_nolib_site}/*)
-				# The URI points to a Curse repository, so we can skip this external
-				# for a "nolib" package.
-				echo "Ignoring external to Curse repository: $external_uri"
-				_cqe_skip_external=true
-				break
-				;;
-			esac
-		done
-	fi
-	if [ -z "$_cqe_skip_external" ]; then
+	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$nolib" -a -z "$skip_externals" ]; then
 		# Checkout the external into a ".checkout" subdirectory of the final directory.
 		_cqe_checkout_dir="$pkgdir/$external_dir/.checkout"
 		$mkdir -p "$_cqe_checkout_dir"
@@ -1235,6 +1219,10 @@ fi
 ###
 
 if [ -z "$skip_zipfile" ]; then
+	archive_version="$project_version"
+	if [ -n "$nolib" ]; then
+		archive_version="$project_version-nolib"
+	fi
 	archive_name="$package-$project_version.zip"
 	archive="$releasedir/$archive_name"
 
@@ -1273,7 +1261,7 @@ if [ -z "$skip_zipfile" ]; then
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "X-API-Key: $cf_api_key" \
 			  -A "GitHub Curseforge Packager/1.0" \
-			  -F "name=$project_version" \
+			  -F "name=$archive_version" \
 			  -F "game_versions=$game_versions" \
 			  -F "file_type=$file_type" \
 			  -F "change_log=<$pkgdir/$changelog" \
@@ -1316,7 +1304,7 @@ if [ -z "$skip_zipfile" ]; then
 					  -w "%{http_code} %{time_total}s\\n" \
 					  -b "$cookies" \
 					  -F "id=$addonid" \
-					  -F "version=$project_version" \
+					  -F "version=$archive_version" \
 					  -F "compatible=$game_versions" \
 					  -F "updatefile=@$archive" \
 					  "http://api.wowinterface.com/addons/update")
