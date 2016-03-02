@@ -820,7 +820,15 @@ copy_directory_tree() {
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
 					echo "Copying: $file"
-					$cat "$_cdt_srcdir/$file" | simple_filter | $_cdt_alpha_filter | $_cdt_debug_filter | $_cdt_nolib_filter | $_cdt_do_not_package_filter | $_cdt_localization_filter | line_ending_filter > "$_cdt_destdir/$file"
+					$cat "$_cdt_srcdir/$file" \
+						| simple_filter \
+						| $_cdt_alpha_filter \
+						| $_cdt_debug_filter \
+						| $_cdt_nolib_filter \
+						| $_cdt_do_not_package_filter \
+						| $_cdt_localization_filter \
+						| line_ending_filter \
+						> "$_cdt_destdir/$file"
 				fi
 			fi
 		fi
@@ -828,24 +836,18 @@ copy_directory_tree() {
 }
 
 if [ -z "$skip_copying" ]; then
-	cdt_args=
-	if [ -z "$tag" ]; then
-		# HEAD is not tagged, so this is an alpha.
-		cdt_args="$cdt_args -a"
-	fi
-	if true; then
-		# Debug is always "false" in a packaged addon.
-		cdt_args="$cdt_args -d"
+	echo
+	# Debug is always "false" and we always strip out "do-not-package" in a packaged addon.
+	cdt_args="-dp"
+	if [ -n "$tag" ]; then
+		# HEAD is tagged, so this is not an alpha.
+		cdt_args="${cdt_args}a"
 	fi
 	if [ -z "$skip_localization" ]; then
-		cdt_args="$cdt_args -l"
+		cdt_args="${cdt_args}l"
 	fi
 	if [ -n "$nolib" ]; then
-		cdt_args="$cdt_args -n"
-	fi
-	if true; then
-		# We always strip out "do-not-package" in a packaged addon.
-		cdt_args="$cdt_args -p"
+		cdt_args="${cdt_args}n"
 	fi
 	if [ -n "$ignore" ]; then
 		cdt_args="$cdt_args -i \"$ignore\""
