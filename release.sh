@@ -220,7 +220,7 @@ releasedir=$( cd "$releasedir" && $pwd )
 ###
 si_meta_subdir= # subdirectory containing metadata for the repository checkout
 si_tag= # tag for the HEAD
-si_previous_release= # previous release tag
+si_previous_release= # previous release tag XXX NYI
 
 si_project_revision= # [SVN] Turns into the highest revision of the entire project in integer form. e.g. 1234
 si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
@@ -1148,7 +1148,7 @@ if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
 	fi
 	(
 		case $repository_type in
-		git) $git --git-dir="$topdir/.git" shortlog -n $git_commit_range ;;
+		git) $git --git-dir="$topdir/.git" shortlog -n --format="- %s" -w76,4,4 $git_commit_range ;;
 		svn) $svn log "$topdir" -v $svn_revision_range ;;
 		esac
 	) | line_ending_filter > "$pkgdir/$changelog"
