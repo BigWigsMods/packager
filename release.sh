@@ -42,6 +42,7 @@ pwd=pwd
 rm=rm
 sed=sed
 tr=tr
+date=date
 
 # Non-POSIX tools.
 curl=curl
@@ -207,137 +208,89 @@ $mkdir -p "$releasedir"
 topdir=$( cd "$topdir" && $pwd )
 releasedir=$( cd "$releasedir" && $pwd )
 
-# set_info_<repo> returns the following information:
-#
-#	si_meta_subdir			subdirectory containing metadata for the repository checkout
-#	si_tag					tag for the HEAD
-#	si_release_tag			previous release tag
-#	si_release_revision		revision of previous release tag
-#	si_version				version number of HEAD
-#	si_project_revision		revision of HEAD
-#
-si_tag=
-si_release_tag=
-si_release_revision=
-si_version=
-si_project_revision=
+###
+### set_info_<repo> returns the following information:
+###
+si_meta_subdir= # subdirectory containing metadata for the repository checkout
+si_tag= # tag for the HEAD
+si_previous_release= # previous release tag
+
+si_project_revision= # [SVN] Turns into the highest revision of the entire project in integer form. e.g. 1234
+si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
+si_project_abbreviated_hash= # [Git] Turns into the abbreviated hash of the entire project in hex form. e.g. 106c63f
+si_project_author= # Turns into the last author of the entire project. e.g. ckknight
+si_project_date_iso= # Turns into the last changed date (by UTC) of the entire project in ISO 8601. e.g. 2008-05-01T12:34:56Z
+si_project_date_integer= # Turns into the last changed date (by UTC) of the entire project in a readable integer fashion. e.g. 2008050123456
+si_project_timestamp= # Turns into the last changed date (by UTC) of the entire project in POSIX timestamp. e.g. 1209663296
+si_project_version= # Turns into an approximate version of the project. The tag name if on a tag, otherwise it's up to the repo. SVN returns something like "r1234", Git returns something like "v0.1-873fc1"
 
 set_info_git() {
 	# The default checkout directory is $topdir.
-	_si_checkout_dir=${1:-$topdir}
+	_si_checkout_dir="$1"
 	si_meta_subdir=".git"
+	_si_git_dir="--git-dir=$_si_checkout_dir/.git"
 
 	# Get the tag for the HEAD.
-	_si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD 2>/dev/null )
-	si_tag=$( cd "$_si_checkout_dir" && $git describe HEAD --abbrev=0 2>/dev/null )
-	# Find the previous release tag.
-	si_release_tag=$( cd "$_si_checkout_dir" && $git describe HEAD~1 --abbrev=0 2>/dev/null )
-	while true; do
-		case $si_release_tag in
-		*[Rr][Ee][Ll][Ee][Aa][Ss][Ee]*)
-			break
-			;;
-		*)
-			# A version string must contain only dots and digits and optionally starts with the letter "v".
-			if [ -z "$( echo "${si_release_tag#v}" | $sed -e "s/[0-9.]*//" )" ]; then
-				break
-			fi
-			si_release_tag=$( cd "$_si_checkout_dir" && $git describe $si_release_tag~1 --abbrev=0 2>/dev/null )
-			;;
-		esac
-	done
-	# The HEAD is not tagged if the best tag description doesn't match the previous release tag,
-	# or if the HEAD is several commits past the most recent tag.
-	if [ "$si_tag" = "$si_release_tag" ]; then
+	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
+	si_tag=$( $git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
+	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
+	si_project_version=$si_tag
+	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
+	if [ "$_si_tag" != "$si_tag" ]; then
 		si_tag=
-	elif [ "$_si_tag" != "$si_tag" ]; then
-		si_tag=
+		si_project_version=$_si_tag
 	fi
 
-	# Set $si_version to the version number of HEAD.  May be empty if there are no commits.
-	si_version=$si_tag
-	if [ -z "$si_version" ]; then
-		si_version=$_si_tag
-		if [ -z "$si_version" ]; then
-			si_version=$( cd "$_si_checkout_dir" && $git rev-parse --short HEAD 2>/dev/null )
-		fi
-	fi
-
+	# Populate filter vars.
+	si_project_hash=$( $git $_si_git_dir show -s --format="%H" 2>/dev/null )
+	si_project_abbreviated_hash=$( $git $_si_git_dir show -s --format="%h" 2>/dev/null )
+	si_project_author=$( $git $_si_git_dir show -s --format="%an" 2>/dev/null )
+	si_project_timestamp=$( $git $_si_git_dir show -s --format="%at" 2>/dev/null )
+	si_project_date_iso=$( $date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
+	si_project_date_integer=$( $date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# Git repositories have no project revision.
 	si_project_revision=
-	si_release_revision=
 }
 
 set_info_svn() {
 	# The default checkout directory is $topdir.
-	_si_checkout_dir=${1:-$topdir}
+	_si_checkout_dir="$1"
 	si_meta_subdir=".svn"
 
 	# Temporary file to hold results of "svn info".
 	_si_svninfo="${_si_checkout_dir}/.svn/release_sh_svninfo"
-	( cd "$_si_checkout_dir" && $svn info ) > "$_si_svninfo"
+	$svn info "$_si_checkout_dir" 2>/dev/null > "$_si_svninfo"
 
-	_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
-	_si_url=$( $awk '/^URL:/ { print $2; exit }' < "$_si_svninfo" )
+	if [ -s "$_si_svninfo" ]; then
+		_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
 
-	# Set $si_project_revision to the highest revision of the project.
-	case ${_si_url#${_si_root}/} in
-	tags/*)
-		# Extract the tag from the URL.
-		si_tag=${_si_url#${_si_root}/tags/}
-		si_tag=${si_tag%%/*}
-		si_project_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
-		;;
-	*)
-		si_project_revision=$( $awk '/^Revision:/ { print $2; exit }' < "$_si_svninfo" )
-		;;
-	esac
-	rm -f "$_si_svninfo"
+		# Set $si_project_revision to the highest revision of the project at the checkout path
+		si_project_revision=$( $svn info -R "$_si_checkout_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' | sort -nr | head -1 )
 
-	# Temporary file to hold list of tags.
-	_si_tag_list="${_si_checkout_dir}/.svn/release_sh_tag_listing"
-	( cd "$_si_checkout_dir" && $svn log --verbose "$_si_root/tags" 2>/dev/null | $awk '/^   A \/tags\// { print $2 }' | $awk -F/ '{ print $3 }' ) > "$_si_tag_list"
+		# Get the latest tag
+		_si_tag_line=$( $svn log -v -l 1 "$_si_root/tags" 2>/dev/null | $awk '/^   A/ { print $0; exit }' )
+		si_tag=$( echo "$_si_tag_line" | $awk '/^   A/ { print $2 }' | $awk -F/ '{ print $NF }' )
+		# Get the revision the tag was created from
+		_si_tag_from_revision=$( echo "$_si_tag_line" | sed -re "s/^.*:([0-9]+)\).*$/\1/" ) # (from /project/trunk:N)
 
-	# Get the tag of the HEAD.
-	_si_record_num=1
-	if [ -z "$si_tag" ]; then
-		si_tag=$( $awk 'NR == '"${_si_record_num}"' { print ; exit }' < "$_si_tag_list" )
-	fi
-	# Get the project revision number for $si_tag.
-	_si_tag_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
-	# If the project revision and the tag revision don't match, then the HEAD isn't tagged.
-	if [ "$_si_tag_revision" != "$si_project_revision" ]; then
-		si_tag=
-	else
-		# Set the next record number to examine to one past the HEAD tag.
-		_si_record_num=$( $awk '/^'"$si_tag"'$/ { print NR + 1; exit }' < "$_si_tag_list" )
-	fi
+		si_project_version=$si_tag
+		# Check if our checkout has been copied to a tag.
+		if [ "$_si_tag_from_revision" != "$si_project_revision" ]; then
+			si_tag=
+			si_project_version="r$si_project_revision"
+		fi
 
-	# Find the previous release tag.
-	si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
-	si_release_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_release_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
-	while true; do
-		case $si_release_tag in
-		*[Rr][Ee][Ll][Ee][Aa][Ss][Ee]*)
-			break
-			;;
-		*)
-			# A version string must contain only dots and digits and optionally starts with the letter "v".
-			if [ -z "$( echo "${si_release_tag#v}" | $sed -e "s/[0-9.]*//" )" ]; then
-				break
-			fi
-			_si_record_num=$((_si_record_num + 1))
-			si_release_tag=$( $awk 'NR == '"${_si_record_num}"' { print; exit }' < "$_si_tag_list" )
-			si_release_revision=$( cd "$_si_checkout_dir" && $svn info "$_si_root/tags/$si_release_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $4; exit }' )
-			;;
-		esac
-	done
-	rm -f "$_si_tag_list"
+		# Populate filter vars.
+		si_project_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
+		_si_timestamp=$( $awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
+		si_project_timestamp=$( $date -ud "$_si_timestamp" +%s 2>/dev/null )
+		si_project_date_iso=$( $date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
+		si_project_date_integer=$( $date -ud "$_si_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+		# SVN repositories have no project hash.
+		si_project_hash=
+		si_project_abbreviated_hash=
 
-	# Set $si_version to the version number of HEAD.  May be empty if there are no commits.
-	si_version=$si_tag
-	if [ -z "$si_version" ]; then
-		si_version="r$si_project_revision"
+		rm -f "$_si_svninfo"
 	fi
 }
 
@@ -347,10 +300,8 @@ svn)	set_info_svn "$topdir" ;;
 esac
 
 tag=$si_tag
-release_tag=$si_release_tag
-release_revision=$si_release_revision
-version=$si_version
-project_revision=$si_project_revision
+project_version=$si_project_version
+previous_release=$si_previous_release
 
 echo
 echo "Packaging $basedir"
@@ -489,12 +440,26 @@ contents="$package"
 ### Create filters for pass-through processing of files to replace repository keywords.
 ###
 
+filter_file_revision= # Turns into the current revision of the file in integer form. e.g. 1234
+filter_file_hash= # Turns into the hash of the file in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
+filter_file_abbreviated_hash= # Turns into the abbreviated hash of the file in hex form. e.g. 106c63
+filter_file_author= # Turns into the last author of the file. e.g. ckknight
+filter_file_date_iso= # Turns into the last changed date (by UTC) of the file in ISO 8601. e.g. 2008-05-01T12:34:56Z
+filter_file_date_integer= # Turns into the last changed date (by UTC) of the file in a readable integer fashion. e.g. 20080501123456
+filter_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
+
 # Filter for simple repository keyword replacement.
 simple_filter()
 {
 	$sed \
-		-e "s/@project-revision@/$project_revision/g" \
-		-e "s/@project-version@/$version/g"
+		-e "s/@project-revision@/$si_project_revision/g" \
+		-e "s/@project-hash@/$si_project_hash/g" \
+		-e "s/@project-abbreviated-hash@/$si_project_abbreviated_hash/g" \
+		-e "s/@project-author@/$si_project_author/g" \
+		-e "s/@project-date-iso@/$si_project_date_iso/g" \
+		-e "s/@project-date-integer@/$si_project_date_integer/g" \
+		-e "s/@project-timestamp@/$si_project_timestamp/g" \
+		-e "s/@project-version@/$si_project_version/g"
 }
 
 # Find URL of localization app.
@@ -930,6 +895,7 @@ checkout_queued_external() {
 		# Checkout the external into a ".checkout" subdirectory of the final directory.
 		_cqe_checkout_dir="$pkgdir/$external_dir/.checkout"
 		$mkdir -p "$_cqe_checkout_dir"
+		echo
 		case $external_uri in
 		git:*|http://git*|https://git*)
 			if [ -z "$external_tag" ]; then
@@ -966,7 +932,7 @@ checkout_queued_external() {
 			set_info_git "$_cqe_checkout_dir"
 			_cqe_meta_subdir=$si_meta_subdir
 			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$si_version
+			_cqe_external_version=$si_project_version
 			_cqe_external_project_revision=$si_project_revision
 			;;
 		svn:*|http://svn*|https://svn*)
@@ -1019,7 +985,7 @@ checkout_queued_external() {
 			# Set _cqe_external_project_revision to the latest project revision.
 			_cqe_external_project_revision=$si_project_revision
 			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$si_version
+			_cqe_external_version=$si_project_version
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
@@ -1171,53 +1137,29 @@ if [ -z "$project" ]; then
 		done < "$topdir/$package.toc"
 	fi
 fi
-# Default to the name of the package directory.
-: ${project:="$package"}
+if [ -z "$project" ]; then
+	# Default to the name of the package directory.
+	project=$package
+fi
 
-# Create changelog of commits since the previous release tag.
-create_changelog=
+# Create a changelog in the package directory if the source directory does
+# not contain a manual changelog.
 if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.txt"
 fi
-# Create a changelog in the package directory if the source directory does
-# not contain a manual changelog.
-if [ ! -f "$topdir/$changelog" ]; then
-	create_changelog=true
-fi
-if [ -n "$create_changelog" ]; then
-	if [ -n "$release_tag" ]; then
-		echo "Generating changelog of commits since $release_tag into $changelog."
-		change_string="Changes from version $release_tag:"
-		git_commit_range="$release_tag..HEAD"
-		svn_revision_range="-r$project_revision:$release_revision"
-	else
-		echo "Generating changelog of commits into $changelog."
-		change_string="All changes:"
-		git_commit_range=
-		svn_revision_range=
+if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
+	echo
+	echo "Generating changelog of commits into $changelog."
+	git_commit_range=
+	svn_revision_range=
+	if [ -n "$previous_release" ]; then
+		git_commit_range="$previous_release..HEAD"
+		svn_revision_range="-r$project_revision:$previous_release"
 	fi
-	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
-	project_string="$project $version"
-	project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
 	(
-		$cat << EOF
-$project_string
-$project_string_underline
-
-$change_string
-$change_string_underline
-
-EOF
 		case $repository_type in
-		git)
-			# The Git changelog is Markdown-friendly.
-			$git --git-dir $topdir/.git log $git_commit_range --pretty=format:"###   %B" |
-				$sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g"
-			;;
-		svn)
-			# The SVN changelog is plain text.
-			$svn log $topdir -v $svn_revision_range
-			;;
+		git) $git --git-dir="$topdir/.git" shortlog -n $git_commit_range ;;
+		svn) $svn log "$topdir" -v $svn_revision_range ;;
 		esac
 	) | line_ending_filter > "$pkgdir/$changelog"
 fi
@@ -1283,10 +1225,11 @@ fi
 ###
 
 if [ -z "$skip_zipfile" ]; then
-	archive="$releasedir/$package-$version.zip"
+	archive_name="$package-$project_version.zip"
+	archive="$releasedir/$archive_name"
 
 	echo
-	echo "Creating archive: $archive"
+	echo "Creating archive: $archive_name"
 
 	if [ -f "$archive" ]; then
 		$rm -f "$archive"
