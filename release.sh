@@ -49,13 +49,6 @@ git=git
 svn=svn
 zip=zip
 
-# pkzip wrapper for 7z.
-sevenzip=7z
-zip() {
-	_zip_archive="$1"; shift
-	$sevenzip a -tzip "$_zip_archive" "$@"
-}
-
 # Site URLs, used to find the localization web app.
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
@@ -1311,5 +1304,5 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Removing previous archive: $archive"
 		$rm -f "$archive"
 	fi
-	( cd "$releasedir" && $zip "$archive" $contents )
+	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 fi
