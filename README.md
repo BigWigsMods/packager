@@ -32,6 +32,12 @@ copying the files from the checkout into the project directory.
   - *@non-alpha@*...*@end-non-alpha@*
   - *@non-debug@*...*@end-non-debug@*
   - *@project-revision@*
+  - *@project-hash@*
+  - *@project-abbreviated-hash@*
+  - *@project-author@*
+  - *@project-date-iso@*
+  - *@project-date-integer@*
+  - *@project-timestamp@*
   - *@project-version@*
 
 __release.sh__ reads the TOC file, if present, to determine the name of the
@@ -46,7 +52,7 @@ changelog containing the commits since that previous release tag.
 __release.sh__ will create a default license file in the project directory with
 the contents *All Rights Reserved* if a license file does not already exist.
 
-By default, __release.sh__ creates releases in a *release* subdirectory of the
+By default, __release.sh__ creates releases in the *.release* subdirectory of the
 top-level directory of the checkout.
 
 Using release.sh
@@ -54,7 +60,7 @@ Using release.sh
 
 The recommended way to include __release.sh__ in a project is to:
 
-1.  Create a *release* subdirectory in your top-level checkout.
-2.  Copy __release.sh__ into the *release* directory.
-3.  Ignore the *release* subdirectory in __.pkgmeta__.
+1.  Create a *.release* subdirectory in your top-level checkout.
+2.  Copy __release.sh__ into the *.release* directory.
+3.  Ignore the *.release* subdirectory in __.pkgmeta__.
 4.  Run __release.sh__.
