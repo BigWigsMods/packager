@@ -352,16 +352,10 @@ release_revision=$si_release_revision
 version=$si_version
 project_revision=$si_project_revision
 
-if [ -n "$version" ]; then
-	echo "Current version: $version"
-fi
-if [ -n "$tag" ]; then
-	echo "Current tag: $tag"
-fi
-if [ -z "$release_tag" ]; then
-	echo "No previous release tag found."
-else
-	echo "Previous release tag: $release_tag"
+echo
+echo "Packaging $basedir"
+if [ -n "$project_version" ]; then
+	echo "Current version: $project_version"
 fi
 
 # Bare carriage-return character.
@@ -510,7 +504,7 @@ cache_localization_url() {
 		for _ul_site_url in $site_url; do
 			localization_url="${_ul_site_url}/addons/$slug/localization"
 			if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
-				echo "Localization URL is: $localization_url"
+				#echo "Localization URL is: $localization_url"
 				break
 			fi
 		done
@@ -527,6 +521,8 @@ localization_filter()
 		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
 		*--@localization\(*\)@*)
+			_ul_lang=
+			_ul_namespace=
 			# Get the prefix of the line before the comment.
 			_ul_prefix=${_ul_line%%--*}
 			# Strip everything but the localization parameters.
@@ -557,6 +553,7 @@ localization_filter()
 						;;
 					locale)
 						_ul_url_params="${_ul_url_params}&language=${_ul_value}"
+						_ul_lang=$_ul_value
 						;;
 					namespace)
 						# Verify that the localization namespace is valid.  The CF packager will silently allow
@@ -564,8 +561,9 @@ localization_filter()
 						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | $tr '[A-Z]' '[a-z]' )
 						if $curl -s -I "$_ul_namespace_url/" | $grep -q "200 OK"; then
 							: "valid namespace"
+							_ul_namespace=$_ul_value
 						else
-							echo "Invalid localization namespace \`\`$_ul_value''." >&2
+							echo "  Invalid localization namespace \`\`$_ul_value''." >&2
 							_ul_skip_fetch=true
 						fi
 						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
@@ -577,8 +575,13 @@ localization_filter()
 			_ul_url_params=${_ul_url_params%&}
 			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
+				if [ -n "$_ul_namespace" ]; then
+					echo "  adding $_ul_lang/$_ul_namespace" >&2
+				else
+					echo "  adding $_ul_lang" >&2
+				fi
 				# Fetch the localization data, but don't output anything if the namespace was not valid.
-				$curl --progress-bar "${localization_url}/export.txt?${_ul_url_params}" | $awk '/namespace.*Not a valid choice/ { skip = 1; next } skip == 1 { next } { print }'
+				$curl -s "${localization_url}/export.txt?${_ul_url_params}" | $awk '/namespace.*Not a valid choice/ { skip = 1; next } skip == 1 { next } { print }'
 			fi
 			# Insert a trailing blank line to match CF packager.
 			if [ -z "$_ul_eof" ]; then
@@ -1225,6 +1228,7 @@ fi
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
+	_mf_found=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
 		# Strip any trailing CR character.
@@ -1253,6 +1257,9 @@ if [ -f "$topdir/.pkgmeta" ]; then
 						$rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
+						if [ -z "$_mf_found" ]; then
+							_mf_found=true
+							echo
 						fi
 						echo "Moving \`\`$yaml_key'' to \`\`$yaml_value''"
 						$mv "$srcdir" "$destdir"
@@ -1277,8 +1284,17 @@ fi
 
 if [ -z "$skip_zipfile" ]; then
 	archive="$releasedir/$package-$version.zip"
+
+	echo
+	echo "Creating archive: $archive"
+
 	if [ -f "$archive" ]; then
 		$rm -f "$archive"
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 fi
+
+# All done.
+
+echo
+echo "Packaging complete."
