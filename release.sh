@@ -55,6 +55,7 @@ site_url="http://wow.curseforge.com http://www.wowace.com"
 
 # Variables set via options.
 slug=
+addonid=
 project=
 topdir=
 releasedir=
@@ -65,23 +66,29 @@ skip_externals=
 skip_localization=
 skip_zipfile=
 
+# Set these ENV vars for distribution
+cf_api_key=$CF_API_KEY
+wowi_user=$WOWI_USERNAME
+wowi_pass=$WOWI_PASSWORD
+
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celuz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celzus] [-n name] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
-	echo "  -n name          Set the name of the addon." >&2
-	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
-	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
-	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
-	echo "  -t topdir        Set top-level directory of checkout." >&2
-	echo "  -u               Use Unix line-endings." >&2
 	echo "  -z               Skip zipfile creation." >&2
+	echo "  -u               Use Unix line-endings." >&2
+	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
+	echo "  -n               Set the project name." >&2
+	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
+	echo "  -w wowi-id       Set the addon id used on WoWInterface." >&2
+	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
+	echo "  -t topdir        Set top-level directory of checkout." >&2
 }
 
 OPTIND=1
-while $getopts ":celn:p:r:st:uz" opt; do
+while $getopts ":celzusn:p:w:r:t:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -100,6 +107,9 @@ while $getopts ":celn:p:r:st:uz" opt; do
 		;;
 	p)
 		slug="$OPTARG"
+		;;
+	w)
+		addonid="$OPTARG"
 		;;
 	r)
 		# Set the release directory to a non-default value.
@@ -1235,6 +1245,91 @@ if [ -z "$skip_zipfile" ]; then
 		$rm -f "$archive"
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
+
+	# Upload the final zipfile to CurseForge.
+	if [ -n "$cf_api_key" ]; then
+		# make sure it's a CurseForge project
+		url="http://wow.curseforge.com/addons/$slug"
+		# If the tag contains only dots and digits and optionally starts with
+		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
+		# word "release", then it is considered a release tag. If the above
+		# conditions don't match, it is considered a beta tag. All other commits
+		# (that are not tagged) are considered alphas.
+		file_type=a
+		if [ -n "$tag" ]; then
+			if [[ "$tag" =~ ^v?[0-9][0-9.]+$ || "$tag" == *"release"* ]]; then
+				file_type=r
+			else
+				file_type=b
+			fi
+		fi
+		game_versions="582" # should pull the latest game version from http://wow.curseforge.com/game-versions.json, but fuck that mess
+
+		echo
+		echo "Uploading $archive_name ($file_type) to $url"
+
+		resultfile="$releasedir/cfresult" # json response
+		result=$( curl -s -# \
+			  -w "%{http_code}" -o "$resultfile" \
+			  -H "X-API-Key: $cf_api_key" \
+			  -A "GitHub Curseforge Packager/1.0" \
+			  -F "name=$project_version" \
+			  -F "game_versions=$game_versions" \
+			  -F "file_type=$file_type" \
+			  -F "change_log=<$pkgdir/$changelog" \
+			  -F "change_markup_type=$changelog_markup" \
+			  -F "known_caveats=" \
+			  -F "caveats_markup_type=plain" \
+			  -F "file=@$archive" \
+			  "$url/upload-file.json" )
+
+		case $result in
+		201) echo "File uploaded to Curseforge successfully!" ;;
+		403) echo "Unable to upload to CurseForge, incorrect api key or you do not have permission to upload files." ;;
+		404) echo "Unable to upload to CurseForge, no project for \`\`$slug'' found." ;;
+		422) echo "Unable to upload to CurseForge, you have an error in your submission."; echo $(<"$resultfile") ;;
+		*) echo "Unable to upload to CurseForge, unknown error ($result)." ;;
+		esac
+
+		$rm "$resultfile" 2>/dev/null
+	fi
+
+	# Upload the final zipfile to WoWInterface.
+	if [ -n "$wowi_user" -a -n "$wowi_pass" ]; then
+		# make a cookie to authenticate with (no oauth/token api yet)
+		cookies="$releasedir/cookies.txt"
+		$curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
+
+		echo
+		if [ -s "$cookies" ]; then
+			if [ -z "$addonid" ]; then
+				# no addonid passed, try to match by name
+				addonid=$(curl -s -b "$cookies" "http://api.wowinterface.com/addons/list.json" | jq '.[] | select(.title == "$project") | .id')
+			fi
+
+			if [ -n "$addonid" ]; then
+				game_versions="6.2.3"
+				echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
+
+				# post just what is needed to add a new file
+				result=$(curl -s -# \
+					  -w "%{http_code} %{time_total}s\\n" \
+					  -b "$cookies" \
+					  -F "id=$addonid" \
+					  -F "version=$project_version" \
+					  -F "compatible=$game_versions" \
+					  -F "updatefile=@$archive" \
+					  "http://api.wowinterface.com/addons/update")
+				echo "Done. $result"
+			else
+				echo "Unable to upload to WoWInterface, no addon id matching \`\`$project''."
+			fi
+		else
+			echo "Unable to upload to WoWInterface, authentication error."
+		fi
+
+		$rm "$cookies" 2>/dev/null
+	fi
 fi
 
 # All done.
