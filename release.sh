@@ -26,7 +26,7 @@
 # For more information, please refer to <http://unlicense.org/>
 #
 
-# release.sh generates a zippable addon directory from a Git checkout.
+# release.sh generates a zippable addon directory from a Git or SVN checkout.
 
 # POSIX tools.
 awk=awk
@@ -165,7 +165,9 @@ if [ -z "$topdir" ]; then
 fi
 
 # Set $releasedir to the directory which will contain the generated addon zipfile.
-: ${releasedir:="$topdir/release"}
+if [ -z $releasedir ]; then
+	releasedir="$topdir/.release"
+fi
 
 # Set $basedir to the basename of the checkout directory.
 basedir=$( cd "$topdir" && $pwd )
@@ -179,7 +181,9 @@ case $basedir in
 esac
 
 # The default slug is the lowercase basename of the checkout directory.
-slug_default=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
+if [ -z "$slug" ]; then
+	slug=$( echo "$basedir" | $tr '[A-Z]' '[a-z]' )
+fi
 
 # Set $repository_type to "git" or "svn".
 repository_type=
@@ -479,16 +483,13 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
-# Set $slug to the basename of the checkout directory if not already set.
-: ${slug:="$slug_default"}
-
 # Set $package to the basename of the checkout directory if not already set.
 : ${package:=$basedir}
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 : ${pkgdir:="$releasedir/$package"}
 if [ -d "$pkgdir" -a -z "$overwrite" ]; then
-	echo "Removing previous package directory: $pkgdir"
+	#echo "Removing previous package directory: $pkgdir"
 	$rm -fr "$pkgdir"
 fi
 if [ ! -d "$pkgdir" ]; then
@@ -997,7 +998,7 @@ checkout_queued_external() {
 					#	3. Checkout that tag into the working directory.
 					#	4. If no tag is found, then checkout the latest version.
 					#
-					external_tag=$(	$svn log --verbose --limit 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
+					external_tag=$(	$svn log -v -l 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
 					# Strip leading and trailing bits.
 					external_tag=${external_tag#/tags/}
 					external_tag=${external_tag%%/*}
@@ -1092,7 +1093,7 @@ checkout_queued_external() {
 		)
 		# Remove the ".checkout" subdirectory containing the full checkout.
 		if [ -d "$_cqe_checkout_dir" ]; then
-			echo "Removing repository checkout in \`\`$_cqe_checkout_dir''."
+			#echo "Removing repository checkout in \`\`$_cqe_checkout_dir''."
 			$rm -fr "$_cqe_checkout_dir"
 		fi
 	fi
@@ -1256,7 +1257,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
 					if [ -d "$destdir" -a -z "$overwrite" ]; then
-						echo "Removing previous moved folder: $destdir"
+						#echo "Removing previous moved folder: $destdir"
 						$rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
@@ -1301,7 +1302,6 @@ fi
 if [ -z "$skip_zipfile" ]; then
 	archive="$releasedir/$package-$version.zip"
 	if [ -f "$archive" ]; then
-		echo "Removing previous archive: $archive"
 		$rm -f "$archive"
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
