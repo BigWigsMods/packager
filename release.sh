@@ -57,7 +57,6 @@ slug=
 project=
 topdir=
 releasedir=
-overwrite=
 nolib=
 line_ending=dos
 skip_copying=
@@ -67,12 +66,11 @@ skip_zipfile=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celouz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celuz] [-n name] [-p slug] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -n name          Set the name of the addon." >&2
-	echo "  -o               Keep existing package directory; just overwrite contents." >&2
 	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/release''." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
@@ -82,7 +80,7 @@ usage() {
 }
 
 OPTIND=1
-while $getopts ":celn:op:r:st:uz" opt; do
+while $getopts ":celn:p:r:st:uz" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -98,10 +96,6 @@ while $getopts ":celn:op:r:st:uz" opt; do
 		;;
 	n)
 		project="$OPTARG"
-		;;
-	o)
-		# Skip deleting any previous package directory.
-		overwrite=true
 		;;
 	p)
 		slug="$OPTARG"
@@ -488,13 +482,11 @@ fi
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 : ${pkgdir:="$releasedir/$package"}
-if [ -d "$pkgdir" -a -z "$overwrite" ]; then
+if [ -d "$pkgdir" ]; then
 	#echo "Removing previous package directory: $pkgdir"
 	$rm -fr "$pkgdir"
 fi
-if [ ! -d "$pkgdir" ]; then
-	$mkdir -p "$pkgdir"
-fi
+$mkdir -p "$pkgdir"
 
 # Set the contents of the addon zipfile.
 contents="$package"
@@ -1256,30 +1248,14 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
-					if [ -d "$destdir" -a -z "$overwrite" ]; then
+					if [ -d "$destdir" ]; then
 						#echo "Removing previous moved folder: $destdir"
 						$rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
-						if [ -z "$overwrite" ]; then
-							echo "Moving \`\`$yaml_key'' to \`\`$destdir''"
-							$mv "$srcdir" "$destdir"
-						else
-							echo "Copying contents of \`\`$yaml_key'' to \`\`$destdir''"
-							$mkdir -p "$destdir"
-							$find "$srcdir" -print | while read file; do
-								file=${file#"$releasedir/"}
-								if [ "$file" != "$releasedir" -a -f "$releasedir/$file" ]; then
-									dir=${file%/*}
-									if [ "$dir" != "$file" ]; then
-										$mkdir -p "$destdir/$dir"
-									fi
-									$cp "$releasedir/$file" "$destdir/$dir"
-									echo "Copied: $file"
-								fi
-							done
-							$rm -fr "$srcdir"
 						fi
+						echo "Moving \`\`$yaml_key'' to \`\`$yaml_value''"
+						$mv "$srcdir" "$destdir"
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
 						if [ -n "$license" -a -f "$pkgdir/$license" -a ! -f "$destdir/$license" ]; then
