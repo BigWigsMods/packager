@@ -474,13 +474,15 @@ localization_url=
 cache_localization_url() {
 	if [ -z "$localization_url" ]; then
 		for _ul_site_url in $site_url; do
-			localization_url="${_ul_site_url}/addons/$slug/localization"
-			if $curl -s -I "$localization_url/" | $grep -q "200 OK"; then
-				#echo "Localization URL is: $localization_url"
-				break
+			_localization_url="${_ul_site_url}/addons/$slug/localization"
+			if $curl -s -I "$_localization_url/" | $grep -q "200 OK"; then
+				localization_url=_localization_url
+				return 0
 			fi
 		done
+		return 1
 	fi
+	return 0
 }
 
 # Filter to handle @localization@ repository keyword replacement.
@@ -781,8 +783,8 @@ copy_directory_tree() {
 				else
 					# Set the filter for @localization@ replacement.
 					_cdt_localization_filter=$cat
-					if [ -n "$_cdt_localization" ]; then
-						cache_localization_url
+					# XXX should probably kill the build if the file has a locale replacement but the url isn't working
+					if [ -n "$_cdt_localization" ] && cache_localization_url; then
 						_cdt_localization_filter=localization_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
