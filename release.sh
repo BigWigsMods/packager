@@ -1042,7 +1042,7 @@ checkout_queued_external() {
 					esac
 				done < "$_cqe_checkout_dir/.pkgmeta"
 			fi
-			copy_directory_tree -dln -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$external_dir"
+			copy_directory_tree -dlnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$external_dir"
 		)
 		# Remove the ".checkout" subdirectory containing the full checkout.
 		if [ -d "$_cqe_checkout_dir" ]; then
