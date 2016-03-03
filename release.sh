@@ -1146,12 +1146,10 @@ if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
 		git_commit_range="$previous_release..HEAD"
 		svn_revision_range="-r$project_revision:$previous_release"
 	fi
-	(
-		case $repository_type in
-		git) $git --git-dir="$topdir/.git" shortlog -n --format="- %s" -w76,4,4 $git_commit_range ;;
-		svn) $svn log "$topdir" -v $svn_revision_range ;;
-		esac
-	) | line_ending_filter > "$pkgdir/$changelog"
+	case $repository_type in
+	git) $git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"    - %B" | line_ending_filter > "$pkgdir/$changelog";;
+	svn) $svn log "$topdir" -v $svn_revision_range | line_ending_filter > "$pkgdir/$changelog" ;;
+	esac
 fi
 
 ###
