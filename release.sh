@@ -1277,36 +1277,28 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	# Upload the final zipfile to WoWInterface.
-	if [ -n "$wowi_user" -a -n "$wowi_pass" ]; then
+	if [ -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" ]; then
 		# make a cookie to authenticate with (no oauth/token api yet)
 		cookies="$releasedir/cookies.txt"
 		$curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
 
-		echo
 		if [ -s "$cookies" ]; then
-			if [ -z "$addonid" ]; then
-				# no addonid passed, try to match by name
-				addonid=$(curl -s -b "$cookies" "http://api.wowinterface.com/addons/list.json" | jq '.[] | select(.title == "$project") | .id')
-			fi
+			echo
+			echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
 
-			if [ -n "$addonid" ]; then
-				game_versions="6.2.3"
-				echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
-
-				# post just what is needed to add a new file
-				result=$(curl -s -# \
-					  -w "%{http_code} %{time_total}s\\n" \
-					  -b "$cookies" \
-					  -F "id=$addonid" \
-					  -F "version=$archive_version" \
-					  -F "compatible=$game_versions" \
-					  -F "updatefile=@$archive" \
-					  "http://api.wowinterface.com/addons/update")
-				echo "Done. $result"
-			else
-				echo "Unable to upload to WoWInterface, no addon id matching \`\`$project''."
-			fi
+			# post just what is needed to add a new file
+			game_versions="6.2.3" # comma delimited list of compatible verions
+			result=$(curl -s -# \
+				  -w "%{http_code} %{time_total}s\\n" \
+				  -b "$cookies" \
+				  -F "id=$addonid" \
+				  -F "version=$archive_version" \
+				  -F "compatible=$game_versions" \
+				  -F "updatefile=@$archive" \
+				  "http://api.wowinterface.com/addons/update")
+			echo "Done. $result"
 		else
+			echo
 			echo "Unable to upload to WoWInterface, authentication error."
 		fi
 
