@@ -28,6 +28,12 @@
 
 # release.sh generates a zippable addon directory from a Git or SVN checkout.
 
+# don't need to run the packager for pull requests
+if [ "${TRAVIS_PULL_REQUEST}" = "true" ]; then
+	echo "Not packaging pull request."
+	exit 1
+fi
+
 # POSIX tools.
 awk=awk
 cat=cat
