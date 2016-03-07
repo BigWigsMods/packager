@@ -1227,6 +1227,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 	archive_name="$package-$project_version.zip"
 	archive="$releasedir/$archive_name"
+	export PACKAGER_ARCHIVE=$archive
 
 	echo
 	echo "Creating archive: $archive_name"
