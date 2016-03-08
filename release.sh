@@ -224,7 +224,6 @@ releasedir=$( cd "$releasedir" && $pwd )
 ###
 ### set_info_<repo> returns the following information:
 ###
-si_meta_subdir= # subdirectory containing metadata for the repository checkout
 si_tag= # tag for the HEAD
 si_previous_release= # previous release tag XXX NYI
 
@@ -240,7 +239,6 @@ si_project_version= # Turns into an approximate version of the project. The tag 
 set_info_git() {
 	# The default checkout directory is $topdir.
 	_si_checkout_dir="$1"
-	si_meta_subdir=".git"
 	_si_git_dir="--git-dir=$_si_checkout_dir/.git"
 
 	# Get the tag for the HEAD.
@@ -268,7 +266,6 @@ set_info_git() {
 set_info_svn() {
 	# The default checkout directory is $topdir.
 	_si_checkout_dir="$1"
-	si_meta_subdir=".svn"
 
 	# Temporary file to hold results of "svn info".
 	_si_svninfo="${_si_checkout_dir}/.svn/release_sh_svninfo"
@@ -928,7 +925,6 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_git "$_cqe_checkout_dir"
-			_cqe_meta_subdir=$si_meta_subdir
 			# Set _cqe_external_version to the external project version.
 			_cqe_external_version=$si_project_version
 			_cqe_external_project_revision=$si_project_revision
@@ -979,7 +975,6 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_svn "$_cqe_checkout_dir"
-			_cqe_meta_subdir=$si_meta_subdir
 			# Set _cqe_external_project_revision to the latest project revision.
 			_cqe_external_project_revision=$si_project_revision
 			# Set _cqe_external_version to the external project version.
