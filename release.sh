@@ -71,6 +71,7 @@ skip_copying=
 skip_externals=
 skip_localization=
 skip_zipfile=
+skip_upload=
 
 # Set these ENV vars for distribution
 cf_api_key=$CF_API_KEY
@@ -79,7 +80,7 @@ wowi_pass=$WOWI_PASSWORD
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzus] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celzusd] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
@@ -87,13 +88,14 @@ usage() {
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
-	echo "  -w wowi-id       Set the addon id used on WoWInterface." >&2
+	echo "  -d               Skip uploading to CurseForge." >&2
+	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
 }
 
 OPTIND=1
-while $getopts ":celzus:p:w:r:t:" opt; do
+while $getopts ":celzusp:dw:r:t:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -106,6 +108,10 @@ while $getopts ":celzus:p:w:r:t:" opt; do
 	l)
 		# Skip @localization@ keyword replacement.
 		skip_localization=true
+		;;
+	d)
+		# Skip uploading to CurseForge.
+		skip_upload=true
 		;;
 	p)
 		slug="$OPTARG"
@@ -1233,7 +1239,7 @@ if [ -z "$skip_zipfile" ]; then
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 
 	# Upload the final zipfile to CurseForge.
-	if [ -n "$cf_api_key" ]; then
+	if [ -z "$skip_upload" -a -n "$cf_api_key" ]; then
 		# make sure it's a CurseForge project
 		url="http://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
