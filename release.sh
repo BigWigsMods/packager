@@ -1239,14 +1239,13 @@ if [ -z "$skip_zipfile" ]; then
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 
 	# Upload the final zipfile to CurseForge.
-	if [ -z "$skip_upload" -a -n "$cf_api_key" ]; then
-		# make sure it's a CurseForge project
+	if [ -z "$skip_upload" -a -n "$slug" -a -n "$cf_api_key" ]; then
 		url="http://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
 		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
 		# word "release", then it is considered a release tag. If the above
-		# conditions don't match, it is considered a beta tag. All other commits
-		# (that are not tagged) are considered alphas.
+		# conditions don't match, it is considered a beta tag. Untagged commits
+		# are considered alphas.
 		file_type=a
 		if [ -n "$tag" ]; then
 			if [[ "$tag" =~ ^v?[0-9][0-9.]+$ || "$tag" == *"release"* ]]; then
