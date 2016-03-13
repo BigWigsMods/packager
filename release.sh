@@ -31,7 +31,7 @@
 # don't need to run the packager for pull requests
 if [ "${TRAVIS_PULL_REQUEST}" = "true" ]; then
 	echo "Not packaging pull request."
-	exit 1
+	exit 0
 fi
 
 # POSIX tools.
