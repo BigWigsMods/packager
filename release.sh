@@ -438,6 +438,7 @@ enable_nolib_creation="not supported"
 ignore=
 license=
 contents=
+nolib_exclude=
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
@@ -972,7 +973,7 @@ external_tag=
 external_nolib_sites="curseforge.com wowace.com"
 
 checkout_queued_external() {
-	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$nolib" -a -z "$skip_externals" ]; then
+	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
 		# Checkout the external into a ".checkout" subdirectory of the final directory.
 		_cqe_checkout_dir="$pkgdir/$external_dir/.checkout"
 		$mkdir -p "$_cqe_checkout_dir"
@@ -1181,6 +1182,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 						# Started a new external, so checkout any queued externals.
 						checkout_queued_external
 						external_dir=$yaml_key
+						nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
 						if [ -n "$yaml_value" ]; then
 							external_uri=$yaml_value
 							# Immediately checkout this fully-specified external.
@@ -1281,6 +1283,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
+					nolib_exclude=${nolib_exclude//$srcdir/$destdir}
 					if [ -d "$destdir" ]; then
 						#echo "Removing previous moved folder: $destdir"
 						$rm -fr "$destdir"
@@ -1313,12 +1316,16 @@ fi
 
 if [ -z "$skip_zipfile" ]; then
 	archive_version="$project_version"
-	if [ -n "$nolib" ]; then
-		archive_version="$project_version-nolib"
-	fi
-	archive_name="$package-$archive_version.zip"
+	archive_name="$package-$project_version.zip"
 	archive="$releasedir/$archive_name"
+
+	nolib_archive_version="$project_version-nolib"
+	nolib_archive_name="$package-$nolib_archive_version.zip"
+	nolib_archive="$releasedir/$nolib_archive_name"
+
+	# export the zip file name for other scripts
 	export PACKAGER_ARCHIVE=$archive
+	export PACKAGER_ARCHIVE_NOLIB=$nolib_archive
 
 	echo
 	echo "Creating archive: $archive_name"
@@ -1327,6 +1334,19 @@ if [ -z "$skip_zipfile" ]; then
 		$rm -f "$archive"
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
+
+	if [ -n "$enable_nolib_creation" -a -z "$nolib" ]; then
+		echo
+		echo "Creating no-lib archive: $nolib_archive_name"
+
+		# make the exclude paths relative to the release directory
+		nolib_exclude=${nolib_exclude//$releasedir\//}
+
+		if [ -f "$nolib_archive" ]; then
+			$rm -f "$nolib_archive"
+		fi
+		( set -f; cd "$releasedir" && $zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
+	fi
 
 	# Upload the final zipfile to CurseForge.
 	if [ -z "$skip_upload" -a -n "$slug" -a -n "$cf_api_key" ]; then
