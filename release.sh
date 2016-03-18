@@ -234,6 +234,7 @@ si_repo_type= # "git" or "svn"
 si_repo_dir= # the checkout directory
 si_tag= # tag for HEAD
 si_previous_tag= # previous tag
+si_previous_revision= # [SVN] revision number for previous tag
 
 si_project_revision= # [SVN] Turns into the highest revision of the entire project in integer form. e.g. 1234
 si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
@@ -259,6 +260,7 @@ set_info_git() {
 
 	# Get the tag for the HEAD.
 	si_previous_tag=
+	si_previous_revision=
 	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
 	si_tag=$( $git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
@@ -284,8 +286,8 @@ set_info_git() {
 }
 
 set_info_svn() {
-	si_repo_type="svn"
 	si_repo_dir="$1"
+	si_repo_type="svn"
 
 	# Temporary file to hold results of "svn info".
 	_si_svninfo="${si_repo_dir}/.svn/release_sh_svninfo"
@@ -293,21 +295,44 @@ set_info_svn() {
 
 	if [ -s "$_si_svninfo" ]; then
 		_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
+		_si_url=$( $awk '/^URL:/ { print $2; exit }' < "$_si_svninfo" )
+		_si_revision=$( $awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
 
-		# Set $si_project_revision to the highest revision of the project at the checkout path
-		si_project_revision=$( $svn info --recursive "$si_repo_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' | sort -nr | head -1 )
+		case ${_si_url#${_si_root}/} in
+		tags/*)
+			# Extract the tag from the URL.
+			si_tag=${_si_url#${_si_root}/tags/}
+			si_tag=${si_tag%%/*}
+			si_project_revision="$_si_revision"
+			;;
+		*)
+			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
+			_si_tag_line=$( $svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | $awk '/^   A/ { print $0; exit }' )
+			_si_tag=$( echo "$_si_tag_line" | $awk '/^   A/ { print $2 }' | $awk -F/ '{ print $NF }' )
+			_si_tag_from_revision=$( echo "$_si_tag_line" | $sed -re "s/^.*:([0-9]+)\).*$/\1/" ) # (from /project/trunk:N)
 
-		# Get the latest tag
-		_si_tag_line=$( $svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | $awk '/^   A/ { print $0; exit }' )
-		si_tag=$( echo "$_si_tag_line" | $awk '/^   A/ { print $2 }' | $awk -F/ '{ print $NF }' )
-		# Get the revision the tag was created from
-		_si_tag_from_revision=$( echo "$_si_tag_line" | sed -re "s/^.*:([0-9]+)\).*$/\1/" ) # (from /project/trunk:N)
+			if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
+				si_tag="$_si_tag"
+				si_project_revision=$( $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' )
+			else
+				# Set $si_project_revision to the highest revision of the project at the checkout path
+				si_project_revision=$( $svn info --recursive "$si_repo_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -1 )
+			fi
+			;;
+		esac
 
-		si_project_version=$si_tag
-		# Check if our checkout has been copied to a tag.
-		if [ "$_si_tag_from_revision" != "$si_project_revision" ]; then
-			si_tag=
+		if [ -n "$si_tag" ]; then
+			si_project_version="$si_tag"
+		else
 			si_project_version="r$si_project_revision"
+		fi
+
+		# Get the previous tag and it's revision
+		_si_limit=$((si_project_revision - 1))
+		_si_tag=$( $svn log --verbose --limit 1 "$_si_root/tags" -r $_si_limit:1 2>/dev/null | $awk '/^   A/ { print $0; exit }' | $awk '/^   A/ { print $2 }' | $awk -F/ '{ print $NF }' )
+		if [ -n "$_si_tag" ]; then
+			si_previous_tag="$_si_tag"
+			si_previous_revision=$( $svn info "$_si_root/tags/$_si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' )
 		fi
 
 		# Populate filter vars.
@@ -359,6 +384,7 @@ set_info_file() {
 	fi
 }
 
+# Set some version info about the project
 case $repository_type in
 git)	set_info_git "$topdir" ;;
 svn)	set_info_svn "$topdir" ;;
@@ -367,6 +393,8 @@ esac
 tag=$si_tag
 project_version=$si_project_version
 previous_version=$si_previous_tag
+project_revision=$si_project_revision
+previous_revision=$si_previous_revision
 
 echo
 echo "Packaging $basedir"
