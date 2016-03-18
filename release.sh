@@ -1229,17 +1229,27 @@ if [ -z "$changelog" ]; then
 fi
 if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
 	echo
-	echo "Generating changelog of commits into $changelog."
+	echo "Generating changelog of commits into $changelog"
 	git_commit_range=
 	svn_revision_range=
-	if [ -n "$previous_release" ]; then
-		git_commit_range="$previous_release..HEAD"
-		svn_revision_range="-r$project_revision:$previous_release"
+	if [ -n "$previous_version" ]; then
+		git_commit_range="$previous_version..HEAD"
+		svn_revision_range="-r$project_revision:$previous_revision"
 	fi
+
 	case $repository_type in
-	git) $git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"    - %B" | line_ending_filter > "$pkgdir/$changelog";;
-	svn) $svn log "$topdir" --verbose $svn_revision_range | line_ending_filter > "$pkgdir/$changelog" ;;
+	git)
+		$git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
+			| $sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" \
+			| line_ending_filter > "$pkgdir/$changelog"
+		;;
+	svn)
+		$svn log "$topdir" --verbose $svn_revision_range | line_ending_filter > "$pkgdir/$changelog"
+		;;
 	esac
+
+	#echo
+	#cat "$pkgdir/$changelog"
 fi
 
 ###
