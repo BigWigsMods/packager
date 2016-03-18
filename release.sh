@@ -230,10 +230,10 @@ releasedir=$( cd "$releasedir" && $pwd )
 ###
 ### set_info_<repo> returns the following information:
 ###
-si_repo_type=
-si_repo_dir=
-si_tag= # tag for the HEAD
-si_previous_release= # previous release tag XXX NYI
+si_repo_type= # "git" or "svn"
+si_repo_dir= # the checkout directory
+si_tag= # tag for HEAD
+si_previous_tag= # previous tag
 
 si_project_revision= # [SVN] Turns into the highest revision of the entire project in integer form. e.g. 1234
 si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
@@ -253,19 +253,23 @@ si_file_date_integer= # Turns into the last changed date (by UTC) of the file in
 si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
 
 set_info_git() {
-	si_repo_type="git"
 	si_repo_dir="$1"
+	si_repo_type="git"
 	_si_git_dir="--git-dir=$si_repo_dir/.git"
 
 	# Get the tag for the HEAD.
+	si_previous_tag=
 	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
 	si_tag=$( $git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
 	si_project_version=$si_tag
 	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
 	if [ "$_si_tag" != "$si_tag" ]; then
-		si_tag=
 		si_project_version=$_si_tag
+		si_previous_tag=$si_tag
+		si_tag=
+	else # we're on a tag, just jump back one commit
+		si_previous_tag=$( $git $_si_git_dir describe --tags --abbrev=0 HEAD~ 2>/dev/null )
 	fi
 
 	# Populate filter vars.
@@ -362,12 +366,15 @@ esac
 
 tag=$si_tag
 project_version=$si_project_version
-previous_release=$si_previous_release
+previous_version=$si_previous_tag
 
 echo
 echo "Packaging $basedir"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
+fi
+if [ -n "$previous_version" ]; then
+	echo "Previous version: $previous_version"
 fi
 
 # Bare carriage-return character.
