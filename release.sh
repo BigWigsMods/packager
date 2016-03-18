@@ -396,15 +396,6 @@ previous_version=$si_previous_tag
 project_revision=$si_project_revision
 previous_revision=$si_previous_revision
 
-echo
-echo "Packaging $basedir"
-if [ -n "$project_version" ]; then
-	echo "Current version: $project_version"
-fi
-if [ -n "$previous_version" ]; then
-	echo "Previous version: $previous_version"
-fi
-
 # Bare carriage-return character.
 carriage_return=$( $printf "\r" )
 
@@ -520,6 +511,15 @@ fi
 
 # Set $package to the basename of the checkout directory if not already set.
 : ${package:=$basedir}
+
+echo
+echo "Packaging $package"
+if [ -n "$project_version" ]; then
+	echo "Current version: $project_version"
+fi
+if [ -n "$previous_version" ]; then
+	echo "Previous version: $previous_version"
+fi
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 : ${pkgdir:="$releasedir/$package"}
