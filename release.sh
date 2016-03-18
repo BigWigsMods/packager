@@ -1316,7 +1316,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$nolib" ]; then
 		archive_version="$project_version-nolib"
 	fi
-	archive_name="$package-$project_version.zip"
+	archive_name="$package-$archive_version.zip"
 	archive="$releasedir/$archive_name"
 	export PACKAGER_ARCHIVE=$archive
 
