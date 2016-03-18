@@ -230,6 +230,8 @@ releasedir=$( cd "$releasedir" && $pwd )
 ###
 ### set_info_<repo> returns the following information:
 ###
+si_repo_type=
+si_repo_dir=
 si_tag= # tag for the HEAD
 si_previous_release= # previous release tag XXX NYI
 
@@ -242,10 +244,18 @@ si_project_date_integer= # Turns into the last changed date (by UTC) of the enti
 si_project_timestamp= # Turns into the last changed date (by UTC) of the entire project in POSIX timestamp. e.g. 1209663296
 si_project_version= # Turns into an approximate version of the project. The tag name if on a tag, otherwise it's up to the repo. SVN returns something like "r1234", Git returns something like "v0.1-873fc1"
 
+si_file_revision= # Turns into the current revision of the file in integer form. e.g. 1234
+si_file_hash= # Turns into the hash of the file in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
+si_file_abbreviated_hash= # Turns into the abbreviated hash of the file in hex form. e.g. 106c63
+si_file_author= # Turns into the last author of the file. e.g. ckknight
+si_file_date_iso= # Turns into the last changed date (by UTC) of the file in ISO 8601. e.g. 2008-05-01T12:34:56Z
+si_file_date_integer= # Turns into the last changed date (by UTC) of the file in a readable integer fashion. e.g. 20080501123456
+si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
+
 set_info_git() {
-	# The default checkout directory is $topdir.
-	_si_checkout_dir="$1"
-	_si_git_dir="--git-dir=$_si_checkout_dir/.git"
+	si_repo_type="git"
+	si_repo_dir="$1"
+	_si_git_dir="--git-dir=$si_repo_dir/.git"
 
 	# Get the tag for the HEAD.
 	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
@@ -259,10 +269,10 @@ set_info_git() {
 	fi
 
 	# Populate filter vars.
-	si_project_hash=$( $git $_si_git_dir show -s --format="%H" 2>/dev/null )
-	si_project_abbreviated_hash=$( $git $_si_git_dir show -s --format="%h" 2>/dev/null )
-	si_project_author=$( $git $_si_git_dir show -s --format="%an" 2>/dev/null )
-	si_project_timestamp=$( $git $_si_git_dir show -s --format="%at" 2>/dev/null )
+	si_project_hash=$( $git $_si_git_dir show --no-patch --format="%H" 2>/dev/null )
+	si_project_abbreviated_hash=$( $git $_si_git_dir show --no-patch --format="%h" 2>/dev/null )
+	si_project_author=$( $git $_si_git_dir show --no-patch --format="%an" 2>/dev/null )
+	si_project_timestamp=$( $git $_si_git_dir show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( $date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
 	si_project_date_integer=$( $date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# Git repositories have no project revision.
@@ -270,21 +280,21 @@ set_info_git() {
 }
 
 set_info_svn() {
-	# The default checkout directory is $topdir.
-	_si_checkout_dir="$1"
+	si_repo_type="svn"
+	si_repo_dir="$1"
 
 	# Temporary file to hold results of "svn info".
-	_si_svninfo="${_si_checkout_dir}/.svn/release_sh_svninfo"
-	$svn info "$_si_checkout_dir" 2>/dev/null > "$_si_svninfo"
+	_si_svninfo="${si_repo_dir}/.svn/release_sh_svninfo"
+	$svn info "$si_repo_dir" 2>/dev/null > "$_si_svninfo"
 
 	if [ -s "$_si_svninfo" ]; then
 		_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
 
 		# Set $si_project_revision to the highest revision of the project at the checkout path
-		si_project_revision=$( $svn info -R "$_si_checkout_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' | sort -nr | head -1 )
+		si_project_revision=$( $svn info --recursive "$si_repo_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' | sort -nr | head -1 )
 
 		# Get the latest tag
-		_si_tag_line=$( $svn log -v -l 1 "$_si_root/tags" 2>/dev/null | $awk '/^   A/ { print $0; exit }' )
+		_si_tag_line=$( $svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | $awk '/^   A/ { print $0; exit }' )
 		si_tag=$( echo "$_si_tag_line" | $awk '/^   A/ { print $2 }' | $awk -F/ '{ print $NF }' )
 		# Get the revision the tag was created from
 		_si_tag_from_revision=$( echo "$_si_tag_line" | sed -re "s/^.*:([0-9]+)\).*$/\1/" ) # (from /project/trunk:N)
@@ -307,6 +317,40 @@ set_info_svn() {
 		si_project_abbreviated_hash=
 
 		rm -f "$_si_svninfo"
+	fi
+}
+
+set_info_file() {
+	if [ "$si_repo_type" = "git" ]; then
+		_si_file=${1#si_repo_dir} # need the path relative to the checkout
+		_si_git_dir="--git-dir=$si_repo_dir/.git"
+		# Populate filter vars from the last commit the file was included in.
+		si_file_hash=$( $git $_si_git_dir log --max-count=1 --format="%H" $_si_file 2>/dev/null )
+		si_file_abbreviated_hash=$( $git $_si_git_dir log --max-count=1  --format="%h"  $_si_file 2>/dev/null )
+		si_file_author=$( $git $_si_git_dir log --max-count=1 --format="%an" $_si_file 2>/dev/null )
+		si_file_timestamp=$( $git $_si_git_dir log --max-count=1 --format="%at" $_si_file 2>/dev/null )
+		si_file_date_iso=$( $date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null )
+		si_file_date_integer=$( $date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+		# Git repositories have no project revision.
+		si_file_revision=
+	elif [ "$si_repo_type" = "svn" ]; then
+		_si_file="$1"
+		# Temporary file to hold results of "svn info".
+		_sif_svninfo="svninfo"
+		$svn info "$_si_file" 2>/dev/null > "$_si_svninfo"
+		if [ -s "$_si_svninfo" ]; then
+			# Populate filter vars.
+			si_file_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
+			_si_timestamp=$( $awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
+			si_file_timestamp=$( $date -ud "$_si_timestamp" +%s 2>/dev/null )
+			si_file_date_iso=$( $date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
+			si_file_date_integer=$( $date -ud "$_si_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+			# SVN repositories have no project hash.
+			si_file_hash=
+			si_file_abbreviated_hash=
+
+			rm -f "$_si_svninfo"
+		fi
 	fi
 }
 
@@ -456,14 +500,6 @@ contents="$package"
 ### Create filters for pass-through processing of files to replace repository keywords.
 ###
 
-filter_file_revision= # Turns into the current revision of the file in integer form. e.g. 1234
-filter_file_hash= # Turns into the hash of the file in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
-filter_file_abbreviated_hash= # Turns into the abbreviated hash of the file in hex form. e.g. 106c63
-filter_file_author= # Turns into the last author of the file. e.g. ckknight
-filter_file_date_iso= # Turns into the last changed date (by UTC) of the file in ISO 8601. e.g. 2008-05-01T12:34:56Z
-filter_file_date_integer= # Turns into the last changed date (by UTC) of the file in a readable integer fashion. e.g. 20080501123456
-filter_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
-
 # Filter for simple repository keyword replacement.
 simple_filter()
 {
@@ -475,7 +511,15 @@ simple_filter()
 		-e "s/@project-date-iso@/$si_project_date_iso/g" \
 		-e "s/@project-date-integer@/$si_project_date_integer/g" \
 		-e "s/@project-timestamp@/$si_project_timestamp/g" \
-		-e "s/@project-version@/$si_project_version/g"
+		-e "s/@project-version@/$si_project_version/g" \
+		-e "s/@file-revision@/$si_file_revision/g" \
+		-e "s/@file-hash@/$si_file_hash/g" \
+		-e "s/@file-abbreviated-hash@/$si_file_abbreviated_hash/g" \
+		-e "s/@file-author@/$si_file_author/g" \
+		-e "s/@file-date-iso@/$si_file_date_iso/g" \
+		-e "s/@file-date-integer@/$si_file_date_integer/g" \
+		-e "s/@file-timestamp@/$si_file_timestamp/g" \
+		-e "s/@file-version@/$si_file_version/g"
 }
 
 # Find URL of localization app.
@@ -830,6 +874,7 @@ copy_directory_tree() {
 					fi
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
+					set_info_file "$_cdt_srcdir/$file"
 					echo "Copying: $file"
 					$cat "$_cdt_srcdir/$file" \
 						| simple_filter \
@@ -959,7 +1004,7 @@ checkout_queued_external() {
 					#	3. Checkout that tag into the working directory.
 					#	4. If no tag is found, then checkout the latest version.
 					#
-					external_tag=$(	$svn log -v -l 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
+					external_tag=$(	$svn log --verbose --limit 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
 					# Strip leading and trailing bits.
 					external_tag=${external_tag#/tags/}
 					external_tag=${external_tag%%/*}
@@ -1157,7 +1202,7 @@ if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
 	fi
 	case $repository_type in
 	git) $git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"    - %B" | line_ending_filter > "$pkgdir/$changelog";;
-	svn) $svn log "$topdir" -v $svn_revision_range | line_ending_filter > "$pkgdir/$changelog" ;;
+	svn) $svn log "$topdir" --verbose $svn_revision_range | line_ending_filter > "$pkgdir/$changelog" ;;
 	esac
 fi
 
