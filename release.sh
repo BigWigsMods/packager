@@ -554,8 +554,7 @@ simple_filter()
 		-e "s/@file-author@/$si_file_author/g" \
 		-e "s/@file-date-iso@/$si_file_date_iso/g" \
 		-e "s/@file-date-integer@/$si_file_date_integer/g" \
-		-e "s/@file-timestamp@/$si_file_timestamp/g" \
-		-e "s/@file-version@/$si_file_version/g"
+		-e "s/@file-timestamp@/$si_file_timestamp/g"
 }
 
 # Find URL of localization app.

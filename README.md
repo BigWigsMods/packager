@@ -8,7 +8,7 @@ repositories within the project directory, then copying files from the checkout
 into the project directory.  The project directory is then zipped to create a
 distributable addon zipfile.
 
-__release.sh__ reads __.pkgmeta__ and supports the following directives:
+__release.sh__ reads __.pkgmeta__ and supports the following directives. See the [CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/projects/pkgmeta-file/) for more info.
 
   - *externals* (Git and SVN)
   - *ignore*
@@ -18,7 +18,7 @@ __release.sh__ reads __.pkgmeta__ and supports the following directives:
   - *package-as*
 
 __release.sh__ supports the following repository substitution keywords when
-copying the files from the checkout into the project directory.
+copying the files from the checkout into the project directory. See the [CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/repositories/repository-keyword-substitutions/) for more info.
 
   - *@alpha@*...*@end-alpha@*
   - *@debug@*...*@end-debug@*
@@ -31,12 +31,19 @@ copying the files from the checkout into the project directory.
   - *@no-lib-strip@*...*@end-no-lib-strip@*
   - *@non-alpha@*...*@end-non-alpha@*
   - *@non-debug@*...*@end-non-debug@*
+  - *@file-revision@*
   - *@project-revision@*
+  - *@file-hash@*
   - *@project-hash@*
+  - *@file-abbreviated-hash@*
   - *@project-abbreviated-hash@*
+  - *@file-author@*
   - *@project-author@*
+  - *@file-date-iso@*
   - *@project-date-iso@*
+  - *@file-date-integer@*
   - *@project-date-integer@*
+  - *@file-timestamp@*
   - *@project-timestamp@*
   - *@project-version@*
 
