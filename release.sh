@@ -1330,8 +1330,8 @@ if [ -z "$skip_zipfile" ]; then
 		$rm "$resultfile" 2>/dev/null
 	fi
 
-	# Upload the final zipfile to WoWInterface.
-	if [ -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" ]; then
+	# Upload the final zipfile for tags to WoWInterface.
+	if [ -n "$tag" -a -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" ]; then
 		# make a cookie to authenticate with (no oauth/token api yet)
 		cookies="$releasedir/cookies.txt"
 		$curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
