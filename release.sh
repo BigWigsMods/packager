@@ -340,6 +340,7 @@ set_info_file() {
 		$svn info "$_si_file" 2>/dev/null > "$_si_svninfo"
 		if [ -s "$_si_svninfo" ]; then
 			# Populate filter vars.
+			si_file_revision=$( $awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
 			si_file_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
 			_si_timestamp=$( $awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
 			si_file_timestamp=$( $date -ud "$_si_timestamp" +%s 2>/dev/null )
