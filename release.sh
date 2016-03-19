@@ -453,7 +453,7 @@ yaml_listitem() {
 # Variables set via .pkgmeta.
 changelog=
 changelog_markup="plain"
-enable_nolib_creation="not supported"
+enable_nolib_creation=true
 ignore=
 license=
 contents=
@@ -474,7 +474,9 @@ if [ -f "$topdir/.pkgmeta" ]; then
 
 			case $yaml_key in
 			enable-nolib-creation)
-				enable_nolib_creation=$yaml_value
+				if [ "$yaml_value" = "no" ]; then
+					enable_nolib_creation=
+				fi
 				;;
 			license-output)
 				license=$yaml_value
@@ -1342,6 +1344,13 @@ if [ -z "$skip_zipfile" ]; then
 	nolib_archive_name="$package-$nolib_archive_version.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
+	if [ -n "$nolib" ]; then
+		archive_version="$nolib_archive_version"
+		archive_name="$nolib_archive_name"
+		archive="$nolib_archive"
+		nolib_archive=
+	fi
+
 	# export the zip file name for other scripts
 	export PACKAGER_ARCHIVE=$archive
 	export PACKAGER_ARCHIVE_NOLIB=$nolib_archive
@@ -1357,6 +1366,15 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$enable_nolib_creation" -a -z "$nolib" ]; then
 		echo
 		echo "Creating no-lib archive: $nolib_archive_name"
+
+		# run the nolib_filter
+		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read file; do
+			case $file in
+			*.toc)	_filter="toc_filter no-lib-strip" ;;
+			*.xml)	_filter="xml_filter no-lib-strip" ;;
+			esac
+			$_filter < "$file" > "$file.tmp" && $mv "$file.tmp" "$file"
+		done
 
 		# make the exclude paths relative to the release directory
 		nolib_exclude=${nolib_exclude//$releasedir\//}
@@ -1386,6 +1404,36 @@ if [ -z "$skip_zipfile" ]; then
 
 		if [ -z game_version_id ]; then
 			game_version_id=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
+		fi
+
+		if [ -n "$nolib_archive" ]; then
+			echo
+			echo "Uploading $nolib_archive_name ($file_type) to $url"
+
+			resultfile="$releasedir/cfresult" # json response
+			result=$( $curl -s -# \
+				  -w "%{http_code}" -o "$resultfile" \
+				  -H "X-API-Key: $cf_api_key" \
+				  -A "GitHub Curseforge Packager/1.0" \
+				  -F "name=$nolib_archive_version" \
+				  -F "game_versions=$game_version_id" \
+				  -F "file_type=$file_type" \
+				  -F "change_log=<$pkgdir/$changelog" \
+				  -F "change_markup_type=$changelog_markup" \
+				  -F "known_caveats=" \
+				  -F "caveats_markup_type=plain" \
+				  -F "file=@$nolib_archive" \
+				  "$url/upload-file.json" )
+
+			case $result in
+			201) echo "File uploaded to Curseforge successfully!" ;;
+			403) echo "Unable to upload to CurseForge, incorrect api key or you do not have permission to upload files." ;;
+			404) echo "Unable to upload to CurseForge, no project for \`\`$slug'' found." ;;
+			422) echo "Unable to upload to CurseForge, you have an error in your submission."; echo $(<"$resultfile") ;;
+			*) echo "Unable to upload to CurseForge, unknown error ($result)." ;;
+			esac
+
+			$rm "$resultfile" 2>/dev/null
 		fi
 
 		echo
