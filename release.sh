@@ -56,6 +56,7 @@ tr=tr
 # Non-POSIX tools.
 curl=curl
 git=git
+jq=jq
 svn=svn
 zip=zip
 
@@ -63,8 +64,8 @@ zip=zip
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
 # Game versions for uploading
-game_version_id="582"	# curse from http://wow.curseforge.com/game-versions.json
-game_version="6.2.3"	# wowi
+game_version_id= # curse
+game_version=    # wowi
 
 # Secrets for uploading
 cf_api_key=$CF_API_KEY
@@ -1383,6 +1384,10 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
+		if [ -z game_version_id ]; then
+			game_version_id=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
+		fi
+
 		echo
 		echo "Uploading $archive_name ($file_type) to $url"
 
@@ -1421,6 +1426,10 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -s "$cookies" ]; then
 			echo
 			echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
+
+			if [ -z game_version ]; then
+				game_version=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .value.name' 2>/dev/null )
+			fi
 
 			# post just what is needed to add a new file
 			result=$( $curl -s -# \
