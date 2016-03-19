@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This is free and unencumbered software released into the public domain.
 #
@@ -38,17 +38,20 @@ fi
 awk=awk
 cat=cat
 cp=cp
+cut=cut
+date=date
 find=find
 getopts=getopts
 grep=grep
+head=head
 mkdir=mkdir
 mv=mv
 printf=printf
 pwd=pwd
 rm=rm
 sed=sed
+sort=sort
 tr=tr
-date=date
 
 # Non-POSIX tools.
 curl=curl
@@ -316,7 +319,7 @@ set_info_svn() {
 				si_project_revision=$( $svn info "$_si_root/tags/$si_tag" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF; exit }' )
 			else
 				# Set $si_project_revision to the highest revision of the project at the checkout path
-				si_project_revision=$( $svn info --recursive "$si_repo_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -1 )
+				si_project_revision=$( $svn info --recursive "$si_repo_dir" 2>/dev/null | $awk '/^Last Changed Rev:/ { print $NF }' | $sort -nr | $head -1 )
 			fi
 			;;
 		esac
@@ -336,7 +339,7 @@ set_info_svn() {
 		fi
 
 		# Populate filter vars.
-		si_project_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
+		si_project_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | $cut -d" " -f4- )
 		_si_timestamp=$( $awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
 		si_project_timestamp=$( $date -ud "$_si_timestamp" +%s 2>/dev/null )
 		si_project_date_iso=$( $date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
@@ -370,7 +373,7 @@ set_info_file() {
 		if [ -s "$_si_svninfo" ]; then
 			# Populate filter vars.
 			si_file_revision=$( $awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
-			si_file_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
+			si_file_author=$( $awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | $cut -d" " -f4- )
 			_si_timestamp=$( $awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
 			si_file_timestamp=$( $date -ud "$_si_timestamp" +%s 2>/dev/null )
 			si_file_date_iso=$( $date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
@@ -822,7 +825,7 @@ copy_directory_tree() {
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	echo "Copying files from \`\`$_cdt_srcdir'' into \`\`$_cdt_destdir'':"
+	echo "Copying files from \`\`${_cdt_srcdir#$topdir/}'' into \`\`${_cdt_destdir#$topdir/}'':"
 	if [ ! -d "$_cdt_destdir" ]; then
 		$mkdir -p "$_cdt_destdir"
 	fi
@@ -987,9 +990,9 @@ checkout_queued_external() {
 				echo "Fetching tag \`\`$external_tag'' of external $external_uri."
 				$git clone --depth 1 --branch "$external_tag" "$external_uri" "$_cqe_checkout_dir"
 			else
-				# We need to determine the latest tag in a remote Git repository:
+				# Determine the latest tag in a remote Git repository:
 				#
-				#	1. Clone the latest 100 commits from the remote repository.
+				#	1. Clone the last 100 commits from the remote repository.
 				#	2. Find the most recent annotated tag.
 				#	3. Checkout that tag into the working directory.
 				#	4. If no tag is found, then leave the latest commit as the checkout.
@@ -1033,14 +1036,14 @@ checkout_queued_external() {
 				esac
 				_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
 				if [ "$external_tag" = "latest" ]; then
-					# Determine the latest tag in the SVN repository.
+					# Determine the latest tag in a SVN repository:
 					#
-					#	1. Get the last 100 commits in the /tags URL for the SVN repository.
-					#	2. Find the most recent commit that added files and extract the tag for that commit.
+					#	1. Get the last commit in the /tags URL for the SVN repository.
+					#	2. Extract the tag for that commit.
 					#	3. Checkout that tag into the working directory.
 					#	4. If no tag is found, then checkout the latest version.
 					#
-					external_tag=$(	$svn log --verbose --limit 100 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
+					external_tag=$(	$svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | $awk '/^   A \/tags\// { print $2; exit }' )
 					# Strip leading and trailing bits.
 					external_tag=${external_tag#/tags/}
 					external_tag=${external_tag%%/*}
@@ -1370,7 +1373,7 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Uploading $archive_name ($file_type) to $url"
 
 		resultfile="$releasedir/cfresult" # json response
-		result=$( curl -s -# \
+		result=$( $curl -s -# \
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "X-API-Key: $cf_api_key" \
 			  -A "GitHub Curseforge Packager/1.0" \
@@ -1407,14 +1410,14 @@ if [ -z "$skip_zipfile" ]; then
 
 			# post just what is needed to add a new file
 			game_versions="6.2.3" # comma delimited list of compatible verions
-			result=$(curl -s -# \
+			result=$( $curl -s -# \
 				  -w "%{http_code} %{time_total}s\\n" \
 				  -b "$cookies" \
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_versions" \
 				  -F "updatefile=@$archive" \
-				  "http://api.wowinterface.com/addons/update")
+				  "http://api.wowinterface.com/addons/update" )
 			echo "Done. $result"
 		else
 			echo
