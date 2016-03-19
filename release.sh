@@ -62,6 +62,15 @@ zip=zip
 # Site URLs, used to find the localization web app.
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
+# Game versions for uploading
+game_version_id="582"	# curse from http://wow.curseforge.com/game-versions.json
+game_version="6.2.3"	# wowi
+
+# Secrets for uploading
+cf_api_key=$CF_API_KEY
+wowi_user=$WOWI_USERNAME
+wowi_pass=$WOWI_PASSWORD
+
 # Variables set via options.
 slug=
 addonid=
@@ -75,11 +84,6 @@ skip_externals=
 skip_localization=
 skip_zipfile=
 skip_upload=
-
-# Set these ENV vars for distribution
-cf_api_key=$CF_API_KEY
-wowi_user=$WOWI_USERNAME
-wowi_pass=$WOWI_PASSWORD
 
 # Process command-line options
 usage() {
@@ -95,10 +99,11 @@ usage() {
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
+	echo "  -v id,version    Set the game version for uploading to CurseForge and WoWInterface." >&2
 }
 
 OPTIND=1
-while $getopts ":celzusp:dw:r:t:" opt; do
+while $getopts ":celzusp:dw:r:t:v:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -142,6 +147,16 @@ while $getopts ":celzusp:dw:r:t:" opt; do
 	z)
 		# Skip generating the zipfile.
 		skip_zipfile=true
+		;;
+	v)
+		# Set versions [curse id,version x.y.z]
+		game_version_id=$( echo $OPTARG | $awk -F, '{print $1}' 2>/dev/null)
+		game_version=$( echo $OPTARG | $awk -F, '{print $2}' 2>/dev/null)
+		if [ -z "$game_version_id" -o -z "$game_version" ]; then
+			echo "Invalid argument for option \`\`-v''" >&2
+			usage
+			exit 1
+		fi
 		;;
 	:)
 		echo "Option \`\`-$OPTARG'' requires an argument." >&2
@@ -1367,7 +1382,6 @@ if [ -z "$skip_zipfile" ]; then
 				file_type=b
 			fi
 		fi
-		game_versions="582" # should pull the latest game version from http://wow.curseforge.com/game-versions.json, but fuck that mess
 
 		echo
 		echo "Uploading $archive_name ($file_type) to $url"
@@ -1378,7 +1392,7 @@ if [ -z "$skip_zipfile" ]; then
 			  -H "X-API-Key: $cf_api_key" \
 			  -A "GitHub Curseforge Packager/1.0" \
 			  -F "name=$archive_version" \
-			  -F "game_versions=$game_versions" \
+			  -F "game_versions=$game_version_id" \
 			  -F "file_type=$file_type" \
 			  -F "change_log=<$pkgdir/$changelog" \
 			  -F "change_markup_type=$changelog_markup" \
@@ -1409,13 +1423,12 @@ if [ -z "$skip_zipfile" ]; then
 			echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
 
 			# post just what is needed to add a new file
-			game_versions="6.2.3" # comma delimited list of compatible verions
 			result=$( $curl -s -# \
 				  -w "%{http_code} %{time_total}s\\n" \
 				  -b "$cookies" \
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
-				  -F "compatible=$game_versions" \
+				  -F "compatible=$game_version" \
 				  -F "updatefile=@$archive" \
 				  "http://api.wowinterface.com/addons/update" )
 			echo "Done. $result"
