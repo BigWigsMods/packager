@@ -443,12 +443,12 @@ match_pattern() {
 yaml_keyvalue() {
 	yaml_key=${1%%:*}
 	yaml_value=${1#$yaml_key:}
-	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"}	# trim leading whitespace
+	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"} # trim leading whitespace
 }
 
 yaml_listitem() {
 	yaml_item=${1#-}
-	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"}	# trim leading whitespace
+	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"} # trim leading whitespace
 }
 
 ###
@@ -495,7 +495,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 			case $yaml_line in
 			"- "*)
 				# Get the YAML list item.
@@ -1134,7 +1134,7 @@ checkout_queued_external() {
 						pkgmeta_phase=$yaml_key
 						;;
 					" "*)
-						yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+						yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 						case $yaml_line in
 						"- "*)
 							# Get the YAML list item.
@@ -1188,7 +1188,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			pkgmeta_phase=$yaml_key
 			;;
 		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 			case $yaml_line in
 			"- "*)
 				;;
@@ -1282,7 +1282,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			pkgmeta_phase=$yaml_key
 			;;
 		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"}	# trim leading whitespace
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 			case $yaml_line in
 			"- "*)
 				;;
