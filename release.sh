@@ -89,7 +89,7 @@ skip_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g id,version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
@@ -102,11 +102,11 @@ usage() {
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
-	echo "  -v id,version    Set the game version for uploading to CurseForge and WoWInterface." >&2
+	echo "  -g id,version    Set the Curse game id and version for uploading to CurseForge and WoWInterface." >&2
 }
 
 OPTIND=1
-while $getopts ":celzusop:dw:r:t:v:" opt; do
+while $getopts ":celzusop:dw:r:t:g:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -155,7 +155,7 @@ while $getopts ":celzusop:dw:r:t:v:" opt; do
 		# Skip generating the zipfile.
 		skip_zipfile=true
 		;;
-	v)
+	g)
 		# Set versions [curse id,version x.y.z]
 		game_version_id=$( echo $OPTARG | $awk -F, '{print $1}' 2>/dev/null)
 		game_version=$( echo $OPTARG | $awk -F, '{print $2}' 2>/dev/null)
