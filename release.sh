@@ -78,6 +78,7 @@ addonid=
 project=
 topdir=
 releasedir=
+overwrite=
 nolib=
 line_ending=dos
 skip_copying=
@@ -88,13 +89,14 @@ skip_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzusd] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
+	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -z               Skip zipfile creation." >&2
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
+	echo "  -o               Keep existing package directory, overwriting its contents." >&2
 	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
 	echo "  -d               Skip uploading to CurseForge." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
@@ -104,7 +106,7 @@ usage() {
 }
 
 OPTIND=1
-while $getopts ":celzusp:dw:r:t:v:" opt; do
+while $getopts ":celzusop:dw:r:t:v:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -121,6 +123,10 @@ while $getopts ":celzusp:dw:r:t:v:" opt; do
 	d)
 		# Skip uploading to CurseForge.
 		skip_upload=true
+		;;
+	o)
+		# Skip deleting any previous package directory.
+		overwrite=true
 		;;
 	p)
 		slug="$OPTARG"
@@ -545,11 +551,13 @@ fi
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 : ${pkgdir:="$releasedir/$package"}
-if [ -d "$pkgdir" ]; then
+if [ -d "$pkgdir" -a -z "$overwrite" ]; then
 	#echo "Removing previous package directory: $pkgdir"
 	$rm -fr "$pkgdir"
 fi
-$mkdir -p "$pkgdir"
+if [ ! -d "$pkgdir" ]; then
+	$mkdir -p "$pkgdir"
+fi
 
 # Set the contents of the addon zipfile.
 contents="$package"
@@ -1304,8 +1312,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
-					nolib_exclude=${nolib_exclude//$srcdir/$destdir}
-					if [ -d "$destdir" ]; then
+					if [ -d "$destdir" -a -z "$overwrite" ]; then
 						#echo "Removing previous moved folder: $destdir"
 						$rm -fr "$destdir"
 					fi
@@ -1314,14 +1321,19 @@ if [ -f "$topdir/.pkgmeta" ]; then
 							_mf_found=true
 							echo
 						fi
+						if [ ! -d "$destdir" ]; then
+							$mkdir -p "$destdir"
+						fi
 						echo "Moving \`\`$yaml_key'' to \`\`$yaml_value''"
-						$mv "$srcdir" "$destdir"
+						$mv -f "$srcdir"/* "$destdir" && $rm -fr "$srcdir"
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
 						if [ -n "$license" -a -f "$pkgdir/$license" -a ! -f "$destdir/$license" ]; then
 							$cp -f "$pkgdir/$license" "$destdir/$license"
 						fi
 					fi
+					# update external dir
+					nolib_exclude=${nolib_exclude//$srcdir/$destdir}
 					;;
 				esac
 				;;
