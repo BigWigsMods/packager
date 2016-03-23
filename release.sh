@@ -75,7 +75,6 @@ wowi_pass=$WOWI_PASSWORD
 # Variables set via options.
 slug=
 addonid=
-project=
 topdir=
 releasedir=
 overwrite=
@@ -1233,24 +1232,6 @@ fi
 ###
 ### Create the changelog of commits since the previous release tag.
 ###
-
-# Find the name of the project if unset.
-if [ -z "$project" ]; then
-	# Parse the TOC file if it exists for the title of the project.
-	if [ -f "$topdir/$package.toc" ]; then
-		while read toc_line; do
-			case $toc_line in
-			"## Title: "*)
-				project=$( echo ${toc_line#"## Title: "} | $sed -e "s/|c[0-9A-Fa-f]\{8\}//g" -e "s/|r//g" )
-				;;
-			esac
-		done < "$topdir/$package.toc"
-	fi
-fi
-if [ -z "$project" ]; then
-	# Default to the name of the package directory.
-	project=$package
-fi
 
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
