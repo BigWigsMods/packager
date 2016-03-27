@@ -33,6 +33,11 @@ if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then
 	echo "Not packaging pull request."
 	exit 0
 fi
+# only want to package master and tags
+if [ -n "$TRAVIS" -a "$TRAVIS_BRANCH" != "master" -a -z "$TRAVIS_TAG" ]; then
+	echo "Not packaging \`\`${TRAVIS_BRANCH}''."
+	exit 0
+fi
 
 # POSIX tools.
 awk=awk
