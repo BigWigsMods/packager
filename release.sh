@@ -29,7 +29,7 @@
 # release.sh generates a zippable addon directory from a Git or SVN checkout.
 
 # don't need to run the packager for pull requests
-if [ "${TRAVIS_PULL_REQUEST}" = "true" ]; then
+if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then
 	echo "Not packaging pull request."
 	exit 0
 fi
@@ -1382,16 +1382,16 @@ if [ -z "$skip_zipfile" ]; then
 	export PACKAGER_ARCHIVE_NOLIB=$nolib_archive
 
 	echo
-	echo "Creating archive: $archive_name"
+	echo "Creating archive: $PACKAGER_ARCHIVE"
 
-	if [ -f "$archive" ]; then
-		$rm -f "$archive"
+	if [ -f "$PACKAGER_ARCHIVE" ]; then
+		$rm -f "$PACKAGER_ARCHIVE"
 	fi
-	( cd "$releasedir" && $zip -X -r "$archive" $contents )
+	( cd "$releasedir" && $zip -X -r "$PACKAGER_ARCHIVE" $contents )
 
 	if [ -n "$enable_nolib_creation" -a -z "$nolib" -a -n "$nolib_exclude" ]; then
 		echo
-		echo "Creating no-lib archive: $nolib_archive_name"
+		echo "Creating no-lib archive: $PACKAGER_ARCHIVE_NOLIB"
 
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read file; do
@@ -1405,10 +1405,10 @@ if [ -z "$skip_zipfile" ]; then
 		# make the exclude paths relative to the release directory
 		nolib_exclude=${nolib_exclude//$releasedir\//}
 
-		if [ -f "$nolib_archive" ]; then
-			$rm -f "$nolib_archive"
+		if [ -f "$PACKAGER_ARCHIVE_NOLIB" ]; then
+			$rm -f "$PACKAGER_ARCHIVE_NOLIB"
 		fi
-		( set -f; cd "$releasedir" && $zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
+		( set -f; cd "$releasedir" && $zip -X -r -q "$PACKAGER_ARCHIVE_NOLIB" $contents -x $nolib_exclude )
 	fi
 
 	# Upload the final zipfile to CurseForge.
@@ -1432,7 +1432,7 @@ if [ -z "$skip_zipfile" ]; then
 			game_version_id=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
 		fi
 
-		if [ -f "$nolib_archive" ]; then
+		if [ -f "$PACKAGER_ARCHIVE_NOLIB" ]; then
 			echo
 			echo "Uploading $nolib_archive_name ($file_type - $game_version_id) to $url"
 
@@ -1448,7 +1448,7 @@ if [ -z "$skip_zipfile" ]; then
 				  -F "change_markup_type=$changelog_markup" \
 				  -F "known_caveats=" \
 				  -F "caveats_markup_type=plain" \
-				  -F "file=@$nolib_archive" \
+				  -F "file=@$PACKAGER_ARCHIVE_NOLIB" \
 				  "$url/upload-file.json" )
 
 			case $result in
@@ -1477,7 +1477,7 @@ if [ -z "$skip_zipfile" ]; then
 			  -F "change_markup_type=$changelog_markup" \
 			  -F "known_caveats=" \
 			  -F "caveats_markup_type=plain" \
-			  -F "file=@$archive" \
+			  -F "file=@$PACKAGER_ARCHIVE" \
 			  "$url/upload-file.json" )
 
 		case $result in
@@ -1512,7 +1512,7 @@ if [ -z "$skip_zipfile" ]; then
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
-				  -F "updatefile=@$archive" \
+				  -F "updatefile=@$PACKAGER_ARCHIVE" \
 				  "http://api.wowinterface.com/addons/update" )
 			echo "Done. $result"
 		else
