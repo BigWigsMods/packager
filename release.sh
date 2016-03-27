@@ -1389,7 +1389,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 
-	if [ -n "$enable_nolib_creation" -a -z "$nolib" ]; then
+	if [ -n "$enable_nolib_creation" -a -z "$nolib" -a -n "$nolib_exclude" ]; then
 		echo
 		echo "Creating no-lib archive: $nolib_archive_name"
 
@@ -1432,7 +1432,7 @@ if [ -z "$skip_zipfile" ]; then
 			game_version_id=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
 		fi
 
-		if [ -n "$nolib_archive" ]; then
+		if [ -f "$nolib_archive" ]; then
 			echo
 			echo "Uploading $nolib_archive_name ($file_type - $game_version_id) to $url"
 
