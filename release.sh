@@ -282,22 +282,6 @@ set_info_git() {
 	si_repo_type="git"
 	_si_git_dir="--git-dir=$si_repo_dir/.git"
 
-	# Get the tag for the HEAD.
-	si_previous_tag=
-	si_previous_revision=
-	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
-	si_tag=$( $git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
-	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
-	si_project_version=$si_tag
-	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
-	if [ "$_si_tag" != "$si_tag" ]; then
-		si_project_version=$_si_tag
-		si_previous_tag=$si_tag
-		si_tag=
-	else # we're on a tag, just jump back one commit
-		si_previous_tag=$( $git $_si_git_dir describe --tags --abbrev=0 HEAD~ 2>/dev/null )
-	fi
-
 	# Populate filter vars.
 	si_project_hash=$( $git $_si_git_dir show --no-patch --format="%H" 2>/dev/null )
 	si_project_abbreviated_hash=$( $git $_si_git_dir show --no-patch --format="%h" 2>/dev/null )
@@ -307,6 +291,27 @@ set_info_git() {
 	si_project_date_integer=$( $date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# Git repositories have no project revision.
 	si_project_revision=
+
+	# Get the tag for the HEAD.
+	si_previous_tag=
+	si_previous_revision=
+	_si_tag=$( $git $_si_git_dir describe --tags --always 2>/dev/null )
+	si_tag=$( $git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
+	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
+	si_project_version=$si_tag
+	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
+	if [ "$si_tag" = "$si_project_hash" ]; then
+		# --abbrev=0 expands out the full sha if there was no previous tag
+		si_project_version=$_si_tag
+		si_previous_tag=
+		si_tag=
+	elif [ "$_si_tag" != "$si_tag" ]; then
+		si_project_version=$_si_tag
+		si_previous_tag=$si_tag
+		si_tag=
+	else # we're on a tag, just jump back one commit
+		si_previous_tag=$( $git $_si_git_dir describe --tags --abbrev=0 HEAD~ 2>/dev/null )
+	fi
 }
 
 set_info_svn() {
