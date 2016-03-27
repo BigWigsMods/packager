@@ -1428,13 +1428,13 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
-		if [ -z game_version_id ]; then
+		if [ -z "$game_version_id" ]; then
 			game_version_id=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
 		fi
 
 		if [ -n "$nolib_archive" ]; then
 			echo
-			echo "Uploading $nolib_archive_name ($file_type) to $url"
+			echo "Uploading $nolib_archive_name ($file_type - $game_version_id) to $url"
 
 			resultfile="$releasedir/cfresult" # json response
 			result=$( $curl -s -# \
@@ -1452,18 +1452,18 @@ if [ -z "$skip_zipfile" ]; then
 				  "$url/upload-file.json" )
 
 			case $result in
-			201) echo "File uploaded to Curseforge successfully!" ;;
-			403) echo "Unable to upload to CurseForge, incorrect api key or you do not have permission to upload files." ;;
-			404) echo "Unable to upload to CurseForge, no project for \`\`$slug'' found." ;;
-			422) echo "Unable to upload to CurseForge, you have an error in your submission."; echo $(<"$resultfile") ;;
-			*) echo "Unable to upload to CurseForge, unknown error ($result)." ;;
+			201) echo "Success!" ;;
+			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
+			404) echo "Error! No project for \`\`$slug'' found." ;;
+			422) echo "Error! $(<"$resultfile")" ;;
+			*) echo "Error! Unknown error ($result)." ;;
 			esac
 
 			$rm "$resultfile" 2>/dev/null
 		fi
 
 		echo
-		echo "Uploading $archive_name ($file_type) to $url"
+		echo "Uploading $archive_name ($file_type - $game_version_id) to $url"
 
 		resultfile="$releasedir/cfresult" # json response
 		result=$( $curl -s -# \
@@ -1481,11 +1481,11 @@ if [ -z "$skip_zipfile" ]; then
 			  "$url/upload-file.json" )
 
 		case $result in
-		201) echo "File uploaded to Curseforge successfully!" ;;
-		403) echo "Unable to upload to CurseForge, incorrect api key or you do not have permission to upload files." ;;
-		404) echo "Unable to upload to CurseForge, no project for \`\`$slug'' found." ;;
-		422) echo "Unable to upload to CurseForge, you have an error in your submission."; echo $(<"$resultfile") ;;
-		*) echo "Unable to upload to CurseForge, unknown error ($result)." ;;
+		201) echo "Success!" ;;
+		403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
+		404) echo "Error! No project for \`\`$slug'' found." ;;
+		422) echo "Error! $(<"$resultfile")" ;;
+		*) echo "Error! Unknown error ($result)." ;;
 		esac
 
 		$rm "$resultfile" 2>/dev/null
@@ -1498,12 +1498,12 @@ if [ -z "$skip_zipfile" ]; then
 		$curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
 
 		if [ -s "$cookies" ]; then
-			echo
-			echo "Uploading $archive_name to http://http://www.wowinterface.com/downloads/info$addonid"
-
 			if [ -z game_version ]; then
 				game_version=$( $curl -s http://wow.curseforge.com/game-versions.json | $jq -r 'to_entries | max_by(.key | tonumber) | .value.name' 2>/dev/null )
 			fi
+
+			echo
+			echo "Uploading $archive_name ($game_version) to http://http://www.wowinterface.com/downloads/info$addonid"
 
 			# post just what is needed to add a new file
 			result=$( $curl -s -# \
