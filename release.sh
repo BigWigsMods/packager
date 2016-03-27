@@ -1233,29 +1233,57 @@ fi
 ### Create the changelog of commits since the previous release tag.
 ###
 
+project="$package"
+# Parse the TOC file if it exists for the title of the project.
+if [ -f "$topdir/$package.toc" ]; then
+	while read toc_line; do
+		case $toc_line in
+		"## Title: "*)
+			project=$( echo ${toc_line#"## Title: "} | $sed -e "s/|c[0-9A-Fa-f]\{8\}//g" -e "s/|r//g" )
+			;;
+		esac
+	done < "$topdir/$package.toc"
+fi
+
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
 if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.txt"
 fi
-if [ -z "$skip_changelog" -a ! -f "$topdir/$changelog" ]; then
+if [ ! -f "$topdir/$changelog" ]; then
 	echo
-	echo "Generating changelog of commits into $changelog"
 	git_commit_range=
 	svn_revision_range=
+	change_string="Full changelog"
 	if [ -n "$previous_version" ]; then
+		echo "Generating changelog of commits since $previous_version into $changelog."
 		git_commit_range="$previous_version..HEAD"
 		svn_revision_range="-r$project_revision:$previous_revision"
+		change_string="Changes from $previous_version:"
+	else
+		echo "Generating changelog of commits into $changelog"
 	fi
+	project_string="$project $project_version"
+	project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
+	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
+
+	$cat << EOF > "$pkgdir/$changelog"
+$project_string
+$project_string_underline
+
+$change_string
+$change_string_underline
+
+EOF
 
 	case $repository_type in
 	git)
 		$git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
 			| $sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" \
-			| line_ending_filter > "$pkgdir/$changelog"
+			| line_ending_filter >> "$pkgdir/$changelog"
 		;;
 	svn)
-		$svn log "$topdir" --verbose $svn_revision_range | line_ending_filter > "$pkgdir/$changelog"
+		$svn log "$topdir" --verbose $svn_revision_range | line_ending_filter >> "$pkgdir/$changelog"
 		;;
 	esac
 
