@@ -261,6 +261,7 @@ releasedir=$( cd "$releasedir" && $pwd )
 ###
 si_repo_type= # "git" or "svn"
 si_repo_dir= # the checkout directory
+si_repo_url= # the checkout url
 si_tag= # tag for HEAD
 si_previous_tag= # previous tag
 si_previous_revision= # [SVN] revision number for previous tag
@@ -286,6 +287,8 @@ set_info_git() {
 	si_repo_dir="$1"
 	si_repo_type="git"
 	_si_git_dir="--git-dir=$si_repo_dir/.git"
+	si_repo_url=$( $git $_si_git_dir remote -v | awk '{ print $2; exit }' )
+	si_repo_url=${si_repo_url%.git}
 
 	# Populate filter vars.
 	si_project_hash=$( $git $_si_git_dir show --no-patch --format="%H" 2>/dev/null )
@@ -331,6 +334,7 @@ set_info_svn() {
 		_si_root=$( $awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
 		_si_url=$( $awk '/^URL:/ { print $2; exit }' < "$_si_svninfo" )
 		_si_revision=$( $awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
+		si_repo_url=$_si_root
 
 		case ${_si_url#${_si_root}/} in
 		tags/*)
@@ -427,8 +431,11 @@ esac
 tag=$si_tag
 project_version=$si_project_version
 previous_version=$si_previous_tag
+project_hash=$si_project_hash
 project_revision=$si_project_revision
 previous_revision=$si_previous_revision
+project_timestamp=$si_project_timestamp
+project_url=$si_repo_url
 
 # Bare carriage-return character.
 carriage_return=$( $printf "\r" )
@@ -1288,40 +1295,86 @@ if [ -z "$changelog" ]; then
 fi
 if [ ! -f "$topdir/$changelog" ]; then
 	echo
-	git_commit_range=
-	svn_revision_range=
-	change_string="Full changelog"
-	if [ -n "$previous_version" ]; then
-		echo "Generating changelog of commits since $previous_version into $changelog."
-		git_commit_range="$previous_version..HEAD"
-		svn_revision_range="-r$project_revision:$previous_revision"
-		change_string="Changes from $previous_version:"
-	else
-		echo "Generating changelog of commits into $changelog"
-	fi
-	project_string="$project $project_version"
-	project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
-	change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
+	echo "Generating changelog of commits into $changelog"
 
-	$cat << EOF > "$pkgdir/$changelog"
-$project_string
-$project_string_underline
+	if [ "$repository_type" = "git" ]; then
+		#
+		# Super fancy git change log!
+		#
+		changelog="CHANGELOG.md"
+		changelog_markup="markdown"
 
-$change_string
-$change_string_underline
+		project_url=$( echo $project_url | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+		repo_url=
+		if [[ "$project_url" == "https://github.com/"* ]]; then
+			repo_url=${project_url%.git}
+		fi
+		changelog_url=
+		changelog_version=
+		git_commit_range=
+		if [ -z "$previous_version" -a -z "$tag" ]; then
+			# no range, show all commits up to ours
+			changelog_url="[Full Changelog](${repo_url}/commits/$project_hash)"
+			changelog_version="[$project_version](${repo_url}/tree/$project_hash)"
+			git_commit_range="$project_hash"
+		elif [ -z "$previous_version" -a -n "$tag" ]; then
+			# first tag, show all commits upto it
+			changelog_url="[Full Changelog](${repo_url}/commits/$tag)"
+			changelog_version="[$project_version](${repo_url}/tree/$tag)"
+			git_commit_range="$tag"
+		elif [ -n "$previous_version" -a -z "$tag" ]; then
+			# compare between last tag and our commit
+			changelog_url="[Full Changelog](${repo_url}/compare/$previous_version...$project_hash)"
+			changelog_version="[$project_version](${repo_url}/tree/$project_hash)"
+			git_commit_range="$previous_version..$project_hash"
+		elif [ -n "$previous_version" -a -n "$tag" ]; then
+			# compare between last tag and our tag
+			changelog_url="[Full Changelog](${repo_url}/compare/$previous_version...$tag)"
+			changelog_version="[$project_version](${repo_url}/tree/$tag)"
+			git_commit_range="$previous_version..$tag"
+		fi
+		# lazy way out
+		if [ -z "$repo_url" ]; then
+			changelog_url=
+			changelog_version=$project_version
+		fi
+		changelog_date=$( $date -ud "@$project_timestamp" +%Y-%m-%d )
+
+		$cat << EOF > "$pkgdir/$changelog"
+# $project
+
+## $changelog_version ($changelog_date) [](#top)
+$changelog_url
 
 EOF
-
-	case $repository_type in
-	git)
 		$git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
 			| $sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" \
 			| line_ending_filter >> "$pkgdir/$changelog"
-		;;
-	svn)
+
+	elif [ "$repository_type" = "svn" ]; then
+		#
+		# Boring old svn change log :( could parse xml output ..meh
+		#
+
+		changelog_markup="plain"
+
+		svn_revision_range=
+		if [ -n "$previous_version" ]; then
+			svn_revision_range="-r$project_revision:$previous_revision"
+		fi
+		project_date=$( $date -ud "@$project_timestamp" +%Y-%m-%d )
+		project_string="$project_version ($project_date)"
+		project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
+		change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
+
+		$cat << EOF > "$pkgdir/$changelog"
+$project_string
+$project_string_underline
+
+EOF
 		$svn log "$topdir" --verbose $svn_revision_range | line_ending_filter >> "$pkgdir/$changelog"
-		;;
-	esac
+
+	fi
 
 	#echo
 	#cat "$pkgdir/$changelog"
