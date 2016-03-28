@@ -1000,13 +1000,20 @@ fi
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
+# Sites that are skipped for checking out externals if creating a "nolib" package.
+external_nolib_sites="curseforge.com wowace.com"
+
 # Queue for external checkouts.
 external_dir=
 external_uri=
 external_tag=
 
-# Sites that are skipped for checking out externals if creating a "nolib" package.
-external_nolib_sites="curseforge.com wowace.com"
+queue_external() {
+	external_dir=$1
+	external_uri=$2
+	external_tag=$3
+	checkout_queued_external
+}
 
 checkout_queued_external() {
 	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
@@ -1179,6 +1186,19 @@ checkout_queued_external() {
 	external_tag=
 }
 
+_external_dir=
+_external_url=
+_external_tag=
+process_external() {
+	if [ -n "$_external_dir" -a -n "$_external_uri" -a -z "$skip_externals" ]; then
+		echo "Fetching external: $_external_dir"
+		( queue_external "$_external_dir" "$_external_uri" "$_external_tag" ) &> ".${RANDOM}.externalout" &
+		_external_dir=
+		_external_url=
+		_external_tag=
+	fi
+}
+
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
@@ -1188,7 +1208,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 		case $yaml_line in
 		[!\ ]*:*)
 			# Started a new section, so checkout any queued externals.
-			checkout_queued_external
+			process_external
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
 			yaml_keyvalue "$yaml_line"
 			# Set the $pkgmeta_phase for stateful processing.
@@ -1207,21 +1227,22 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					case $yaml_key in
 					url)
 						# Queue external URI for checkout.
-						external_uri=$yaml_value
+						_external_uri=$yaml_value
 						;;
 					tag)
 						# Queue external tag for checkout.
-						external_tag=$yaml_value
+						_external_tag=$yaml_value
 						;;
 					*)
 						# Started a new external, so checkout any queued externals.
-						checkout_queued_external
-						external_dir=$yaml_key
-						nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
+						process_external
+
+						_external_dir=$yaml_key
+						nolib_exclude="$nolib_exclude $pkgdir/$_external_dir/*"
 						if [ -n "$yaml_value" ]; then
-							external_uri=$yaml_value
+							_external_uri=$yaml_value
 							# Immediately checkout this fully-specified external.
-							checkout_queued_external
+							process_external
 						fi
 						;;
 					esac
@@ -1233,7 +1254,15 @@ if [ -f "$topdir/.pkgmeta" ]; then
 		esac
 	done < "$topdir/.pkgmeta"
 	# Reached end of file, so checkout any remaining queued externals.
-	checkout_queued_external
+	process_external
+
+	if [ -n "$nolib_exclude" ]; then
+		echo
+		echo "Waiting for externals to finish..."
+		wait
+		$cat .*.externalout 2> /dev/null
+		$rm .*.externalout 2> /dev/null
+	fi
 fi
 
 ###
