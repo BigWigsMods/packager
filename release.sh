@@ -1291,24 +1291,21 @@ fi
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
 if [ -z "$changelog" ]; then
-	changelog="CHANGELOG.txt"
+	changelog="CHANGELOG.md"
+	changelog_markup="markdown"
 fi
-if [ ! -f "$topdir/$changelog" ]; then
+if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
 	echo
 	echo "Generating changelog of commits into $changelog"
 
 	if [ "$repository_type" = "git" ]; then
-		#
-		# Super fancy git change log!
-		#
-		changelog="CHANGELOG.md"
-		changelog_markup="markdown"
-
+		# get the GitHub url for including links
 		project_url=$( echo $project_url | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 		repo_url=
 		if [[ "$project_url" == "https://github.com/"* ]]; then
 			repo_url=${project_url%.git}
 		fi
+
 		changelog_url=
 		changelog_version=
 		git_commit_range=
@@ -1340,44 +1337,39 @@ if [ ! -f "$topdir/$changelog" ]; then
 		fi
 		changelog_date=$( $date -ud "@$project_timestamp" +%Y-%m-%d )
 
-		$cat << EOF > "$pkgdir/$changelog"
-# $project
+		$cat <<- EOF > "$pkgdir/$changelog"
+		# $project
 
-## $changelog_version ($changelog_date) [](#top)
-$changelog_url
+		## $changelog_version ($changelog_date) [](#top)
+		$changelog_url
 
-EOF
+		EOF
 		$git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
-			| $sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" \
+			| $sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 	elif [ "$repository_type" = "svn" ]; then
-		#
-		# Boring old svn change log :( could parse xml output ..meh
-		#
-
-		changelog_markup="plain"
-
 		svn_revision_range=
 		if [ -n "$previous_version" ]; then
 			svn_revision_range="-r$project_revision:$previous_revision"
 		fi
-		project_date=$( $date -ud "@$project_timestamp" +%Y-%m-%d )
-		project_string="$project_version ($project_date)"
-		project_string_underline=$( echo "$project_string" | $sed -e "s/./=/g" )
-		change_string_underline=$( echo "$change_string" | $sed -e "s/./-/g" )
+		changelog_date=$( $date -ud "@$project_timestamp" +%Y-%m-%d )
 
-		$cat << EOF > "$pkgdir/$changelog"
-$project_string
-$project_string_underline
+		$cat <<- EOF > "$pkgdir/$changelog"
+		# $project
 
-EOF
-		$svn log "$topdir" --verbose $svn_revision_range | line_ending_filter >> "$pkgdir/$changelog"
+		## $project_version ($changelog_date)
+
+		EOF
+		$svn log "$topdir" $svn_revision_range --xml \
+			| $awk '/<msg>/,/<\/msg>/' \
+			| $sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
+			| line_ending_filter >> "$pkgdir/$changelog"
 
 	fi
 
-	#echo
-	#cat "$pkgdir/$changelog"
+	echo
+	cat "$pkgdir/$changelog"
 fi
 
 ###
