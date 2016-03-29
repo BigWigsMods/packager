@@ -1019,7 +1019,10 @@ queue_external() {
 	external_dir=$1
 	external_uri=$2
 	external_tag=$3
-	checkout_queued_external
+	output_file="$releasedir/.${RANDOM}.externalout"
+	checkout_queued_external &> "$output_file"
+	$cat "$output_file" 2> /dev/null
+	$rm "$output_file" 2> /dev/null
 }
 
 checkout_queued_external() {
@@ -1199,7 +1202,7 @@ _external_tag=
 process_external() {
 	if [ -n "$_external_dir" -a -n "$_external_uri" -a -z "$skip_externals" ]; then
 		echo "Fetching external: $_external_dir"
-		( queue_external "$_external_dir" "$_external_uri" "$_external_tag" ) &> ".${RANDOM}.externalout" &
+		( queue_external "$_external_dir" "$_external_uri" "$_external_tag" ) &
 		_external_dir=
 		_external_url=
 		_external_tag=
@@ -1267,8 +1270,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 		echo
 		echo "Waiting for externals to finish..."
 		wait
-		$cat .*.externalout 2> /dev/null
-		$rm .*.externalout 2> /dev/null
 	fi
 fi
 
