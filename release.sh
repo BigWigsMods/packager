@@ -480,6 +480,7 @@ ignore=
 license=
 contents=
 nolib_exclude=
+package=$basedir
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
@@ -553,9 +554,6 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
-# Set $package to the basename of the checkout directory if not already set.
-: ${package:=$basedir}
-
 echo
 echo "Packaging $package"
 if [ -n "$project_version" ]; then
@@ -566,7 +564,7 @@ if [ -n "$previous_version" ]; then
 fi
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
-: ${pkgdir:="$releasedir/$package"}
+pkgdir="$releasedir/$package"
 if [ -d "$pkgdir" -a -z "$overwrite" ]; then
 	#echo "Removing previous package directory: $pkgdir"
 	$rm -fr "$pkgdir"
@@ -972,10 +970,8 @@ copy_directory_tree() {
 
 if [ -z "$skip_copying" ]; then
 	echo
-	# Debug is always "false" and we always strip out "do-not-package" in a packaged addon.
 	cdt_args="-dp"
 	if [ -n "$tag" ]; then
-		# HEAD is tagged, so this is not an alpha.
 		cdt_args="${cdt_args}a"
 	fi
 	if [ -z "$skip_localization" ]; then
@@ -1485,6 +1481,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -f "$nolib_archive" ]; then
 			$rm -f "$nolib_archive"
 		fi
+		# set noglob to prevent nolib_exclude from getting expanded out
 		( set -f; cd "$releasedir" && $zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 	fi
 
