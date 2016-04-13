@@ -1216,6 +1216,13 @@ process_external() {
 	fi
 }
 
+# Don't leave extra files around if exited early
+kill_externals() {
+	rm -f "$releasedir"/.*.externalout
+	kill 0
+}
+trap kill_externals INT
+
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
@@ -1279,6 +1286,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 		wait
 	fi
 fi
+# Restore the signal handlers
+trap - INT
 
 ###
 ### Create the changelog of commits since the previous release tag.
