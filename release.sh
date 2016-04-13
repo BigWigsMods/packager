@@ -76,6 +76,7 @@ game_version=    # wowi
 cf_api_key=$CF_API_KEY
 wowi_user=$WOWI_USERNAME
 wowi_pass=$WOWI_PASSWORD
+github_token=$GITHUB_OAUTH
 
 # Variables set via options.
 slug=
@@ -287,8 +288,10 @@ set_info_git() {
 	si_repo_dir="$1"
 	si_repo_type="git"
 	_si_git_dir="--git-dir=$si_repo_dir/.git"
-	si_repo_url=$( $git $_si_git_dir remote -v | awk '{ print $2; exit }' )
-	si_repo_url=${si_repo_url%.git}
+	si_repo_url=$( $git $_si_git_dir remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+	if [ -z "$si_repo_url" ]; then # no origin so grab the first fetch url
+		si_repo_url=$( $git $_si_git_dir remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+	fi
 
 	# Populate filter vars.
 	si_project_hash=$( $git $_si_git_dir show --no-patch --format="%H" 2>/dev/null )
@@ -435,7 +438,12 @@ project_hash=$si_project_hash
 project_revision=$si_project_revision
 previous_revision=$si_previous_revision
 project_timestamp=$si_project_timestamp
-project_url=$si_repo_url
+project_github_url=
+project_github_slug=
+if [[ "$si_repo_url" == "https://github.com"* ]]; then
+	project_github_url=${si_repo_url%.git}
+	project_github_slug=${project_github_url#https://github.com/}
+fi
 
 # Bare carriage-return character.
 carriage_return=$( $printf "\r" )
@@ -1296,39 +1304,32 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 	echo "Generating changelog of commits into $changelog"
 
 	if [ "$repository_type" = "git" ]; then
-		# get the GitHub url for including links
-		project_url=$( echo $project_url | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
-		repo_url=
-		if [[ "$project_url" == "https://github.com/"* ]]; then
-			repo_url=${project_url%.git}
-		fi
-
 		changelog_url=
 		changelog_version=
 		git_commit_range=
 		if [ -z "$previous_version" -a -z "$tag" ]; then
 			# no range, show all commits up to ours
-			changelog_url="[Full Changelog](${repo_url}/commits/$project_hash)"
-			changelog_version="[$project_version](${repo_url}/tree/$project_hash)"
+			changelog_url="[Full Changelog](${project_github_url}/commits/$project_hash)"
+			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
 			git_commit_range="$project_hash"
 		elif [ -z "$previous_version" -a -n "$tag" ]; then
 			# first tag, show all commits upto it
-			changelog_url="[Full Changelog](${repo_url}/commits/$tag)"
-			changelog_version="[$project_version](${repo_url}/tree/$tag)"
+			changelog_url="[Full Changelog](${project_github_url}/commits/$tag)"
+			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
 			git_commit_range="$tag"
 		elif [ -n "$previous_version" -a -z "$tag" ]; then
 			# compare between last tag and our commit
-			changelog_url="[Full Changelog](${repo_url}/compare/$previous_version...$project_hash)"
-			changelog_version="[$project_version](${repo_url}/tree/$project_hash)"
+			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$project_hash)"
+			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
 			git_commit_range="$previous_version..$project_hash"
 		elif [ -n "$previous_version" -a -n "$tag" ]; then
 			# compare between last tag and our tag
-			changelog_url="[Full Changelog](${repo_url}/compare/$previous_version...$tag)"
-			changelog_version="[$project_version](${repo_url}/tree/$tag)"
+			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$tag)"
+			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
 			git_commit_range="$previous_version..$tag"
 		fi
 		# lazy way out
-		if [ -z "$repo_url" ]; then
+		if [ -z "$project_github_url" ]; then
 			changelog_url=
 			changelog_version=$project_version
 		fi
@@ -1485,7 +1486,11 @@ if [ -z "$skip_zipfile" ]; then
 		( set -f; cd "$releasedir" && $zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 	fi
 
-	# Upload the final zipfile to CurseForge.
+	###
+	### Deploy the zipfile.
+	###
+
+	# Upload to CurseForge.
 	if [ -z "$skip_upload" -a -n "$slug" -a -n "$cf_api_key" ]; then
 		url="http://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
@@ -1565,7 +1570,7 @@ if [ -z "$skip_zipfile" ]; then
 		$rm "$resultfile" 2>/dev/null
 	fi
 
-	# Upload the final zipfile for tags to WoWInterface.
+	# Upload tags to WoWInterface.
 	if [ -n "$tag" -a -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" ]; then
 		# make a cookie to authenticate with (no oauth/token api yet)
 		cookies="$releasedir/cookies.txt"
@@ -1595,6 +1600,61 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		$rm "$cookies" 2>/dev/null
+	fi
+
+	# Create a GitHub Release for tags and upload the zipfile as an asset.
+	if [ -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" ]; then
+		resultfile="$releasedir/ghresult" # github json response
+
+		$cat <<- EOF > "$releasedir/release.json"
+		{
+		  "tag_name": "$tag",
+		  "target_commitish": "master",
+		  "name": "$tag",
+		  "body": $( $cat $pkgdir/$changelog | $jq --slurp --raw-input '.' ),
+		  "draft": false,
+		  "prerelease": false
+		}
+		EOF
+
+		# check if the release exists and delete it (TODO edit release? this is easier)
+		release_id=$( $curl -s "https://api.github.com/repos/${project_github_slug}/releases/tags/$tag" | $jq '.id' )
+		if [ -n "$release_id" ]; then
+			result=$( $curl -s \
+				  -w "%{http_code}" -o "$resultfile" \
+				  -H "Authorization: token $github_token" \
+				  -X DELETE \
+				  "https://api.github.com/repos/${project_github_slug}/releases/$release_id" )
+			release_id=
+		fi
+
+		echo
+		echo "Creating GitHub release: https://github.com/${project_github_slug}/releases/tag/$tag"
+		result=$( $curl -s \
+			  -w "%{http_code}" -o "$resultfile" \
+			  -H "Authorization: token $github_token" \
+			  -d "@$releasedir/release.json" \
+			  "https://api.github.com/repos/${project_github_slug}/releases" )
+
+		if [ "$result" -eq "201" ]; then
+			release_id=$( $jq '.id' "$resultfile" )
+			result=$( $curl -s \
+				  -w "%{http_code}" -o "$resultfile" \
+				  -H "Authorization: token $github_token" \
+				  -H "Content-Type: application/zip" \
+				  --data-binary "@$archive" \
+				  "https://uploads.github.com/repos/${project_github_slug}/releases/${release_id}/assets?name=$archive_name" )
+			if [ "$result" -eq "201" ]; then
+				echo "Success!"
+			else
+				echo "Error uploading zipfile ($result)"
+				echo $(<"$resultfile")
+			fi
+		else
+			echo "Error! ($result)"
+			echo $(<"$resultfile")
+		fi
+		$rm "$resultfile" 2>/dev/null
 	fi
 fi
 
