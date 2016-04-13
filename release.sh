@@ -65,6 +65,9 @@ jq=jq
 svn=svn
 zip=zip
 
+# Script return code
+exit_code=0
+
 # Site URLs, used to find the localization web app.
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
@@ -180,7 +183,7 @@ while $getopts ":celzusop:dw:r:t:g:" opt; do
 			echo "Unknown option \`\`-$OPTARG''." >&2
 		fi
 		usage
-		exit 2
+		exit 1
 		;;
 	esac
 done
@@ -203,7 +206,7 @@ if [ -z "$topdir" ]; then
 		done
 		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" ]; then
 			echo "No Git or SVN checkout found." >&2
-			exit 10
+			exit 1
 		fi
 	fi
 fi
@@ -237,7 +240,7 @@ elif [ -d "$topdir/.svn" ]; then
 	repository_type=svn
 else
 	echo "No Git or SVN checkout found in \`\`$topdir''." >&2
-	exit 11
+	exit 1
 fi
 
 # $releasedir must be an absolute path or relative to $topdir.
@@ -246,7 +249,7 @@ case $releasedir in
 $topdir/*)	;;
 *)
 	echo "The release directory \`\`$releasedir'' must be an absolute path or relative to \`\`$topdir''." >&2
-	exit 20
+	exit 1
 	;;
 esac
 
@@ -1463,6 +1466,11 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 	( cd "$releasedir" && $zip -X -r "$archive" $contents )
 
+	if [ ! -f "$archive" ]; then
+		exit 1
+	fi
+
+	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" -a -z "$nolib" -a -n "$nolib_exclude" ]; then
 		echo
 		echo "Creating no-lib archive: $nolib_archive_name"
@@ -1484,6 +1492,10 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		# set noglob to prevent nolib_exclude from getting expanded out
 		( set -f; cd "$releasedir" && $zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
+
+		if [ ! -f "$nolib_archive" ]; then
+			exit 1
+		fi
 	fi
 
 	###
@@ -1537,6 +1549,9 @@ if [ -z "$skip_zipfile" ]; then
 			422) echo "Error! $(<"$resultfile")" ;;
 			*) echo "Error! Unknown error ($result)." ;;
 			esac
+			if [ "$result" -ne "201" ]; then
+				exit_code=1
+			fi
 
 			$rm "$resultfile" 2>/dev/null
 		fi
@@ -1566,6 +1581,9 @@ if [ -z "$skip_zipfile" ]; then
 		422) echo "Error! $(<"$resultfile")" ;;
 		*) echo "Error! Unknown error ($result)." ;;
 		esac
+		if [ "$result" -ne "201" ]; then
+			exit_code=1
+		fi
 
 		$rm "$resultfile" 2>/dev/null
 	fi
@@ -1597,6 +1615,7 @@ if [ -z "$skip_zipfile" ]; then
 		else
 			echo
 			echo "Unable to upload to WoWInterface, authentication error."
+			exit_code=1
 		fi
 
 		$rm "$cookies" 2>/dev/null
@@ -1649,10 +1668,12 @@ if [ -z "$skip_zipfile" ]; then
 			else
 				echo "Error uploading zipfile ($result)"
 				echo $(<"$resultfile")
+				exit_code=1
 			fi
 		else
 			echo "Error! ($result)"
 			echo $(<"$resultfile")
+			exit_code=1
 		fi
 		$rm "$resultfile" 2>/dev/null
 	fi
@@ -1662,3 +1683,4 @@ fi
 
 echo
 echo "Packaging complete."
+exit $exit_code
