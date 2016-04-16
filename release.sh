@@ -186,7 +186,7 @@ if [ -z "$topdir" ]; then
 fi
 
 # Set $releasedir to the directory which will contain the generated addon zipfile.
-if [ -z $releasedir ]; then
+if [ -z "$releasedir" ]; then
 	releasedir="$topdir/.release"
 fi
 
@@ -203,7 +203,7 @@ esac
 
 # The default slug is the lowercase basename of the checkout directory.
 if [ -z "$slug" ]; then
-	slug=$( echo "$basedir" | tr '[A-Z]' '[a-z]' )
+	slug=$( echo "$basedir" | tr '[:upper:]' '[:lower:]' )
 fi
 
 # Set $repository_type to "git" or "svn".
@@ -265,16 +265,16 @@ set_info_git() {
 	si_repo_dir="$1"
 	si_repo_type="git"
 	_si_git_dir="--git-dir=$si_repo_dir/.git"
-	si_repo_url=$( git $_si_git_dir remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+	si_repo_url=$( git "$_si_git_dir" remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	if [ -z "$si_repo_url" ]; then # no origin so grab the first fetch url
-		si_repo_url=$( git $_si_git_dir remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+		si_repo_url=$( git "$_si_git_dir" remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	fi
 
 	# Populate filter vars.
-	si_project_hash=$( git $_si_git_dir show --no-patch --format="%H" 2>/dev/null )
-	si_project_abbreviated_hash=$( git $_si_git_dir show --no-patch --format="%h" 2>/dev/null )
-	si_project_author=$( git $_si_git_dir show --no-patch --format="%an" 2>/dev/null )
-	si_project_timestamp=$( git $_si_git_dir show --no-patch --format="%at" 2>/dev/null )
+	si_project_hash=$( git "$_si_git_dir" show --no-patch --format="%H" 2>/dev/null )
+	si_project_abbreviated_hash=$( git "$_si_git_dir" show --no-patch --format="%h" 2>/dev/null )
+	si_project_author=$( git "$_si_git_dir" show --no-patch --format="%an" 2>/dev/null )
+	si_project_timestamp=$( git "$_si_git_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
 	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# Git repositories have no project revision.
@@ -283,8 +283,8 @@ set_info_git() {
 	# Get the tag for the HEAD.
 	si_previous_tag=
 	si_previous_revision=
-	_si_tag=$( git $_si_git_dir describe --tags --always 2>/dev/null )
-	si_tag=$( git $_si_git_dir describe --tags --always --abbrev=0 2>/dev/null )
+	_si_tag=$( git "$_si_git_dir" describe --tags --always 2>/dev/null )
+	si_tag=$( git "$_si_git_dir" describe --tags --always --abbrev=0 2>/dev/null )
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
 	si_project_version=$si_tag
 	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
@@ -298,7 +298,7 @@ set_info_git() {
 		si_previous_tag=$si_tag
 		si_tag=
 	else # we're on a tag, just jump back one commit
-		si_previous_tag=$( git $_si_git_dir describe --tags --abbrev=0 HEAD~ 2>/dev/null )
+		si_previous_tag=$( git "$_si_git_dir" describe --tags --abbrev=0 HEAD~ 2>/dev/null )
 	fi
 }
 
@@ -372,10 +372,10 @@ set_info_file() {
 		_si_file=${1#si_repo_dir} # need the path relative to the checkout
 		_si_git_dir="--git-dir=$si_repo_dir/.git"
 		# Populate filter vars from the last commit the file was included in.
-		si_file_hash=$( git $_si_git_dir log --max-count=1 --format="%H" $_si_file 2>/dev/null )
-		si_file_abbreviated_hash=$( git $_si_git_dir log --max-count=1  --format="%h"  $_si_file 2>/dev/null )
-		si_file_author=$( git $_si_git_dir log --max-count=1 --format="%an" $_si_file 2>/dev/null )
-		si_file_timestamp=$( git $_si_git_dir log --max-count=1 --format="%at" $_si_file 2>/dev/null )
+		si_file_hash=$( git "$_si_git_dir" log --max-count=1 --format="%H" "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( git "$_si_git_dir" log --max-count=1  --format="%h"  "$_si_file" 2>/dev/null )
+		si_file_author=$( git "$_si_git_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
+		si_file_timestamp=$( git "$_si_git_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null )
 		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 		# Git repositories have no project revision.
@@ -384,12 +384,12 @@ set_info_file() {
 		_si_file="$1"
 		# Temporary file to hold results of "svn info".
 		_sif_svninfo="svninfo"
-		svn info "$_si_file" 2>/dev/null > "$_si_svninfo"
-		if [ -s "$_si_svninfo" ]; then
+		svn info "$_si_file" 2>/dev/null > "$_sif_svninfo"
+		if [ -s "$_sif_svninfo" ]; then
 			# Populate filter vars.
-			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
-			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
-			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
+			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_sif_svninfo" )
+			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_sif_svninfo" | cut -d" " -f4- )
+			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_sif_svninfo" )
 			si_file_timestamp=$( date -ud "$_si_timestamp" +%s 2>/dev/null )
 			si_file_date_iso=$( date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
 			si_file_date_integer=$( date -ud "$_si_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
@@ -397,7 +397,7 @@ set_info_file() {
 			si_file_hash=
 			si_file_abbreviated_hash=
 
-			rm -f "$_si_svninfo"
+			rm -f "$_sif_svninfo"
 		fi
 	fi
 }
@@ -645,7 +645,7 @@ localization_filter()
 					namespace)
 						# Verify that the localization namespace is valid.  The CF packager will silently allow
 						# and remove @localization@ calls with invalid namespaces.
-						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | tr '[A-Z]' '[a-z]' )
+						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | tr '[:upper:]' '[:lower:]' )
 						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
 							: "valid namespace"
 							_ul_namespace=$_ul_value
@@ -1031,8 +1031,7 @@ checkout_queued_external() {
 				echo "Fetching external $external_uri."
 				git clone --depth 100 "$external_uri" "$_cqe_checkout_dir"
 				external_tag=$(
-					cd "$_cqe_checkout_dir"
-					latest_tag=$( git for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
+					latest_tag=$( git --git-dir="$_cqe_checkout_dir/.git" for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
 					latest_tag=${latest_tag#refs/tags/}
 					if [ -n "$latest_tag" ]; then
 						echo "$latest_tag"
@@ -1046,8 +1045,6 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_git "$_cqe_checkout_dir"
-			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$si_project_version
 			_cqe_external_project_revision=$si_project_revision
 			;;
 		svn:*|http://svn*|https://svn*)
@@ -1096,10 +1093,7 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_svn "$_cqe_checkout_dir"
-			# Set _cqe_external_project_revision to the latest project revision.
 			_cqe_external_project_revision=$si_project_revision
-			# Set _cqe_external_version to the external project version.
-			_cqe_external_version=$si_project_version
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
@@ -1107,12 +1101,11 @@ checkout_queued_external() {
 		esac
 		# Copy the checkout into the proper external directory.
 		(
-			cd "$_cqe_checkout_dir"
+			cd "$_cqe_checkout_dir" || exit
 			# Set variables needed for filters.
-			version=$_cqe_external_version
 			project_revision=$_cqe_external_project_revision
 			package=${external_dir##*/}
-			slug=$( echo "$package" | tr '[A-Z]' '[a-z]' )
+			slug=$( echo "$package" | tr '[:upper:]' '[:lower:]' )
 			for _cqe_nolib_site in $external_nolib_sites; do
 				case $external_uri in
 				*${_cqe_nolib_site}/*)
@@ -1178,14 +1171,14 @@ checkout_queued_external() {
 }
 
 _external_dir=
-_external_url=
+_external_uri=
 _external_tag=
 process_external() {
 	if [ -n "$_external_dir" -a -n "$_external_uri" -a -z "$skip_externals" ]; then
 		echo "Fetching external: $_external_dir"
 		( queue_external "$_external_dir" "$_external_uri" "$_external_tag" ) &
 		_external_dir=
-		_external_url=
+		_external_uri=
 		_external_tag=
 	fi
 }
@@ -1345,7 +1338,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		## $project_version ($changelog_date)
 
 		EOF
-		svn log "$topdir" $svn_revision_range --xml \
+		svn log "$topdir" "$svn_revision_range" --xml \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
@@ -1473,7 +1466,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -f "$nolib_archive" ]; then
 			rm -f "$nolib_archive"
 		fi
-		# set noglob to prevent nolib_exclude from getting expanded out
+		# set noglob so each nolib_exclude path gets quoted instead of expanded
 		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
@@ -1613,20 +1606,18 @@ if [ -z "$skip_zipfile" ]; then
 		  "tag_name": "$tag",
 		  "target_commitish": "master",
 		  "name": "$tag",
-		  "body": $( cat $pkgdir/$changelog | jq --slurp --raw-input '.' ),
+		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
 		  "draft": false,
 		  "prerelease": false
 		}
 		EOF
 
-		# check if the release exists and delete it (TODO edit release? this is easier)
+		# check if a release exists and delete it (fuck yo couch)
 		release_id=$( curl -s "https://api.github.com/repos/${project_github_slug}/releases/tags/$tag" | jq '.id' )
 		if [ -n "$release_id" ]; then
-			result=$( curl -s \
-				  -w "%{http_code}" -o "$resultfile" \
-				  -H "Authorization: token $github_token" \
-				  -X DELETE \
-				  "https://api.github.com/repos/${project_github_slug}/releases/$release_id" )
+			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/${project_github_slug}/releases/$release_id" &>/dev/null
+			# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
+			# whatever, we'll display token errors when creating
 			release_id=
 		fi
 
@@ -1650,12 +1641,12 @@ if [ -z "$skip_zipfile" ]; then
 				echo "Success!"
 			else
 				echo "Error uploading zipfile ($result)"
-				echo $(<"$resultfile")
+				echo "$(<"$resultfile")"
 				exit_code=1
 			fi
 		else
 			echo "Error! ($result)"
-			echo $(<"$resultfile")
+			echo "$(<"$resultfile")"
 			exit_code=1
 		fi
 		rm "$resultfile" 2>/dev/null
