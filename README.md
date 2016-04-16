@@ -8,6 +8,9 @@ repositories within the project directory, then copying files from the checkout
 into the project directory.  The project directory is then zipped to create a
 distributable addon zipfile.
 
+__release.sh__ can also upload your zipfile to CurseForge, WoWInterface, and
+GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/).
+
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the [CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/projects/pkgmeta-file/) for more info.
 
   - *externals* (Git and SVN)
@@ -71,3 +74,22 @@ The recommended way to include __release.sh__ in a project is to:
 2.  Copy __release.sh__ into the *.release* directory.
 3.  Ignore the *.release* subdirectory in __.pkgmeta__.
 4.  Run __release.sh__.
+
+Usage
+=====
+```
+Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g version]
+  -c               Skip copying files into the package directory.
+  -e               Skip checkout of external repositories.
+  -l               Skip @localization@ keyword replacement.
+  -z               Skip zipfile creation.
+  -u               Use Unix line-endings.
+  -s               Create a stripped-down ``nolib'' package.
+  -o               Keep existing package directory, overwriting its contents.
+  -p slug          Set the project slug used on WowAce or CurseForge.
+  -d               Skip uploading to CurseForge.
+  -w wowi-id       Set the addon id used on WoWInterface for uploading.
+  -r releasedir    Set directory containing the package directory. Defaults to ``$topdir/.release''.
+  -t topdir        Set top-level directory of checkout.
+  -g version       Set the game version for uploading to CurseForge and WoWInterface.
+```

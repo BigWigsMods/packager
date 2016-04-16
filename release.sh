@@ -46,11 +46,11 @@ exit_code=0
 site_url="http://wow.curseforge.com http://www.wowace.com"
 
 # Game versions for uploading
-game_version_id= 	# curse
-game_version=    	# wowi
+game_version=
+game_version_id=
 
 # Secrets for uploading
-cf_api_key=$CF_API_KEY
+cf_token=$CF_API_KEY
 wowi_user=$WOWI_USERNAME
 wowi_pass=$WOWI_PASSWORD
 github_token=$GITHUB_OAUTH
@@ -71,7 +71,7 @@ skip_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g id,version]" >&2
+	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
@@ -84,7 +84,7 @@ usage() {
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
-	echo "  -g id,version    Set the Curse game id and version for uploading to CurseForge and WoWInterface." >&2
+	echo "  -g version       Set the game version for uploading to CurseForge and WoWInterface." >&2
 }
 
 OPTIND=1
@@ -138,11 +138,11 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 		skip_zipfile=true
 		;;
 	g)
-		# Set versions [curse id,version x.y.z]
-		game_version_id=$( echo $OPTARG | awk -F, '{print $1}' 2>/dev/null)
-		game_version=$( echo $OPTARG | awk -F, '{print $2}' 2>/dev/null)
-		if [ -z "$game_version_id" -o -z "$game_version" ]; then
-			echo "Invalid argument for option \`\`-v''" >&2
+		# Set version (x.y.z)
+		if [[ "$OPTARG" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
+			game_version="$OPTARG"
+		else
+			echo "Invalid argument for option \`\`-v'' ($OPTARG)" >&2
 			usage
 			exit 1
 		fi
@@ -153,7 +153,7 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 		exit 1
 		;;
 	\?)
-		if [ "$OPTARG" != "?" ]; then
+		if [ "$OPTARG" != "?" -a "$OPTARG" != "h" ]; then
 			echo "Unknown option \`\`-$OPTARG''." >&2
 		fi
 		usage
@@ -1478,8 +1478,69 @@ if [ -z "$skip_zipfile" ]; then
 	### Deploy the zipfile.
 	###
 
+	upload_curseforge=$( test -z "$skip_upload" -a -n "$slug" -a -n "$cf_token" && echo true )
+	upload_wowinterface=$( test -n "$tag" -a -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" && echo true )
+	upload_github=$( test -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
+
+	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ]; then
+		# Get game version info from Curse (if we have jq)
+		if jq --version &>/dev/null; then
+			versions_file=$( realpath --relative-to="$(pwd)" "$releasedir/game-versions.json" ) # abs path segfaults jq.. windows/msys issue?
+			curl -s "http://wow.curseforge.com/game-versions.json" > "$versions_file"
+			# Make sure we got something sane
+			if jq -s '.[] | length' "$versions_file" &>/dev/null; then
+				if [ -n "$game_version" ]; then
+					game_version_id=$( jq -r 'to_entries[] | select(.value.name == "'$game_version'") | .key' "$versions_file" )
+				fi
+				# Couldn't find a version that matched, just use the most recent (well, highest index)
+				if [ -z "$game_version_id" ]; then
+					game_version=$( jq -r 'to_entries | max_by(.key | tonumber) | .value.name' "$versions_file" )
+					game_version_id=$( jq -r 'to_entries | max_by(.key | tonumber) | .key' "$versions_file" )
+				fi
+			fi
+			rm "$versions_file"
+
+			# Just check here instead of nesting later
+			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
+				echo
+				echo "Error fetching game version info from http://wow.curseforge.com/game-versions.json"
+				if [ -n "$upload_curseforge" ]; then
+					echo
+					echo "Skipping upload to CurseForge."
+					upload_curseforge=
+				fi
+				if [ -n "$upload_wowinterface" ]; then
+					echo
+					echo "Skipping upload to WoWInterface."
+					upload_wowinterface=
+				fi
+				exit_code=1
+			fi
+		else
+			# Warn about bailing because of not having jq
+			if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
+				echo
+				echo "Skipping upload to CurseForge. Install \`\`jq'' to allow fetching the current version id from Curse."
+				upload_curseforge=
+				exit_code=1
+			fi
+			if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
+				echo
+				echo "Skipping upload to WoWInterface. Install \`\`jq'' or set the game version on the command line (-g)"
+				upload_wowinterface=
+				exit_code=1
+			fi
+			if [ -n "$upload_github" ]; then
+				echo
+				echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses." # and escaping the changelog
+				upload_github=
+				exit_code=1
+			fi
+		fi
+	fi
+
 	# Upload to CurseForge.
-	if [ -z "$skip_upload" -a -n "$slug" -a -n "$cf_api_key" ]; then
+	if [ -n "$upload_curseforge" ]; then
 		url="http://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
 		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
@@ -1495,10 +1556,6 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
-		if [ -z "$game_version_id" ]; then
-			game_version_id=$( curl -s http://wow.curseforge.com/game-versions.json | jq -r 'to_entries | max_by(.key | tonumber) | .key' 2>/dev/null )
-		fi
-
 		if [ -f "$nolib_archive" ]; then
 			echo
 			echo "Uploading $nolib_archive_name ($file_type - $game_version_id) to $url"
@@ -1506,7 +1563,7 @@ if [ -z "$skip_zipfile" ]; then
 			resultfile="$releasedir/cfresult" # json response
 			result=$( curl -s -# \
 				  -w "%{http_code}" -o "$resultfile" \
-				  -H "X-API-Key: $cf_api_key" \
+				  -H "X-API-Key: $cf_token" \
 				  -A "GitHub Curseforge Packager/1.0" \
 				  -F "name=$nolib_archive_version" \
 				  -F "game_versions=$game_version_id" \
@@ -1538,7 +1595,7 @@ if [ -z "$skip_zipfile" ]; then
 		resultfile="$releasedir/cfresult" # json response
 		result=$( curl -s -# \
 			  -w "%{http_code}" -o "$resultfile" \
-			  -H "X-API-Key: $cf_api_key" \
+			  -H "X-API-Key: $cf_token" \
 			  -A "GitHub Curseforge Packager/1.0" \
 			  -F "name=$archive_version" \
 			  -F "game_versions=$game_version_id" \
@@ -1565,16 +1622,12 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	# Upload tags to WoWInterface.
-	if [ -n "$tag" -a -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" ]; then
+	if [ -n "$upload_wowinterface" ]; then
 		# make a cookie to authenticate with (no oauth/token api yet)
 		cookies="$releasedir/cookies.txt"
 		curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
 
 		if [ -s "$cookies" ]; then
-			if [ -z game_version ]; then
-				game_version=$( curl -s http://wow.curseforge.com/game-versions.json | jq -r 'to_entries | max_by(.key | tonumber) | .value.name' 2>/dev/null )
-			fi
-
 			echo
 			echo "Uploading $archive_name ($game_version) to http://http://www.wowinterface.com/downloads/info$addonid"
 
@@ -1598,7 +1651,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
-	if [ -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" ]; then
+	if [ -n "$upload_github" ]; then
 		resultfile="$releasedir/ghresult" # github json response
 
 		cat <<- EOF > "$releasedir/release.json"
@@ -1649,6 +1702,7 @@ if [ -z "$skip_zipfile" ]; then
 			echo "$(<"$resultfile")"
 			exit_code=1
 		fi
+
 		rm "$resultfile" 2>/dev/null
 	fi
 fi
