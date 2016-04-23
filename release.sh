@@ -615,6 +615,9 @@ localization_filter()
 			# Strip everything but the localization parameters.
 			_ul_params=${_ul_line#*@localization(}
 			_ul_params=${_ul_params%)@}
+			# Sanitize the params a bit. (namespaces are restricted to [a-zA-Z0-9_], separated by [./:])
+			_ul_params=${_ul_params// /}
+			_ul_params=${_ul_params//,/, }
 			# Generate a URL parameter string from the localization parameters.
 			set -- ${_ul_params}
 			_ul_url_params=
