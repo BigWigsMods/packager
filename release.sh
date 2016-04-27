@@ -571,8 +571,7 @@ contents="$package"
 ###
 
 # Filter for simple repository keyword replacement.
-simple_filter()
-{
+simple_filter() {
 	sed \
 		-e "s/@project-revision@/$si_project_revision/g" \
 		-e "s/@project-hash@/$si_project_hash/g" \
@@ -604,8 +603,7 @@ cache_localization_url() {
 }
 
 # Filter to handle @localization@ repository keyword replacement.
-localization_filter()
-{
+localization_filter() {
 	_ul_eof=
 	while [ -z "$_ul_eof" ]; do
 		IFS='' read -r _ul_line || _ul_eof=true
@@ -693,8 +691,7 @@ localization_filter()
 	done
 }
 
-lua_filter()
-{
+lua_filter() {
 	sed \
 		-e "s/--@$1@/--[===[@$1@/g" \
 		-e "s/--@end-$1@/--@end-$1@]===]/g" \
@@ -702,8 +699,7 @@ lua_filter()
 		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
 }
 
-toc_filter()
-{
+toc_filter() {
 	_trf_token=$1; shift
 	_trf_comment=
 	_trf_eof=
@@ -733,8 +729,7 @@ toc_filter()
 	done
 }
 
-xml_filter()
-{
+xml_filter() {
 	sed \
 		-e "s/<!--@$1@-->/<!--@$1/g" \
 		-e "s/<!--@end-$1@-->/@end-$1@-->/g" \
@@ -742,8 +737,7 @@ xml_filter()
 		-e "s/@end-non-$1@-->/<!--@end-non-$1@-->/g"
 }
 
-do_not_package_filter()
-{
+do_not_package_filter() {
 	_dnpf_token=$1; shift
 	_dnpf_string="do-not-package"
 	_dnpf_start_token=
@@ -797,8 +791,7 @@ do_not_package_filter()
 	fi
 }
 
-line_ending_filter()
-{
+line_ending_filter() {
 	_lef_eof=
 	while [ -z "$_lef_eof" ]; do
 		IFS='' read -r _lef_line || _lef_eof=true
