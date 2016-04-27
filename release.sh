@@ -594,10 +594,30 @@ simple_filter() {
 localization_url=
 cache_localization_url() {
 	localization_url=
-	for _ul_site_url in $site_url; do
-		_localization_url="${_ul_site_url}/addons/$slug/localization"
-		if curl -s -I "$_localization_url/" | grep -q "200 OK"; then
-			localization_url=$_localization_url
+	if [ -n "$slug" ]; then
+		for _ul_site_url in $site_url; do
+			_localization_url="${_ul_site_url}/addons/$slug/localization"
+			if curl -s -I "$_localization_url/" | grep -q "200 OK"; then
+				localization_url=$_localization_url
+			fi
+		done
+	fi
+}
+
+# Filter to print an error for unhandled @localization@ repository keyword replacement.
+localization_unset_filter() {
+	_ul_eof=
+	while [ -z "$_ul_eof" ]; do
+		IFS='' read -r _ul_line || _ul_eof=true
+		case $_ul_line in
+		*--@localization\(*\)@*)
+			echo "  Found --@localization@ with no localization url set for \`\`$slug''" >&2
+			;;
+		esac
+		if [ -n "$_ul_eof" ]; then
+			echo -n "$_ul_line"
+		else
+			echo "$_ul_line"
 		fi
 	done
 }
@@ -899,9 +919,11 @@ copy_directory_tree() {
 				else
 					# Set the filter for @localization@ replacement.
 					_cdt_localization_filter=cat
-					# XXX should probably kill the build if the file has a locale replacement but the url isn't working
-					if [ -n "$_cdt_localization" -a -n "$localization_url" ]; then
-						_cdt_localization_filter=localization_filter
+					if [ -n "$_cdt_localization" ]; then
+						_cdt_localization_filter=localization_unset_filter
+						if [ -n "$localization_url" ]; then
+							_cdt_localization_filter=localization_filter
+						fi
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
 					_cdt_alpha_filter=cat
@@ -989,9 +1011,6 @@ fi
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
-# Sites that are skipped for checking out externals if creating a "nolib" package.
-external_nolib_sites="curseforge.com wowace.com"
-
 # Queue for external checkouts.
 external_dir=
 external_uri=
@@ -1046,7 +1065,6 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_git "$_cqe_checkout_dir"
-			_cqe_external_project_revision=$si_project_revision
 			;;
 		svn:*|http://svn*|https://svn*)
 			if [ -z "$external_tag" ]; then
@@ -1094,7 +1112,6 @@ checkout_queued_external() {
 				fi
 			fi
 			set_info_svn "$_cqe_checkout_dir"
-			_cqe_external_project_revision=$si_project_revision
 			;;
 		*)
 			echo "Unknown external: $external_uri" >&2
@@ -1103,20 +1120,12 @@ checkout_queued_external() {
 		# Copy the checkout into the proper external directory.
 		(
 			cd "$_cqe_checkout_dir" || exit
-			# Set variables needed for filters.
-			project_revision=$_cqe_external_project_revision
-			package=${external_dir##*/}
-			slug=$( echo "$package" | tr '[:upper:]' '[:lower:]' )
-			for _cqe_nolib_site in $external_nolib_sites; do
-				case $external_uri in
-				*${_cqe_nolib_site}/*)
-					# The URI points to a Curse repository.
-					slug=${external_uri#*${_cqe_nolib_site}/wow/}
-					slug=${slug%%/*}
-					break
-					;;
-				esac
-			done
+			# Set the slug for external localization, if needed.
+			slug=
+			if [[ "$_external_uri" == *"curseforge.com"* || "$_external_uri" == *"wowace.com"* ]]; then
+				slug=${_external_uri#*/wow/}
+				slug=${slug%%/*}
+			fi
 			# If a .pkgmeta file is present, process it for an "ignore" list.
 			ignore=
 			if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
