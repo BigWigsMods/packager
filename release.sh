@@ -1011,186 +1011,147 @@ fi
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
-# Queue for external checkouts.
-external_dir=
-external_uri=
-external_tag=
-
-queue_external() {
-	external_dir=$1
-	external_uri=$2
-	external_tag=$3
-	output_file="$releasedir/.${RANDOM}.externalout"
-	checkout_queued_external &> "$output_file"
-	cat "$output_file" 2>/dev/null
-	rm "$output_file" 2>/dev/null
-}
-
-checkout_queued_external() {
-	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
-		# Checkout the external into a ".checkout" subdirectory of the final directory.
-		_cqe_checkout_dir="$pkgdir/$external_dir/.checkout"
-		mkdir -p "$_cqe_checkout_dir"
-		echo
-		case $external_uri in
-		git:*|http://git*|https://git*)
-			if [ -z "$external_tag" ]; then
-				echo "Fetching latest version of external $external_uri."
-				git clone --depth 1 "$external_uri" "$_cqe_checkout_dir"
-			elif [ "$external_tag" != "latest" ]; then
-				echo "Fetching tag \`\`$external_tag'' of external $external_uri."
-				git clone --depth 1 --branch "$external_tag" "$external_uri" "$_cqe_checkout_dir"
+# Checkout the external into a ".checkout" subdirectory of the final directory.
+checkout_external() {
+	_external_dir=$1
+	_external_uri=$2
+	_external_tag=$3
+	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
+	mkdir -p "$_cqe_checkout_dir"
+	echo
+	case $_external_uri in
+	git:*|http://git*|https://git*)
+		if [ -z "$_external_tag" ]; then
+			echo "Fetching latest version of external $_external_uri."
+			git clone --depth 1 "$_external_uri" "$_cqe_checkout_dir"
+		elif [ "$_external_tag" != "latest" ]; then
+			echo "Fetching tag \`\`$_external_tag'' of external $_external_uri."
+			git clone --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir"
+		else # [ "$_external_tag" = "latest" ]; then
+			echo "Fetching external $_external_uri."
+			git clone --depth 50 "$_external_uri" "$_cqe_checkout_dir"
+			_external_tag=$( git --git-dir="$_cqe_checkout_dir/.git" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
+			if [ -n "$_external_tag" ]; then
+				echo "Checking out \`\`$_external_tag'' into \`\`$_cqe_checkout_dir''."
+				( cd "$_cqe_checkout_dir" && git checkout "$_external_tag" )
+			fi
+		fi
+		set_info_git "$_cqe_checkout_dir"
+		;;
+	svn:*|http://svn*|https://svn*)
+		if [ -z "$_external_tag" ]; then
+			echo "Fetching latest version of external $_external_uri."
+			svn checkout "$_external_uri" "$_cqe_checkout_dir"
+		else
+			case $_external_uri in
+			*/trunk)
+				_cqe_svn_trunk_url=$_external_uri
+				_cqe_svn_subdir=
+				;;
+			*)
+				_cqe_svn_trunk_url="${_external_uri%/trunk/*}/trunk"
+				_cqe_svn_subdir=${_external_uri#${_cqe_svn_trunk_url}/}
+				;;
+			esac
+			_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
+			if [ "$_external_tag" = "latest" ]; then
+				_external_tag=$( svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | awk '/^   A \/tags\// { print $2; exit }' | awk -F/ '{ print $3 }' )
+				if [ -z "$_external_tag" ]; then
+					_external_tag="latest"
+				fi
+			fi
+			if [ "$_external_tag" = "latest" ]; then
+				echo "No tags found in $_cqe_svn_tag_url."
+				echo "Fetching latest version of external $_external_uri."
+				svn checkout "$_external_uri" "$_cqe_checkout_dir"
 			else
-				# Determine the latest tag in a remote Git repository:
-				#
-				#	1. Clone the last 100 commits from the remote repository.
-				#	2. Find the most recent annotated tag.
-				#	3. Checkout that tag into the working directory.
-				#	4. If no tag is found, then leave the latest commit as the checkout.
-				#
-				echo "Fetching external $external_uri."
-				git clone --depth 100 "$external_uri" "$_cqe_checkout_dir"
-				external_tag=$(
-					latest_tag=$( git --git-dir="$_cqe_checkout_dir/.git" for-each-ref refs/tags --sort=-taggerdate --format="%(refname)" --count=1 )
-					latest_tag=${latest_tag#refs/tags/}
-					if [ -n "$latest_tag" ]; then
-						echo "$latest_tag"
-					else
-						echo "latest"
-					fi
-				)
-				if [ "$external_tag" != "latest" ]; then
-					echo "Checking out \`\`$external_tag'' into \`\`$_cqe_checkout_dir''."
-					( cd "$_cqe_checkout_dir" && git checkout "$external_tag" )
+				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
+				if [ -n "$_cqe_svn_subdir" ]; then
+					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
+				echo "Fetching tag \`\`$_external_tag'' from external $_cqe_external_uri."
+				svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
 			fi
-			set_info_git "$_cqe_checkout_dir"
-			;;
-		svn:*|http://svn*|https://svn*)
-			if [ -z "$external_tag" ]; then
-				echo "Fetching latest version of external $external_uri."
-				svn checkout "$external_uri" "$_cqe_checkout_dir"
-			else
-				case $external_uri in
-				*/trunk)
-					_cqe_svn_trunk_url=$external_uri
-					_cqe_svn_subdir=
+		fi
+		set_info_svn "$_cqe_checkout_dir"
+		;;
+	*)
+		echo "Unknown external: $_external_uri" >&2
+		;;
+	esac
+	# Copy the checkout into the proper external directory.
+	(
+		cd "$_cqe_checkout_dir" || exit
+		# Set the slug for external localization, if needed.
+		slug=
+		if [[ "$_external_uri" == *"curseforge.com"* || "$_external_uri" == *"wowace.com"* ]]; then
+			slug=${_external_uri#*/wow/}
+			slug=${slug%%/*}
+		fi
+		# If a .pkgmeta file is present, process it for an "ignore" list.
+		ignore=
+		if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
+			yaml_eof=
+			while [ -z "$yaml_eof" ]; do
+				IFS='' read -r yaml_line || yaml_eof=true
+				# Strip any trailing CR character.
+				yaml_line=${yaml_line%$carriage_return}
+				case $yaml_line in
+				[!\ ]*:*)
+					# Split $yaml_line into a $yaml_key, $yaml_value pair.
+					yaml_keyvalue "$yaml_line"
+					# Set the $pkgmeta_phase for stateful processing.
+					pkgmeta_phase=$yaml_key
 					;;
-				*)
-					_cqe_svn_trunk_url="${external_uri%/trunk/*}/trunk"
-					_cqe_svn_subdir=${external_uri#${_cqe_svn_trunk_url}/}
-					;;
-				esac
-				_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
-				if [ "$external_tag" = "latest" ]; then
-					# Determine the latest tag in a SVN repository:
-					#
-					#	1. Get the last commit in the /tags URL for the SVN repository.
-					#	2. Extract the tag for that commit.
-					#	3. Checkout that tag into the working directory.
-					#	4. If no tag is found, then checkout the latest version.
-					#
-					external_tag=$(	svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | awk '/^   A \/tags\// { print $2; exit }' )
-					# Strip leading and trailing bits.
-					external_tag=${external_tag#/tags/}
-					external_tag=${external_tag%%/*}
-					if [ -z "$external_tag" ]; then
-						external_tag="latest"
-					fi
-				fi
-				if [ "$external_tag" = "latest" ]; then
-					echo "No tags found in $_cqe_svn_tag_url."
-					echo "Fetching latest version of external $external_uri."
-					svn checkout "$external_uri" "$_cqe_checkout_dir"
-				else
-					_cqe_external_uri="${_cqe_svn_tag_url}/$external_tag"
-					if [ -n "$_cqe_svn_subdir" ]; then
-						_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
-					fi
-					echo "Fetching tag \`\`$external_tag'' from external $_cqe_external_uri."
-					svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
-				fi
-			fi
-			set_info_svn "$_cqe_checkout_dir"
-			;;
-		*)
-			echo "Unknown external: $external_uri" >&2
-			;;
-		esac
-		# Copy the checkout into the proper external directory.
-		(
-			cd "$_cqe_checkout_dir" || exit
-			# Set the slug for external localization, if needed.
-			slug=
-			if [[ "$_external_uri" == *"curseforge.com"* || "$_external_uri" == *"wowace.com"* ]]; then
-				slug=${_external_uri#*/wow/}
-				slug=${slug%%/*}
-			fi
-			# If a .pkgmeta file is present, process it for an "ignore" list.
-			ignore=
-			if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
-				yaml_eof=
-				while [ -z "$yaml_eof" ]; do
-					IFS='' read -r yaml_line || yaml_eof=true
-					# Strip any trailing CR character.
-					yaml_line=${yaml_line%$carriage_return}
+				" "*)
+					yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 					case $yaml_line in
-					[!\ ]*:*)
-						# Split $yaml_line into a $yaml_key, $yaml_value pair.
-						yaml_keyvalue "$yaml_line"
-						# Set the $pkgmeta_phase for stateful processing.
-						pkgmeta_phase=$yaml_key
-						;;
-					" "*)
-						yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-						case $yaml_line in
-						"- "*)
-							# Get the YAML list item.
-							yaml_listitem "$yaml_line"
-							case $pkgmeta_phase in
-							ignore)
-								pattern=$yaml_item
-								if [ -d "$topdir/$pattern" ]; then
-									pattern="$pattern/*"
-								fi
-								if [ -z "$ignore" ]; then
-									ignore="$pattern"
-								else
-									ignore="$ignore:$pattern"
-								fi
-								;;
-							esac
+					"- "*)
+						# Get the YAML list item.
+						yaml_listitem "$yaml_line"
+						case $pkgmeta_phase in
+						ignore)
+							pattern=$yaml_item
+							if [ -d "$topdir/$pattern" ]; then
+								pattern="$pattern/*"
+							fi
+							if [ -z "$ignore" ]; then
+								ignore="$pattern"
+							else
+								ignore="$ignore:$pattern"
+							fi
 							;;
 						esac
 						;;
 					esac
-				done < "$_cqe_checkout_dir/.pkgmeta"
-			fi
-			copy_directory_tree -dlnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$external_dir"
-		)
-		# Remove the ".checkout" subdirectory containing the full checkout.
-		if [ -d "$_cqe_checkout_dir" ]; then
-			#echo "Removing repository checkout in \`\`$_cqe_checkout_dir''."
-			rm -fr "$_cqe_checkout_dir"
+					;;
+				esac
+			done < "$_cqe_checkout_dir/.pkgmeta"
 		fi
+		copy_directory_tree -dlnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+	)
+	# Remove the ".checkout" subdirectory containing the full checkout.
+	if [ -d "$_cqe_checkout_dir" ]; then
+		rm -fr "$_cqe_checkout_dir"
 	fi
-	# Clear the queue.
+}
+
+external_dir=
+external_uri=
+external_tag=
+process_external() {
+	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
+		echo "Fetching external: $external_dir"
+		(
+			output_file="$releasedir/.${RANDOM}.externalout"
+			checkout_external "$external_dir" "$external_uri" "$external_tag" &> "$output_file"
+			cat "$output_file" 2>/dev/null
+			rm "$output_file" 2>/dev/null
+		) &
+	fi
 	external_dir=
 	external_uri=
 	external_tag=
-}
-
-_external_dir=
-_external_uri=
-_external_tag=
-process_external() {
-	if [ -n "$_external_dir" -a -n "$_external_uri" -a -z "$skip_externals" ]; then
-		echo "Fetching external: $_external_dir"
-		( queue_external "$_external_dir" "$_external_uri" "$_external_tag" ) &
-		_external_dir=
-		_external_uri=
-		_external_tag=
-	fi
 }
 
 # Don't leave extra files around if exited early
@@ -1228,20 +1189,20 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					case $yaml_key in
 					url)
 						# Queue external URI for checkout.
-						_external_uri=$yaml_value
+						external_uri=$yaml_value
 						;;
 					tag)
 						# Queue external tag for checkout.
-						_external_tag=$yaml_value
+						external_tag=$yaml_value
 						;;
 					*)
 						# Started a new external, so checkout any queued externals.
 						process_external
 
-						_external_dir=$yaml_key
-						nolib_exclude="$nolib_exclude $pkgdir/$_external_dir/*"
+						external_dir=$yaml_key
+						nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
 						if [ -n "$yaml_value" ]; then
-							_external_uri=$yaml_value
+							external_uri=$yaml_value
 							# Immediately checkout this fully-specified external.
 							process_external
 						fi
