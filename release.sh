@@ -201,11 +201,6 @@ case $basedir in
 	;;
 esac
 
-# The default slug is the lowercase basename of the checkout directory.
-if [ -z "$slug" ]; then
-	slug=$( echo "$basedir" | tr '[:upper:]' '[:lower:]' )
-fi
-
 # Set $repository_type to "git" or "svn".
 repository_type=
 if [ -d "$topdir/.git" ]; then
@@ -422,6 +417,16 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 	project_github_slug=${project_github_url#https://github.com/}
 fi
 
+# Set the slug for cf/wowace checkouts.
+if [ -z "$slug" ] && [[ "$si_repo_url" == *"curseforge.com"* || "$si_repo_url" == *"wowace.com"* ]]; then
+	slug=${si_repo_url#*/wow/}
+	slug=${slug%%/*}
+fi
+# The default slug is the lowercase basename of the checkout directory.
+if [ -z "$slug" ]; then
+	slug=$( echo "$basedir" | tr '[:upper:]' '[:lower:]' )
+fi
+
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
 
@@ -540,7 +545,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 fi
 
 echo
-echo "Packaging $package"
+echo "Packaging $package ($slug)"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
