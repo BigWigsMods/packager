@@ -322,7 +322,7 @@ set_info_svn() {
 			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
 			_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
 			_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -re "s/^.*:([0-9]+)\).*$/\1/" ) # (from /project/trunk:N)
+			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
 
 			if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
 				si_tag="$_si_tag"
@@ -1231,16 +1231,12 @@ trap - INT
 ### Create the changelog of commits since the previous release tag.
 ###
 
-project="$package"
 # Parse the TOC file if it exists for the title of the project.
 if [ -f "$topdir/$package.toc" ]; then
-	while read toc_line; do
-		case $toc_line in
-		"## Title: "*)
-			project=$( echo ${toc_line#"## Title: "} | sed -e "s/|c[0-9A-Fa-f]\{8\}//g" -e "s/|r//g" )
-			;;
-		esac
-	done < "$topdir/$package.toc"
+	project=$( grep '## Title' "$topdir/$package.toc" | sed -e 's/##.*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+fi
+if [ -z "$project" ]; then
+	project="$package"
 fi
 
 # Create a changelog in the package directory if the source directory does
@@ -1293,7 +1289,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		EOF
 		git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
-			| sed -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 	elif [ "$repository_type" = "svn" ]; then
@@ -1311,7 +1307,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		EOF
 		svn log "$topdir" "$svn_revision_range" --xml \
 			| awk '/<msg>/,/<\/msg>/' \
-			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e "s/^/    /g" -e "s/^ *$//g" -e "s/^    ###/-/g" -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
+			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 	fi
@@ -1529,10 +1525,10 @@ if [ -z "$skip_zipfile" ]; then
 
 		if [ -f "$nolib_archive" ]; then
 			echo
-			echo "Uploading $nolib_archive_name ($file_type - $game_version_id) to $url"
+			echo "Uploading $nolib_archive_name ($file_type - $game_version/$game_version_id) to $url"
 
-			resultfile="$releasedir/cfresult" # json response
-			result=$( curl -s -# \
+			resultfile="$releasedir/cf_result.json"
+			result=$( curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
 				  -H "X-API-Key: $cf_token" \
 				  -A "GitHub Curseforge Packager/1.0" \
@@ -1561,10 +1557,10 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		echo
-		echo "Uploading $archive_name ($file_type - $game_version_id) to $url"
+		echo "Uploading $archive_name ($file_type - $game_version/$game_version_id) to $url"
 
-		resultfile="$releasedir/cfresult" # json response
-		result=$( curl -s -# \
+		resultfile="$releasedir/cf_result.json"
+		result=$( curl -s \
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "X-API-Key: $cf_token" \
 			  -A "GitHub Curseforge Packager/1.0" \
@@ -1596,22 +1592,33 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_wowinterface" ]; then
 		# make a cookie to authenticate with (no oauth/token api yet)
 		cookies="$releasedir/cookies.txt"
-		curl -s -o /dev/null -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" 2>/dev/null
+		curl -s -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" &>/dev/null
 
 		if [ -s "$cookies" ]; then
 			echo
-			echo "Uploading $archive_name ($game_version) to http://http://www.wowinterface.com/downloads/info$addonid"
+			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
 
 			# post just what is needed to add a new file
-			result=$( curl -s -# \
-				  -w "%{http_code} %{time_total}s\\n" \
+			resultfile="$releasedir/wi_result.json"
+			result=$( curl -s \
+				  -w "%{http_code}" -o "$resultfile" \
 				  -b "$cookies" \
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
 				  -F "updatefile=@$archive" \
 				  "http://api.wowinterface.com/addons/update" )
-			echo "Done. $result"
+
+			case $result in
+			200) echo "Success!" ;;
+			*)
+				echo "Error! ($result)."
+				echo "$(<"$resultfile")"
+				exit_code=1
+				;;
+			esac
+
+			rm "$resultfile" 2>/dev/null
 		else
 			echo
 			echo "Unable to upload to WoWInterface, authentication error."
@@ -1623,7 +1630,7 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
 	if [ -n "$upload_github" ]; then
-		resultfile="$releasedir/ghresult" # github json response
+		resultfile="$releasedir/gh_result.json"
 
 		cat <<- EOF > "$releasedir/release.json"
 		{
@@ -1637,21 +1644,21 @@ if [ -z "$skip_zipfile" ]; then
 		EOF
 
 		# check if a release exists and delete it (fuck yo couch)
-		release_id=$( curl -s "https://api.github.com/repos/${project_github_slug}/releases/tags/$tag" | jq '.id' )
+		release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id' )
 		if [ -n "$release_id" ]; then
-			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/${project_github_slug}/releases/$release_id" &>/dev/null
+			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
 			# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
 			# whatever, we'll display token errors when creating
 			release_id=
 		fi
 
 		echo
-		echo "Creating GitHub release: https://github.com/${project_github_slug}/releases/tag/$tag"
+		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 		result=$( curl -s \
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "Authorization: token $github_token" \
 			  -d "@$releasedir/release.json" \
-			  "https://api.github.com/repos/${project_github_slug}/releases" )
+			  "https://api.github.com/repos/$project_github_slug/releases" )
 
 		if [ "$result" -eq "201" ]; then
 			release_id=$( jq '.id' "$resultfile" )
@@ -1660,7 +1667,7 @@ if [ -z "$skip_zipfile" ]; then
 				  -H "Authorization: token $github_token" \
 				  -H "Content-Type: application/zip" \
 				  --data-binary "@$archive" \
-				  "https://uploads.github.com/repos/${project_github_slug}/releases/${release_id}/assets?name=$archive_name" )
+				  "https://uploads.github.com/repos/$project_github_slug/releases/$release_id/assets?name=$archive_name" )
 			if [ "$result" -eq "201" ]; then
 				echo "Success!"
 			else
