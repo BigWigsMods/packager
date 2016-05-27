@@ -673,7 +673,6 @@ localization_filter() {
 						# and remove @localization@ calls with invalid namespaces.
 						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | tr '[:upper:]' '[:lower:]' )
 						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
-							: "valid namespace"
 							_ul_namespace=$_ul_value
 						else
 							echo "  Invalid localization namespace \`\`$_ul_value''." >&2
@@ -694,7 +693,7 @@ localization_filter() {
 					echo "  adding $_ul_lang" >&2
 				fi
 				# Fetch the localization data, but don't output anything if the namespace was not valid.
-				curl -s "${localization_url}/export.txt?${_ul_url_params}" | awk '/namespace.*Not a valid choice/ { skip = 1; next } skip == 1 { next } { print }'
+				curl -s "${localization_url}/export.txt?${_ul_url_params}" | awk '/u'\''Not a valid choice'\''/ { o="    Error! "$0; print o >"/dev/stderr"; skip = 1; next } skip == 1 { next } { print }'
 			fi
 			# Insert a trailing blank line to match CF packager.
 			if [ -z "$_ul_eof" ]; then
