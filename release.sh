@@ -1232,7 +1232,7 @@ trap - INT
 
 # Parse the TOC file if it exists for the title of the project.
 if [ -f "$topdir/$package.toc" ]; then
-	project=$( grep '## Title' "$topdir/$package.toc" | sed -e 's/##.*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+	project=$( grep '## Title:' "$topdir/$package.toc" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 fi
 if [ -z "$project" ]; then
 	project="$package"
