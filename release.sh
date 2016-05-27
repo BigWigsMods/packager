@@ -303,7 +303,7 @@ set_info_svn() {
 
 	# Temporary file to hold results of "svn info".
 	_si_svninfo="${si_repo_dir}/.svn/release_sh_svninfo"
-	svn info "$si_repo_dir" 2>/dev/null > "$_si_svninfo"
+	svn info -r BASE "$si_repo_dir" 2>/dev/null > "$_si_svninfo"
 
 	if [ -s "$_si_svninfo" ]; then
 		_si_root=$( awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
