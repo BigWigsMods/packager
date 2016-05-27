@@ -1453,16 +1453,18 @@ if [ -z "$skip_zipfile" ]; then
 		# Get game version info from Curse (if we have jq)
 		if jq --version &>/dev/null; then
 			versions_file=$( realpath --relative-to="$(pwd)" "$releasedir/game-versions.json" ) # abs path segfaults jq.. windows/msys issue?
-			curl -s "http://wow.curseforge.com/game-versions.json" > "$versions_file"
+			# tweak the json format a bit
+			curl -s "http://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
+
 			# Make sure we got something sane
 			if jq -s '.[] | length' "$versions_file" &>/dev/null; then
 				if [ -n "$game_version" ]; then
-					game_version_id=$( jq -r 'to_entries[] | select(.value.name == "'$game_version'") | .key' "$versions_file" )
+					game_version_id=$( jq -r '.[] | select(.name == "'$game_version'") | .key | tonumber' "$versions_file" )
 				fi
-				# Couldn't find a version that matched, just use the most recent (well, highest index)
+				# Couldn't find a version that matched, just use the most recent (well, highest index) non-dev entry
 				if [ -z "$game_version_id" ]; then
-					game_version=$( jq -r 'to_entries | max_by(.key | tonumber) | .value.name' "$versions_file" )
-					game_version_id=$( jq -r 'to_entries | max_by(.key | tonumber) | .key' "$versions_file" )
+					game_version=$( jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .name' "$versions_file" )
+					game_version_id=$( jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .key | tonumber' "$versions_file" )
 				fi
 			fi
 			rm "$versions_file"
