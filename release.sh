@@ -229,6 +229,19 @@ mkdir -p "$releasedir"
 topdir=$( cd "$topdir" && pwd )
 releasedir=$( cd "$releasedir" && pwd )
 
+# Grab CurseForge slug and WoWI ID from the TOC file if unspecified
+if [ -z "$slug" -o -z "$addonid" ]; then
+	tocfile=$( cd "$topdir" && ls *.toc -1 | head -n 1 )
+	if [ -f "$topdir/$tocfile" ]; then
+		if [ -z "$slug" ]; then
+			slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
+		fi
+		if [ -z "$addonid" ]; then
+			addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" )
+		fi
+	fi
+fi
+
 ###
 ### set_info_<repo> returns the following information:
 ###
