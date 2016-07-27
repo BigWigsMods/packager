@@ -544,6 +544,21 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	done < "$topdir/.pkgmeta"
 fi
 
+# Add untracked/ignored files to the ignore list
+_vcs_ignore=
+if [ "$repository_type" = "git" ]; then
+	_vcs_ignore=$( git --git-dir="$topdir/.git" ls-files --others | sed -e ':a;N;s/\n/:/;ta' )
+elif [ "$repository_type" = "svn" ]; then
+	_vcs_ignore=$( cd "$topdir" && svn status --no-ignore | awk '/^[?I]/ {print $2}' | sed -e 's/\\/\//g' -e ':a;N;s/\n/:/;ta' )
+fi
+if [ -n "$_vcs_ignore" ]; then
+	if [ -z "$ignore" ]; then
+		ignore="$_vcs_ignore"
+	else
+		ignore="$ignore:$_vcs_ignore"
+	fi
+fi
+
 echo
 echo "Packaging $package ($slug)"
 if [ -n "$project_version" ]; then
@@ -1304,7 +1319,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		## $project_version ($changelog_date)
 
 		EOF
-		svn log "$topdir" "$svn_revision_range" --xml \
+		svn log "$topdir" $svn_revision_range --xml \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
