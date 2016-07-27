@@ -1466,7 +1466,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ]; then
 		# Get game version info from Curse (if we have jq)
 		if jq --version &>/dev/null; then
-			versions_file=$( realpath --relative-to="$(pwd)" "$releasedir/game-versions.json" ) # abs path segfaults jq.. windows/msys issue?
+			versions_file="game-versions.json"
 			# tweak the json format a bit
 			curl -s "http://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
 
@@ -1481,7 +1481,7 @@ if [ -z "$skip_zipfile" ]; then
 					game_version_id=$( jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .key | tonumber' "$versions_file" )
 				fi
 			fi
-			rm "$versions_file"
+			rm "$versions_file" 2>/dev/null
 
 			# Just check here instead of nesting later
 			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
