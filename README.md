@@ -93,3 +93,10 @@ Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir]
   -t topdir        Set top-level directory of checkout.
   -g version       Set the game version for uploading to CurseForge and WoWInterface.
 ```
+
+The following environment variables are necessary for uploading:
+
+  - `CF_API_KEY` - your [CurseForge API key](https://wow.curseforge.com/home/api-key/), required for uploading to CurseForge
+  - `GITHUB_OAUTH` - a [GitHub OAuth token](https://github.com/settings/tokens), required for uploading to Github
+  - `WOWI_USERNAME` - your WoWInterface username, required for uploading to WoWInterface
+  - `WOWI_PASSWORD` - your WoWInterface password, required for uploading to WoWInterface
