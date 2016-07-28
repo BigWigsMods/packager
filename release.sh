@@ -451,6 +451,8 @@ yaml_keyvalue() {
 	yaml_key=${1%%:*}
 	yaml_value=${1#$yaml_key:}
 	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"} # trim leading whitespace
+	yaml_value=${yaml_value#[\'\"]} # trim leading quotes
+	yaml_value=${yaml_value%[\'\"]} # trim trailing quotes
 }
 
 yaml_listitem() {
