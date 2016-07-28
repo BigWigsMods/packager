@@ -628,7 +628,7 @@ localization_unset_filter() {
 		IFS='' read -r _ul_line || _ul_eof=true
 		case $_ul_line in
 		*--@localization\(*\)@*)
-			echo "  Found --@localization@ with no localization url set for \`\`$slug''" >&2
+			echo "  Found @localization@ with no localization url set for \`\`$slug''" >&2
 			;;
 		esac
 		if [ -n "$_ul_eof" ]; then
@@ -692,10 +692,19 @@ localization_filter() {
 						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
 							_ul_namespace=$_ul_value
 						else
-							echo "  Invalid localization namespace \`\`$_ul_value''." >&2
+							echo "  ($_ul_lang) Invalid localization namespace \`\`$_ul_value''." >&2
 							_ul_skip_fetch=true
 						fi
 						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
+						;;
+					key)
+						# Curse API can't do this, which means we'd have to pull the locale
+						# and parse it for the one entry specified. I've only seen this with
+						# ckk projects for localizing TOC entries, but warn anyway.
+						# _ul_url_params="${_ul_url_params}&format=lua_additive_table"
+						# _ul_singlekey=$_ul_value
+						echo "  ($_ul_lang) Fetching a single key is not supported." >&2
+						_ul_skip_fetch=true
 						;;
 				esac
 			done
