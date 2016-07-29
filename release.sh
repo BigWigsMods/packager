@@ -560,18 +560,30 @@ if [ -f "$topdir/.pkgmeta" ]; then
 fi
 
 # Add untracked/ignored files to the ignore list
-_vcs_ignore=
 if [ "$repository_type" = "git" ]; then
 	_vcs_ignore=$( git --git-dir="$topdir/.git" ls-files --others | sed -e ':a;N;s/\n/:/;ta' )
-elif [ "$repository_type" = "svn" ]; then
-	_vcs_ignore=$( cd "$topdir" && svn status --no-ignore | awk '/^[?I]/ {print $2}' | sed -e 's/\\/\//g' -e ':a;N;s/\n/:/;ta' )
-fi
-if [ -n "$_vcs_ignore" ]; then
-	if [ -z "$ignore" ]; then
-		ignore="$_vcs_ignore"
-	else
-		ignore="$ignore:$_vcs_ignore"
+	if [ -n "$_vcs_ignore" ]; then
+		if [ -z "$ignore" ]; then
+			ignore="$_vcs_ignore"
+		else
+			ignore="$ignore:$_vcs_ignore"
+		fi
 	fi
+elif [ "$repository_type" = "svn" ]; then
+	# svn always being difficult.
+	OLDIFS=$IFS
+	IFS=$'\n'
+	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore | grep '^[?I]' | cut -c9- ); do
+		if [ -d "$_vcs_ignore" ]; then
+			_vcs_ignore="$_vcs_ignore/*"
+		fi
+		if [ -z "$ignore" ]; then
+			ignore="$_vcs_ignore"
+		else
+			ignore="$ignore:$_vcs_ignore"
+		fi
+	done
+	IFS=$OLDIFS
 fi
 
 echo
