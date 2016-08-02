@@ -28,15 +28,18 @@
 
 # release.sh generates a zippable addon directory from a Git or SVN checkout.
 
-# don't need to run the packager for pull requests
-if [ -n "$TRAVIS_PULL_REQUEST" -a "$TRAVIS_PULL_REQUEST" != "false" ]; then
-	echo "Not packaging pull request."
-	exit 0
-fi
-# only want to package master and tags
-if [ -n "$TRAVIS" -a "$TRAVIS_BRANCH" != "master" -a -z "$TRAVIS_TAG" ]; then
-	echo "Not packaging \`\`${TRAVIS_BRANCH}''."
-	exit 0
+# add some travis checks so we don't need to do it in the yaml file
+if [ -n "$TRAVIS" ]; then
+	# don't need to run the packager for pull requests
+	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+		echo "Not packaging pull request."
+		exit 0
+	fi
+	# only want to package master and tags
+	if [ "$TRAVIS_BRANCH" != "master" -a -z "$TRAVIS_TAG" ]; then
+		echo "Not packaging \`\`${TRAVIS_BRANCH}''."
+		exit 0
+	fi
 fi
 
 # Script return code
