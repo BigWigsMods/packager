@@ -43,7 +43,7 @@ fi
 exit_code=0
 
 # Site URLs, used to find the localization web app.
-site_url="http://wow.curseforge.com http://www.wowace.com"
+site_url="https://wow.curseforge.com https://www.wowace.com"
 
 # Game versions for uploading
 game_version=
@@ -1510,7 +1510,7 @@ if [ -z "$skip_zipfile" ]; then
 		if jq --version &>/dev/null; then
 			versions_file="game-versions.json"
 			# tweak the json format a bit
-			curl -s "http://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
+			curl -s "https://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
 
 			# Make sure we got something sane
 			if jq -s '.[] | length' "$versions_file" &>/dev/null; then
@@ -1528,7 +1528,7 @@ if [ -z "$skip_zipfile" ]; then
 			# Just check here instead of nesting later
 			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
 				echo
-				echo "Error fetching game version info from http://wow.curseforge.com/game-versions.json"
+				echo "Error fetching game version info from https://wow.curseforge.com/game-versions.json"
 				if [ -n "$upload_curseforge" ]; then
 					echo
 					echo "Skipping upload to CurseForge."
@@ -1566,7 +1566,7 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
-		url="http://wow.curseforge.com/addons/$slug"
+		url="https://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
 		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
 		# word "release", then it is considered a release tag. If the above
