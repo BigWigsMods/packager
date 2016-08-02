@@ -1077,29 +1077,31 @@ checkout_external() {
 	case $_external_uri in
 	git:*|http://git*|https://git*)
 		if [ -z "$_external_tag" ]; then
-			echo "Fetching latest version of external $_external_uri."
-			git clone --depth 1 "$_external_uri" "$_cqe_checkout_dir"
+			echo "Fetching latest version of external $_external_uri"
+			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching tag \`\`$_external_tag'' of external $_external_uri."
-			git clone --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir"
+			echo "Fetching tag \`\`$_external_tag'' from external $_external_uri"
+			git clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 		else # [ "$_external_tag" = "latest" ]; then
-			echo "Fetching external $_external_uri."
-			git clone --depth 50 "$_external_uri" "$_cqe_checkout_dir"
+			git clone -q --depth 50 "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
-				echo "Checking out \`\`$_external_tag'' into \`\`$_cqe_checkout_dir''."
-				git -C "$_cqe_checkout_dir" checkout "$_external_tag"
+				echo "Fetching tag \`\`$_external_tag'' from external $_external_uri"
+				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag"
+			else
+				echo "Fetching latest version of external $_external_uri"
 			fi
 		fi
 		set_info_git "$_cqe_checkout_dir"
+		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
 		;;
 	svn:*|http://svn*|https://svn*)
 		if [ -z "$_external_tag" ]; then
-			echo "Fetching latest version of external $_external_uri."
-			svn checkout "$_external_uri" "$_cqe_checkout_dir"
+			echo "Fetching latest version of external $_external_uri"
+			svn checkout -q "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 		else
 			case $_external_uri in
@@ -1120,21 +1122,22 @@ checkout_external() {
 				fi
 			fi
 			if [ "$_external_tag" = "latest" ]; then
-				echo "No tags found in $_cqe_svn_tag_url."
-				echo "Fetching latest version of external $_external_uri."
-				svn checkout "$_external_uri" "$_cqe_checkout_dir"
+				echo "No tags found in $_cqe_svn_tag_url"
+				echo "Fetching latest version of external $_external_uri"
+				svn checkout -q "$_external_uri" "$_cqe_checkout_dir"
 				if [ $? -ne 0 ]; then return 1; fi
 			else
 				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
 				if [ -n "$_cqe_svn_subdir" ]; then
 					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
-				echo "Fetching tag \`\`$_external_tag'' from external $_cqe_external_uri."
-				svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
+				echo "Fetching tag \`\`$_external_tag'' from external $_cqe_external_uri"
+				svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir"
 				if [ $? -ne 0 ]; then return 1; fi
 			fi
 		fi
 		set_info_svn "$_cqe_checkout_dir"
+		echo "Checked out r$si_project_revision"
 		;;
 	*)
 		echo "Unknown external: $_external_uri" >&2
