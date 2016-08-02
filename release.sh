@@ -656,7 +656,7 @@ localization_unset_filter() {
 	while [ -z "$_ul_eof" ]; do
 		IFS='' read -r _ul_line || _ul_eof=true
 		case $_ul_line in
-		*--@localization\(*\)@*)
+		*@localization\(*\)@*)
 			echo "  Found @localization@ with no localization url set for \`\`$slug''" >&2
 			;;
 		esac
@@ -676,11 +676,12 @@ localization_filter() {
 		# Strip any trailing CR character.
 		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
-		*--@localization\(*\)@*)
+		*@localization\(*\)@*)
 			_ul_lang=
 			_ul_namespace=
 			# Get the prefix of the line before the comment.
-			_ul_prefix=${_ul_line%%--*}
+			_ul_prefix=${_ul_line%%@localization(*}
+			_ul_prefix=${_ul_prefix%%--*}
 			# Strip everything but the localization parameters.
 			_ul_params=${_ul_line#*@localization(}
 			_ul_params=${_ul_params%)@}
@@ -721,7 +722,7 @@ localization_filter() {
 						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
 							_ul_namespace=$_ul_value
 						else
-							echo "  ($_ul_lang) Invalid localization namespace \`\`$_ul_value''." >&2
+							echo "  ($_ul_lang) Warning! Invalid localization namespace \`\`$_ul_value''." >&2
 							_ul_skip_fetch=true
 						fi
 						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
@@ -732,7 +733,7 @@ localization_filter() {
 						# ckk projects for localizing TOC entries, but warn anyway.
 						# _ul_url_params="${_ul_url_params}&format=lua_additive_table"
 						# _ul_singlekey=$_ul_value
-						echo "  ($_ul_lang) Fetching a single key is not supported." >&2
+						echo "  ($_ul_lang) Warning! Fetching a single key is not supported." >&2
 						_ul_skip_fetch=true
 						;;
 				esac
