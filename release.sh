@@ -389,7 +389,7 @@ set_info_file() {
 	elif [ "$si_repo_type" = "svn" ]; then
 		_si_file="$1"
 		# Temporary file to hold results of "svn info".
-		_sif_svninfo="svninfo"
+		_sif_svninfo="${si_repo_dir}/.svn/release_sh_svnfinfo"
 		svn info "$_si_file" 2>/dev/null > "$_sif_svninfo"
 		if [ -s "$_sif_svninfo" ]; then
 			# Populate filter vars.
@@ -1230,8 +1230,7 @@ handle_chld() {
 	for i in ${!external_pids[*]}; do
 		pid=${external_pids[i]}
 		if ! kill -0 $pid &>/dev/null ; then
-			wait $pid
-			if [ $? -ne 0 ]; then
+			if ! wait $pid; then
 				external_error=1
 			fi
 			unset external_pids[i]
@@ -1619,7 +1618,7 @@ if [ -z "$skip_zipfile" ]; then
 
 		if [ -f "$nolib_archive" ]; then
 			echo
-			echo "Uploading $nolib_archive_name ($file_type - $game_version/$game_version_id) to $url"
+			echo "Uploading $nolib_archive_name ($file_type/$game_version/$game_version_id) to $url"
 
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
