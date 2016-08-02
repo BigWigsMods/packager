@@ -9,7 +9,7 @@ into the project directory.  The project directory is then zipped to create a
 distributable addon zipfile.
 
 __release.sh__ can also upload your zipfile to CurseForge, WoWInterface, and
-GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/).
+GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See [Usage](#usage) for more info.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the [CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/projects/pkgmeta-file/) for more info.
 
@@ -78,20 +78,20 @@ The recommended way to include __release.sh__ in a project is to:
 Usage
 =====
 ```
-Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g version]
+Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-g version] [-p slug] [-w wowi-id]
   -c               Skip copying files into the package directory.
+  -d               Skip uploading.
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
-  -z               Skip zipfile creation.
-  -u               Use Unix line-endings.
-  -s               Create a stripped-down ``nolib'' package.
   -o               Keep existing package directory, overwriting its contents.
-  -p slug          Set the project slug used on WowAce or CurseForge.
-  -d               Skip uploading to CurseForge.
-  -w wowi-id       Set the addon id used on WoWInterface for uploading.
-  -r releasedir    Set directory containing the package directory. Defaults to ``$topdir/.release''.
+  -s               Create a stripped-down ``nolib'' package.
+  -u               Use Unix line-endings.
+  -z               Skip zipfile creation.
   -t topdir        Set top-level directory of checkout.
+  -r releasedir    Set directory containing the package directory. Defaults to ``$topdir/.release''.
   -g version       Set the game version for uploading to CurseForge and WoWInterface.
+  -p slug          Set the project slug used on CurseForge for localization and uploading.
+  -w wowi-id       Set the addon id used on WoWInterface for uploading.
 ```
 
 The following environment variables are necessary for uploading:

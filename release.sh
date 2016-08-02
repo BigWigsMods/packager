@@ -71,19 +71,19 @@ skip_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzusod] [-p slug] [-w wowi-id] [-r releasedir] [-t topdir] [-g version]" >&2
+	echo "Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-g version] [-p slug] [-w wowi-id]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
+	echo "  -d               Skip uploading." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
-	echo "  -z               Skip zipfile creation." >&2
-	echo "  -u               Use Unix line-endings." >&2
-	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
 	echo "  -o               Keep existing package directory, overwriting its contents." >&2
-	echo "  -p slug          Set the project slug used on WowAce or CurseForge." >&2
-	echo "  -d               Skip uploading to CurseForge." >&2
-	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
-	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
+	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
+	echo "  -u               Use Unix line-endings." >&2
+	echo "  -z               Skip zipfile creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
+	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
+	echo "  -p slug          Set the project slug used on CurseForge for localization and uploading." >&2
+	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -g version       Set the game version for uploading to CurseForge and WoWInterface." >&2
 }
 
@@ -103,7 +103,7 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 		skip_localization=true
 		;;
 	d)
-		# Skip uploading to CurseForge.
+		# Skip uploading.
 		skip_upload=true
 		;;
 	o)
@@ -587,12 +587,18 @@ elif [ "$repository_type" = "svn" ]; then
 fi
 
 echo
-echo "Packaging $package ($slug)"
+echo "Packaging $package"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
 if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
+fi
+if [ -n "$slug" ]; then
+	echo "CurseForge ID: $slug"
+fi
+if [ -n "$addonid" ]; then
+	echo "WoWInterface ID: $addonid"
 fi
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
