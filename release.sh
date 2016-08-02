@@ -252,7 +252,7 @@ si_tag= # tag for HEAD
 si_previous_tag= # previous tag
 si_previous_revision= # [SVN] revision number for previous tag
 
-si_project_revision= # [SVN] Turns into the highest revision of the entire project in integer form. e.g. 1234
+si_project_revision= # Turns into the highest revision of the entire project in integer form, e.g. 1234, for SVN. Turns into the commit count for the project's hash for Git.
 si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
 si_project_abbreviated_hash= # [Git] Turns into the abbreviated hash of the entire project in hex form. e.g. 106c63f
 si_project_author= # Turns into the last author of the entire project. e.g. ckknight
@@ -261,7 +261,7 @@ si_project_date_integer= # Turns into the last changed date (by UTC) of the enti
 si_project_timestamp= # Turns into the last changed date (by UTC) of the entire project in POSIX timestamp. e.g. 1209663296
 si_project_version= # Turns into an approximate version of the project. The tag name if on a tag, otherwise it's up to the repo. SVN returns something like "r1234", Git returns something like "v0.1-873fc1"
 
-si_file_revision= # Turns into the current revision of the file in integer form. e.g. 1234
+si_file_revision= # Turns into the current revision of the file in integer form, e.g. 1234, for SVN. Turns into the commit count for the file's hash for Git.
 si_file_hash= # Turns into the hash of the file in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
 si_file_abbreviated_hash= # Turns into the abbreviated hash of the file in hex form. e.g. 106c63
 si_file_author= # Turns into the last author of the file. e.g. ckknight
@@ -284,8 +284,7 @@ set_info_git() {
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
 	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
-	# Git repositories have no project revision.
-	si_project_revision=
+	si_project_revision=$( git -C "$si_repo_dir" rev-list --count $si_project_hash 2>/dev/null )
 
 	# Get the tag for the HEAD.
 	si_previous_tag=
@@ -384,8 +383,7 @@ set_info_file() {
 		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null )
 		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
-		# Git repositories have no project revision.
-		si_file_revision=
+		si_file_revision=$( git -C "$si_repo_dir" rev-list --count $si_file_hash 2>/dev/null )
 	elif [ "$si_repo_type" = "svn" ]; then
 		_si_file="$1"
 		# Temporary file to hold results of "svn info".
