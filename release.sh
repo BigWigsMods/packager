@@ -1607,7 +1607,7 @@ if [ -z "$skip_zipfile" ]; then
 		# are considered alphas.
 		file_type=a
 		if [ -n "$tag" ]; then
-			if [[ "$tag" =~ ^v?[0-9][0-9.]+$ || "$tag" == *"release"* ]]; then
+			if [[ "$tag" =~ ^v?[0-9][0-9.]*$ || "$tag" == *"release"* ]]; then
 				file_type=r
 			else
 				file_type=b
