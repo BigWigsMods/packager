@@ -272,17 +272,16 @@ si_file_timestamp= # Turns into the last changed date (by UTC) of the file in PO
 set_info_git() {
 	si_repo_dir="$1"
 	si_repo_type="git"
-	_si_git_dir="--git-dir=$si_repo_dir/.git"
-	si_repo_url=$( git "$_si_git_dir" remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+	si_repo_url=$( git -C "$si_repo_dir" remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	if [ -z "$si_repo_url" ]; then # no origin so grab the first fetch url
-		si_repo_url=$( git "$_si_git_dir" remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+		si_repo_url=$( git -C "$si_repo_dir" remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	fi
 
 	# Populate filter vars.
-	si_project_hash=$( git "$_si_git_dir" show --no-patch --format="%H" 2>/dev/null )
-	si_project_abbreviated_hash=$( git "$_si_git_dir" show --no-patch --format="%h" 2>/dev/null )
-	si_project_author=$( git "$_si_git_dir" show --no-patch --format="%an" 2>/dev/null )
-	si_project_timestamp=$( git "$_si_git_dir" show --no-patch --format="%at" 2>/dev/null )
+	si_project_hash=$( git -C "$si_repo_dir" show --no-patch --format="%H" 2>/dev/null )
+	si_project_abbreviated_hash=$( git -C "$si_repo_dir" show --no-patch --format="%h" 2>/dev/null )
+	si_project_author=$( git -C "$si_repo_dir" show --no-patch --format="%an" 2>/dev/null )
+	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
 	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# Git repositories have no project revision.
@@ -291,8 +290,8 @@ set_info_git() {
 	# Get the tag for the HEAD.
 	si_previous_tag=
 	si_previous_revision=
-	_si_tag=$( git "$_si_git_dir" describe --tags --always 2>/dev/null )
-	si_tag=$( git "$_si_git_dir" describe --tags --always --abbrev=0 2>/dev/null )
+	_si_tag=$( git -C "$si_repo_dir" describe --tags --always 2>/dev/null )
+	si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
 	si_project_version=$si_tag
 	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
@@ -306,7 +305,7 @@ set_info_git() {
 		si_previous_tag=$si_tag
 		si_tag=
 	else # we're on a tag, just jump back one commit
-		si_previous_tag=$( git "$_si_git_dir" describe --tags --abbrev=0 HEAD~ 2>/dev/null )
+		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 HEAD~ 2>/dev/null )
 	fi
 }
 
@@ -378,12 +377,11 @@ set_info_svn() {
 set_info_file() {
 	if [ "$si_repo_type" = "git" ]; then
 		_si_file=${1#si_repo_dir} # need the path relative to the checkout
-		_si_git_dir="--git-dir=$si_repo_dir/.git"
 		# Populate filter vars from the last commit the file was included in.
-		si_file_hash=$( git "$_si_git_dir" log --max-count=1 --format="%H" "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( git "$_si_git_dir" log --max-count=1  --format="%h"  "$_si_file" 2>/dev/null )
-		si_file_author=$( git "$_si_git_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
-		si_file_timestamp=$( git "$_si_git_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
+		si_file_hash=$( git -C "$si_repo_dir" log --max-count=1 --format="%H" "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1  --format="%h"  "$_si_file" 2>/dev/null )
+		si_file_author=$( git -C "$si_repo_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
+		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null )
 		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 		# Git repositories have no project revision.
@@ -1086,7 +1084,7 @@ checkout_external() {
 		else # [ "$_external_tag" = "latest" ]; then
 			echo "Fetching external $_external_uri."
 			git clone --depth 50 "$_external_uri" "$_cqe_checkout_dir"
-			_external_tag=$( git --git-dir="$_cqe_checkout_dir/.git" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
+			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
 				echo "Checking out \`\`$_external_tag'' into \`\`$_cqe_checkout_dir''."
 				( cd "$_cqe_checkout_dir" && git checkout "$_external_tag" )
@@ -1344,7 +1342,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		$changelog_url
 
 		EOF
-		git --git-dir="$topdir/.git" log $git_commit_range --pretty=format:"###   %B" \
+		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
