@@ -561,7 +561,7 @@ fi
 
 # Add untracked/ignored files to the ignore list
 if [ "$repository_type" = "git" ]; then
-	_vcs_ignore=$( git --git-dir="$topdir/.git" ls-files --others | sed -e ':a;N;s/\n/:/;ta' )
+	_vcs_ignore=$( git -C "$topdir" ls-files --others | sed -e ':a;N;s/\n/:/;ta' )
 	if [ -n "$_vcs_ignore" ]; then
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
