@@ -29,7 +29,7 @@
 # release.sh generates a zippable addon directory from a Git or SVN checkout.
 
 # don't need to run the packager for pull requests
-if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then
+if [ -n "$TRAVIS_PULL_REQUEST" -a "$TRAVIS_PULL_REQUEST" != "false" ]; then
 	echo "Not packaging pull request."
 	exit 0
 fi
