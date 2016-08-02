@@ -1079,16 +1079,19 @@ checkout_external() {
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri."
 			git clone --depth 1 "$_external_uri" "$_cqe_checkout_dir"
+			if [ $? -ne 0 ]; then return 1; fi
 		elif [ "$_external_tag" != "latest" ]; then
 			echo "Fetching tag \`\`$_external_tag'' of external $_external_uri."
 			git clone --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir"
+			if [ $? -ne 0 ]; then return 1; fi
 		else # [ "$_external_tag" = "latest" ]; then
 			echo "Fetching external $_external_uri."
 			git clone --depth 50 "$_external_uri" "$_cqe_checkout_dir"
+			if [ $? -ne 0 ]; then return 1; fi
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
 				echo "Checking out \`\`$_external_tag'' into \`\`$_cqe_checkout_dir''."
-				( cd "$_cqe_checkout_dir" && git checkout "$_external_tag" )
+				git -C "$_cqe_checkout_dir" checkout "$_external_tag"
 			fi
 		fi
 		set_info_git "$_cqe_checkout_dir"
@@ -1097,6 +1100,7 @@ checkout_external() {
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri."
 			svn checkout "$_external_uri" "$_cqe_checkout_dir"
+			if [ $? -ne 0 ]; then return 1; fi
 		else
 			case $_external_uri in
 			*/trunk)
@@ -1119,6 +1123,7 @@ checkout_external() {
 				echo "No tags found in $_cqe_svn_tag_url."
 				echo "Fetching latest version of external $_external_uri."
 				svn checkout "$_external_uri" "$_cqe_checkout_dir"
+				if [ $? -ne 0 ]; then return 1; fi
 			else
 				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
 				if [ -n "$_cqe_svn_subdir" ]; then
@@ -1126,6 +1131,7 @@ checkout_external() {
 				fi
 				echo "Fetching tag \`\`$_external_tag'' from external $_cqe_external_uri."
 				svn checkout "$_cqe_external_uri" "$_cqe_checkout_dir"
+				if [ $? -ne 0 ]; then return 1; fi
 			fi
 		fi
 		set_info_svn "$_cqe_checkout_dir"
@@ -1136,7 +1142,7 @@ checkout_external() {
 	esac
 	# Copy the checkout into the proper external directory.
 	(
-		cd "$_cqe_checkout_dir" || exit
+		cd "$_cqe_checkout_dir" || return 1
 		# Set the slug for external localization, if needed.
 		slug=
 		if [[ "$_external_uri" == *"curseforge.com"* || "$_external_uri" == *"wowace.com"* ]]; then
@@ -1191,6 +1197,9 @@ checkout_external() {
 	fi
 }
 
+external_pids=()
+external_error=
+
 external_dir=
 external_uri=
 external_tag=
@@ -1200,14 +1209,33 @@ process_external() {
 		(
 			output_file="$releasedir/.${RANDOM}.externalout"
 			checkout_external "$external_dir" "$external_uri" "$external_tag" &> "$output_file"
+			status=$?
 			cat "$output_file" 2>/dev/null
 			rm "$output_file" 2>/dev/null
+			exit $status
 		) &
+		external_pids+=($!)
 	fi
 	external_dir=
 	external_uri=
 	external_tag=
 }
+
+# Handle external repo errors
+set -o monitor
+handle_chld() {
+	for i in ${!external_pids[*]}; do
+		pid=${external_pids[i]}
+		if ! kill -0 $pid &>/dev/null ; then
+			wait $pid
+			if [ $? -ne 0 ]; then
+				external_error=1
+			fi
+			unset external_pids[i]
+		fi
+	done
+}
+trap handle_chld CHLD
 
 # Don't leave extra files around if exited early
 kill_externals() {
@@ -1280,7 +1308,13 @@ if [ -f "$topdir/.pkgmeta" ]; then
 	fi
 fi
 # Restore the signal handlers
-trap - INT
+trap - INT CHLD
+
+if [ -n "$external_error" ]; then
+	echo
+	echo "There was an error fetching externals :("
+	exit 1
+fi
 
 ###
 ### Create the changelog of commits since the previous release tag.
