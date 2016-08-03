@@ -861,14 +861,19 @@ wowi_convert_changelog="true"
 declare -A relations=()
 
 parse_ignore() {
-	pkgmeta="$1"
+	pkgmeta="$1"    # full path to .pkgmeta
+	copy_path="$2"  # the post-copy base path to match
+	sub_path="$3"   # only includes matches in this path
+
 	[ -f "$pkgmeta" ] || return 1
 
-	checkpath="$topdir" # paths are relative to the topdir
-	copypath=""
-	if [ "$2" != "" ]; then
-		checkpath=$( dirname "$pkgmeta" )
-		copypath="$2/"
+	check_path="$topdir/" # paths are relative to the topdir
+	if [ -n "$copy_path" ]; then
+		check_path=$( dirname "$pkgmeta" )"/"
+		copy_path="$copy_path/"
+	fi
+	if [[ -n $sub_path && $sub_path != *"/" ]]; then
+		sub_path="$sub_path/"
 	fi
 
 	yaml_eof=
@@ -892,15 +897,16 @@ parse_ignore() {
 				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 				# Get the YAML list item.
 				yaml_listitem "$yaml_line"
-				if [[ "$pkgmeta_phase" == "ignore" || "$pkgmeta_phase" == "plain-copy" ]]; then
-					pattern=$yaml_item
-					if [ -d "$checkpath/$pattern" ]; then
-						pattern="$copypath$pattern/*"
-					elif [ ! -f "$checkpath/$pattern" ]; then
+				if [[ "$pkgmeta_phase" == "ignore" || "$pkgmeta_phase" == "plain-copy" ]] && [[ $yaml_item == "$sub_path"* ]]; then
+					yaml_item=${yaml_item%"/*"} # trim dir glob
+					pattern=${yaml_item#$sub_path} # match relative to sub_path
+					if [ -d "$check_path$yaml_item" ]; then
+						pattern="$copy_path$pattern/*"
+					elif [ ! -f "$copy_path$yaml_item" ]; then
 						# doesn't exist so match both a file and a path
-						pattern="$copypath$pattern:$copypath$pattern/*"
+						pattern="$copy_path$pattern:$copy_path$pattern/*"
 					else
-						pattern="$copypath$pattern"
+						pattern="$copy_path$pattern"
 					fi
 					if [[ "$pkgmeta_phase" == "ignore" ]]; then
 						if [ -z "$ignore" ]; then
@@ -1866,6 +1872,7 @@ checkout_external() {
 	# shellcheck disable=SC2034
 	_external_slug=$5 # unused until we can easily fetch the project id
 	_external_checkout_type=$6
+	_external_path=$7
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	if [[ -d $_cqe_checkout_dir ]]; then
@@ -1971,8 +1978,14 @@ checkout_external() {
 		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
 			project_site="https://wow.curseforge.com"
 		fi
+
 		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
-		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir"
+		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir" "$_external_path"
+		if [ -n "$_external_path" ]; then
+			echo "Changing to /$_external_path"
+			_cqe_checkout_dir="$_cqe_checkout_dir/$_external_path"
+			cd "$_cqe_checkout_dir" || return 1
+		fi
 		copy_directory_tree -dnpe -i "$ignore" -u "$unchanged" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	) || return 1
 	# Remove the ".checkout" subdirectory containing the full checkout.
@@ -1989,8 +2002,13 @@ external_tag=
 external_type=
 external_slug=
 external_checkout_type=
+external_path=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
+		external_uri=${external_uri%%#*} # strip trailing comment
+		external_uri=${external_uri% *}  # strip trailing space
+		external_uri=${external_uri%/}   # strip trailing slash
+
 		# convert old curse repo urls
 		case $external_uri in
 			*git.curseforge.com*|*git.wowace.com*)
@@ -2029,7 +2047,7 @@ process_external() {
 			fi
 
 			# check if the repo is svn
-			_svn_path=${external_uri#*/wow/$external_slug/}
+			local _svn_path=${external_uri#*/wow/$external_slug/}
 			if [[ "$_svn_path" == "trunk"* ]]; then
 				external_type="svn"
 			elif [[ "$_svn_path" == "tags/"* ]]; then
@@ -2041,12 +2059,29 @@ process_external() {
 			fi
 		fi
 
+		if [[ $external_type == "git" ]]; then
+			# check for subpath in short form
+			if [[ -n $external_slug && $external_uri == *"$external_slug/"* ]]; then
+				# CF: `Libs/LibDoThings-1.0: https://repos.curseforge.com/wow/libdothings-1-0/LibDoThings-1.0`
+				external_path=${external_uri#*/wow/$external_slug/}
+				external_uri=${external_uri%/$external_path*}
+			elif [[ $external_uri == *".git/"* ]]; then
+				# Anything using .git: `Libs/LibDoThings-1.0: https://github.com/nebularg/LibDoThings-1.0.git/LibDoThings-1.0`
+				external_path=${external_uri#*.git/}
+				external_uri=${external_uri%/$external_path*}
+			elif [[ $external_uri == "https://github.com/"*/*/* ]]; then
+				# Github without .git: `Libs/LibDoThings-1.0: https://github.com/nebularg/LibDoThings-1.0/LibDoThings-1.0`
+				external_path=${external_uri#*.com/*/*/}
+				external_uri=${external_uri%/$external_path*}
+			fi
+		fi
+
 		if [ -n "$external_slug" ]; then
 			relations["${external_slug,,}"]="embeddedLibrary"
 		fi
 
 		echo "Fetching external: $external_dir"
-		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_checkout_type" &> "$releasedir/.$BASHPID.externalout" &
+		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_checkout_type" "$external_path" &> "$releasedir/.$BASHPID.externalout" &
 		external_pids+=($!)
 	fi
 	external_dir=
@@ -2055,6 +2090,7 @@ process_external() {
 	external_type=
 	external_slug=
 	external_checkout_type=
+	external_path=
 }
 
 # Don't leave extra files around if exited early
@@ -2110,6 +2146,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 										;;
 									type) external_type=$yaml_value ;;
 									curse-slug) external_slug=$yaml_value ;;
+									path) external_path=$yaml_value ;;
 									*)
 										# Started a new external, so checkout any queued externals.
 										process_external
