@@ -1395,6 +1395,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
+		# the file is deleted on successful upload
 		if [ -n "$addonid" -a -n "$tag" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF > "$wowi_changelog"
@@ -1738,9 +1739,12 @@ if [ -z "$skip_zipfile" ]; then
 				  "http://api.wowinterface.com/addons/update" )
 
 			case $result in
-			200) echo "Success!" ;;
+			200)
+				echo "Success!"
+				rm "$wowi_changelog" 2>/dev/null
+				;;
 			*)
-				echo "Error! ($result)."
+				echo "Error! ($result)"
 				echo "$(<"$resultfile")"
 				exit_code=1
 				;;
@@ -1754,7 +1758,6 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		rm "$cookies" 2>/dev/null
-		rm "$wowi_changelog" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
