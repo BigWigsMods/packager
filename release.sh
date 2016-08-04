@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# release.sh generates a zippable addon directory from a Git or SVN checkout.
 #
 # This is free and unencumbered software released into the public domain.
 #
@@ -24,9 +26,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 # For more information, please refer to <http://unlicense.org/>
-#
-
-# release.sh generates a zippable addon directory from a Git or SVN checkout.
 
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
@@ -54,9 +53,9 @@ game_version_id=
 
 # Secrets for uploading
 cf_token=$CF_API_KEY
+github_token=$GITHUB_OAUTH
 wowi_user=$WOWI_USERNAME
 wowi_pass=$WOWI_PASSWORD
-github_token=$GITHUB_OAUTH
 
 # Variables set via options.
 slug=
@@ -586,7 +585,11 @@ elif [ "$repository_type" = "svn" ]; then
 fi
 
 echo
-echo "Packaging $package"
+if [ -z "$nolib" ]; then
+	echo "Packaging $package"
+else
+	echo "Packaging $package (nolib)"
+fi
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
@@ -976,9 +979,10 @@ copy_directory_tree() {
 					# Set the filter for @localization@ replacement.
 					_cdt_localization_filter=cat
 					if [ -n "$_cdt_localization" ]; then
-						_cdt_localization_filter=localization_unset_filter
 						if [ -n "$localization_url" ]; then
 							_cdt_localization_filter=localization_filter
+						else
+							_cdt_localization_filter=localization_unset_filter
 						fi
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
@@ -1247,7 +1251,7 @@ kill_externals() {
 }
 trap kill_externals INT
 
-if [ -f "$topdir/.pkgmeta" ]; then
+if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
@@ -1621,7 +1625,7 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 			if [ -n "$upload_github" ]; then
 				echo
-				echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses." # and escaping the changelog
+				echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses. I'm pretty lazy." # and escaping the changelog
 				upload_github=
 				exit_code=1
 			fi
@@ -1669,7 +1673,7 @@ if [ -z "$skip_zipfile" ]; then
 			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
 			404) echo "Error! No project for \`\`$slug'' found." ;;
 			422) echo "Error! $(<"$resultfile")" ;;
-			*) echo "Error! Unknown error ($result)." ;;
+			*) echo "Error! Unknown error ($result)" ;;
 			esac
 			if [ "$result" -ne "201" ]; then
 				exit_code=1
@@ -1679,7 +1683,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		echo
-		echo "Uploading $archive_name ($file_type - $game_version/$game_version_id) to $url"
+		echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to $url"
 
 		resultfile="$releasedir/cf_result.json"
 		result=$( curl -s \
@@ -1701,7 +1705,7 @@ if [ -z "$skip_zipfile" ]; then
 		403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
 		404) echo "Error! No project for \`\`$slug'' found." ;;
 		422) echo "Error! $(<"$resultfile")" ;;
-		*) echo "Error! Unknown error ($result)." ;;
+		*) echo "Error! Unknown error ($result)" ;;
 		esac
 		if [ "$result" -ne "201" ]; then
 			exit_code=1
@@ -1814,6 +1818,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		rm "$resultfile" 2>/dev/null
+		rm "$releasedir/release.json" 2>/dev/null
 	fi
 fi
 
