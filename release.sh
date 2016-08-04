@@ -438,7 +438,7 @@ if [ -z "$slug" ] && [[ "$si_repo_url" == *"curseforge.com"* || "$si_repo_url" =
 fi
 # The default slug is the lowercase basename of the checkout directory.
 if [ -z "$slug" ]; then
-	slug=$( echo "$basedir" | tr '[:upper:]' '[:lower:]' )
+	slug=$( echo "$basedir" | tr '[:upper:].' '[:lower:]-' )
 fi
 
 # Bare carriage-return character.
