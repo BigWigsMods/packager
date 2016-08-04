@@ -479,6 +479,7 @@ yaml_listitem() {
 ###
 
 # Variables set via .pkgmeta.
+manual_changelog=
 changelog=
 changelog_markup="plain"
 enable_nolib_creation=true
@@ -486,6 +487,8 @@ ignore=
 license=
 contents=
 nolib_exclude=
+wowi_gen_changelog=true
+wowi_archive=true
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
@@ -511,9 +514,20 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				;;
 			manual-changelog)
 				changelog=$yaml_value
+				manual_changelog=true
 				;;
 			package-as)
 				package=$yaml_value
+				;;
+			wowi-create-changelog)
+				if [ "$yaml_value" = "no" ]; then
+					wowi_gen_changelog=
+				fi
+				;;
+			wowi-archive-previous)
+				if [ "$yaml_value" = "no" ]; then
+					wowi_archive=
+				fi
 				;;
 			esac
 			;;
@@ -545,6 +559,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					case $yaml_key in
 					filename)
 						changelog=$yaml_value
+						manual_changelog=true
 						;;
 					markup-type)
 						changelog_markup=$yaml_value
@@ -1341,6 +1356,12 @@ if [ -z "$changelog" ]; then
 fi
 if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
 	echo
+	if [ -n "$manual_changelog" ]; then
+		echo "Warning! Could not find a manual changelog at ``$topdir/$changelog''"
+		manual_changelog=
+		changelog="CHANGELOG.md"
+		changelog_markup="markdown"
+	fi
 	echo "Generating changelog of commits into $changelog"
 
 	if [ "$repository_type" = "git" ]; then
@@ -1398,7 +1419,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" -a -n "$tag" ]; then
+		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF > "$wowi_changelog"
 			[size=5]$project[/size]
@@ -1724,8 +1745,11 @@ if [ -z "$skip_zipfile" ]; then
 
 			if [ -f "$wowi_changelog" ]; then
 				_wowi_changelog="-F changelog=<$wowi_changelog"
-			else
+			elif [ -n "$manual_changelog" ]; then
 				_wowi_changelog="-F changelog=<$pkgdir/$changelog"
+			fi
+			if [ -z "$wowi_archive" ]; then
+				_wowi_archive="-F archive=No"
 			fi
 
 			# post just what is needed to add a new file
@@ -1737,6 +1761,7 @@ if [ -z "$skip_zipfile" ]; then
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
 				  $_wowi_changelog \
+				  $_wowi_archive \
 				  -F "updatefile=@$archive" \
 				  "http://api.wowinterface.com/addons/update" )
 
