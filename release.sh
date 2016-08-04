@@ -231,16 +231,19 @@ mkdir -p "$releasedir"
 topdir=$( cd "$topdir" && pwd )
 releasedir=$( cd "$releasedir" && pwd )
 
-# Grab CurseForge slug and WoWI ID from the TOC file if unspecified
-if [ -z "$slug" -o -z "$addonid" ]; then
-	tocfile=$( cd "$topdir" && ls *.toc -1 | head -n 1 )
-	if [ -f "$topdir/$tocfile" ]; then
-		if [ -z "$slug" ]; then
-			slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
-		fi
-		if [ -z "$addonid" ]; then
-			addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" )
-		fi
+package=$basedir
+tocfile=$( cd "$topdir" && ls *.toc -1 2>/dev/null | head -n 1 )
+if [ -f "$topdir/$tocfile" ]; then
+	# Set the package name from the TOC filename.
+	package=${tocfile%.toc}
+	# Parse the TOC file for the title of the project used in the changelog.
+	project=$( grep '## Title:' "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+	# Grab CurseForge slug and WoWI ID from the TOC file.
+	if [ -z "$slug" ]; then
+		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
+	fi
+	if [ -z "$addonid" ]; then
+		addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" )
 	fi
 fi
 
@@ -483,7 +486,6 @@ ignore=
 license=
 contents=
 nolib_exclude=
-package=$basedir
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
@@ -1327,10 +1329,6 @@ fi
 ### Create the changelog of commits since the previous release tag.
 ###
 
-# Parse the TOC file if it exists for the title of the project.
-if [ -f "$topdir/$package.toc" ]; then
-	project=$( grep '## Title:' "$topdir/$package.toc" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
-fi
 if [ -z "$project" ]; then
 	project="$package"
 fi
