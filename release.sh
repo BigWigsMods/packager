@@ -1344,26 +1344,36 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
 		changelog_version=
+		changelog_url_wowi=
+		changelog_version_wowi=
 		git_commit_range=
 		if [ -z "$previous_version" -a -z "$tag" ]; then
 			# no range, show all commits up to ours
 			changelog_url="[Full Changelog](${project_github_url}/commits/$project_hash)"
 			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
+			changelog_url_wowi="[url=${project_github_url}/commits/$project_hash]Full Changelog[/url]"
+			changelog_version_wowi="[url=${project_github_url}/tree/$project_hash]$project_version[/url]"
 			git_commit_range="$project_hash"
 		elif [ -z "$previous_version" -a -n "$tag" ]; then
 			# first tag, show all commits upto it
 			changelog_url="[Full Changelog](${project_github_url}/commits/$tag)"
 			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
+			changelog_url_wowi="[url=${project_github_url}/commits/$tag]Full Changelog[/url]"
+			changelog_version_wowi="[url=${project_github_url}/tree/$tag]$project_version[/url]"
 			git_commit_range="$tag"
 		elif [ -n "$previous_version" -a -z "$tag" ]; then
 			# compare between last tag and our commit
 			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$project_hash)"
 			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
+			changelog_url_wowi="[url=${project_github_url}/compare/$previous_version...$project_hash]Full Changelog[/url]"
+			changelog_version_wowi="[url=${project_github_url}/tree/$project_hash]$project_version[/url]"
 			git_commit_range="$previous_version..$project_hash"
 		elif [ -n "$previous_version" -a -n "$tag" ]; then
 			# compare between last tag and our tag
 			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$tag)"
 			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
+			changelog_url_wowi="[url=${project_github_url}/compare/$previous_version...$tag]Full Changelog[/url]"
+			changelog_version_wowi="[url=${project_github_url}/tree/$tag]$project_version[/url]"
 			git_commit_range="$previous_version..$tag"
 		fi
 		# lazy way out
@@ -1383,6 +1393,23 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
+
+		# WoWI uses BBCode, generate something usable to post to the site
+		if [ -n "$addonid" -a -n "$tag" ]; then
+			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+			cat <<- EOF > "$wowi_changelog"
+			[size=5]$project[/size]
+			[size=4]$changelog_version_wowi ($changelog_date)[/size]
+			$changelog_url_wowi
+
+			[list]
+			EOF
+			git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
+				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+				| line_ending_filter >> "$wowi_changelog"
+			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
+
+		fi
 
 	elif [ "$repository_type" = "svn" ]; then
 		svn_revision_range=
@@ -1688,9 +1715,15 @@ if [ -z "$skip_zipfile" ]; then
 		cookies="$releasedir/cookies.txt"
 		curl -s -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" &>/dev/null
 
-		if [ -s "$cookies" ]; then
+		if [ -s "$cookies" ] && grep 'bbuserid' "$cookies" &>/dev/null; then
 			echo
 			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+
+			if [ -f "$wowi_changelog" ]; then
+				_wowi_changelog="-F changelog=<$wowi_changelog"
+			else
+				_wowi_changelog="-F changelog=<$pkgdir/$changelog"
+			fi
 
 			# post just what is needed to add a new file
 			resultfile="$releasedir/wi_result.json"
@@ -1700,6 +1733,7 @@ if [ -z "$skip_zipfile" ]; then
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
+				  $_wowi_changelog \
 				  -F "updatefile=@$archive" \
 				  "http://api.wowinterface.com/addons/update" )
 
@@ -1720,6 +1754,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		rm "$cookies" 2>/dev/null
+		rm "$wowi_changelog" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
