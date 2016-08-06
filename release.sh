@@ -1357,6 +1357,30 @@ if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 fi
+if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" == "markdown" ]]; then
+	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
+	# Requires cmark - https://github.com/jgm/cmark
+	if cmark --version &>/dev/null; then
+		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+		cmark -t html "$topdir/$changelog" \
+			| sed -e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
+			-e 's/<\(\/\)\?em>/[\1i]/g' \
+			-e 's/<\(\/\)\?strong>/[\1b]/g' \
+			-e 's/<ul>/[list]/g' -e 's/<ol>/[list="1"]/g' \
+			-e 's/<\/[ou]l>/[\/list]/g' \
+			-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
+			-e 's/<h1>/[size="6"]/g' -e 's/<h2>/[size="5"]/g' -e 's/<h3>/[size="4"]/g' -e 's/<h4>/[size="3"]/g' -e 's/<h5>/[size="2"]/g' -e 's/<h6>/[size="1"]/g' \
+			-e 's/<\/h[1-6]>/[\/size]/g' \
+			-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
+			-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
+			-e 's/<\(\/\)\?blockquote>/[\1quote]/g' \
+			-e 's/<pre><code>/[code]/g' -e 's/<\/code><\/pre>/[\/code]/g' \
+			-e 's/<code>/[font="Consolas, monospace"]/g' -e 's/<\/code>/[\/font]/g' \
+			-e 's/<\/p>/\n/g' \
+			-e 's/<[^>]\+>//g' \
+			| line_ending_filter >> "$wowi_changelog"
+	fi
+fi
 if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
 	if [ -n "$manual_changelog" ]; then
 		echo "Warning! Could not find a manual changelog at $topdir/$changelog"

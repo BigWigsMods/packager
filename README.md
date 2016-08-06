@@ -24,7 +24,7 @@ __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
 You can also use a few directives for WoWInterface uploading.
 
   - *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous release.
-  - *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog using BBCode that will be set when uploading. A manual changelog will always be used if set in the .pkgmeta.
+  - *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog using BBCode that will be set when uploading. A manual changelog will always be used if set in the .pkgmeta. If you have [cmark](https://github.com/jgm/cmark) installed, manual changelogs in Markdown format will be converted to BBCode; otherwise, the manual changelog will be used as-is.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the [CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/repositories/repository-keyword-substitutions/) for more info.
