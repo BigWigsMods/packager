@@ -1226,7 +1226,6 @@ checkout_external() {
 }
 
 external_pids=()
-external_error=
 
 external_dir=
 external_uri=
@@ -1248,21 +1247,6 @@ process_external() {
 	external_uri=
 	external_tag=
 }
-
-# Handle external repo errors
-set -o monitor
-handle_chld() {
-	for i in ${!external_pids[*]}; do
-		pid=${external_pids[i]}
-		if ! kill -0 $pid &>/dev/null ; then
-			if ! wait $pid; then
-				external_error=1
-			fi
-			unset external_pids[i]
-		fi
-	done
-}
-trap handle_chld CHLD
 
 # Don't leave extra files around if exited early
 kill_externals() {
@@ -1331,17 +1315,22 @@ if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
 	if [ -n "$nolib_exclude" ]; then
 		echo
 		echo "Waiting for externals to finish..."
-		wait
+		for i in ${!external_pids[*]}; do
+			if ! wait ${external_pids[i]}; then
+				_external_error=1
+			fi
+		done
+		if [ -n "$_external_error" ]; then
+			echo
+			echo "There was an error fetching externals :("
+			exit 1
+		fi
+		echo
 	fi
 fi
-# Restore the signal handlers
-trap - INT CHLD
 
-if [ -n "$external_error" ]; then
-	echo
-	echo "There was an error fetching externals :("
-	exit 1
-fi
+# Restore the signal handlers
+trap - INT
 
 ###
 ### Create the changelog of commits since the previous release tag.
