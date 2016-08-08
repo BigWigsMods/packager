@@ -83,9 +83,9 @@ usage() {
 	echo "  -z               Skip zipfile creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
+	echo "  -g version       Set the game version for uploading to CurseForge and WoWInterface." >&2
 	echo "  -p slug          Set the project slug used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
-	echo "  -g version       Set the game version for uploading to CurseForge and WoWInterface." >&2
 }
 
 OPTIND=1
@@ -213,12 +213,12 @@ else
 	exit 1
 fi
 
-# $releasedir must be an absolute path or relative to $topdir.
+# $releasedir must be an absolute path or inside $topdir.
 case $releasedir in
 /*)			;;
 $topdir/*)	;;
 *)
-	echo "The release directory \`\`$releasedir'' must be an absolute path or relative to \`\`$topdir''." >&2
+	echo "The release directory \`\`$releasedir'' must be an absolute path or inside \`\`$topdir''." >&2
 	exit 1
 	;;
 esac
@@ -373,7 +373,7 @@ set_info_svn() {
 		si_project_hash=
 		si_project_abbreviated_hash=
 
-		rm -f "$_si_svninfo"
+		rm -f "$_si_svninfo" 2>/dev/null
 	fi
 }
 
@@ -405,7 +405,7 @@ set_info_file() {
 			si_file_hash=
 			si_file_abbreviated_hash=
 
-			rm -f "$_sif_svninfo"
+			rm -f "$_sif_svninfo" 2>/dev/null
 		fi
 	fi
 }
@@ -618,6 +618,10 @@ fi
 if [ -n "$addonid" ]; then
 	echo "WoWInterface ID: $addonid"
 fi
+echo
+echo "Checkout directory: $topdir"
+echo "Release directory: $releasedir"
+echo
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 pkgdir="$releasedir/$package"
@@ -944,7 +948,7 @@ copy_directory_tree() {
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	echo "Copying files from \`\`${_cdt_srcdir#$topdir/}'' into \`\`${_cdt_destdir#$topdir/}'':"
+	echo "Copying files into ${_cdt_destdir#$topdir/}:"
 	if [ ! -d "$_cdt_destdir" ]; then
 		mkdir -p "$_cdt_destdir"
 	fi
@@ -1053,7 +1057,6 @@ copy_directory_tree() {
 }
 
 if [ -z "$skip_copying" ]; then
-	echo
 	cdt_args="-dp"
 	if [ -n "$tag" ]; then
 		cdt_args="${cdt_args}a"
@@ -1071,6 +1074,7 @@ if [ -z "$skip_copying" ]; then
 		cdt_args="$cdt_args -u \"$changelog\""
 	fi
 	eval copy_directory_tree $cdt_args "\"$topdir\"" "\"$pkgdir\""
+	echo
 fi
 
 ###
@@ -1078,9 +1082,9 @@ fi
 ###
 
 if [ -n "$license" -a ! -f "$topdir/$license" ]; then
-	echo
 	echo "Generating license into $license."
 	echo "All Rights Reserved." | line_ending_filter > "$pkgdir/$license"
+	echo
 fi
 
 ###
@@ -1354,9 +1358,8 @@ if [ -z "$changelog" ]; then
 	changelog_markup="markdown"
 fi
 if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
-	echo
 	if [ -n "$manual_changelog" ]; then
-		echo "Warning! Could not find a manual changelog at ``$topdir/$changelog''"
+		echo "Warning! Could not find a manual changelog at $topdir/$changelog"
 		manual_changelog=
 		changelog="CHANGELOG.md"
 		changelog_markup="markdown"
@@ -1456,6 +1459,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 	echo
 	cat "$pkgdir/$changelog"
+	echo
 fi
 
 ###
@@ -1464,7 +1468,6 @@ fi
 
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
-	_mf_found=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
 		# Strip any trailing CR character.
@@ -1489,18 +1492,13 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
 					if [ -d "$destdir" -a -z "$overwrite" ]; then
-						#echo "Removing previous moved folder: $destdir"
 						rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
-						if [ -z "$_mf_found" ]; then
-							_mf_found=true
-							echo
-						fi
 						if [ ! -d "$destdir" ]; then
 							mkdir -p "$destdir"
 						fi
-						echo "Moving \`\`$yaml_key'' to \`\`$yaml_value''"
+						echo "Moving $yaml_key to $yaml_value"
 						mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
@@ -1517,6 +1515,9 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			;;
 		esac
 	done < "$topdir/.pkgmeta"
+	if [ -n "$srcdir" ]; then
+		echo
+	fi
 fi
 
 ###
@@ -1539,11 +1540,6 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive=
 	fi
 
-	# export the zip file name for other scripts
-	export PACKAGER_ARCHIVE=$archive
-	export PACKAGER_ARCHIVE_NOLIB=$nolib_archive
-
-	echo
 	echo "Creating archive: $archive_name"
 
 	if [ -f "$archive" ]; then
@@ -1554,10 +1550,10 @@ if [ -z "$skip_zipfile" ]; then
 	if [ ! -f "$archive" ]; then
 		exit 1
 	fi
+	echo
 
 	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" -a -z "$nolib" -a -n "$nolib_exclude" ]; then
-		echo
 		echo "Creating no-lib archive: $nolib_archive_name"
 
 		# run the nolib_filter
@@ -1581,6 +1577,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ ! -f "$nolib_archive" ]; then
 			exit 1
 		fi
+		echo
 	fi
 
 	###
@@ -1613,15 +1610,13 @@ if [ -z "$skip_zipfile" ]; then
 
 			# Just check here instead of nesting later
 			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
-				echo
 				echo "Error fetching game version info from https://wow.curseforge.com/game-versions.json"
+				echo
 				if [ -n "$upload_curseforge" ]; then
-					echo
 					echo "Skipping upload to CurseForge."
 					upload_curseforge=
 				fi
 				if [ -n "$upload_wowinterface" ]; then
-					echo
 					echo "Skipping upload to WoWInterface."
 					upload_wowinterface=
 				fi
@@ -1630,20 +1625,20 @@ if [ -z "$skip_zipfile" ]; then
 		else
 			# Warn about bailing because of not having jq
 			if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-				echo
 				echo "Skipping upload to CurseForge. Install \`\`jq'' to allow fetching the current version id from Curse."
+				echo
 				upload_curseforge=
 				exit_code=1
 			fi
 			if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-				echo
 				echo "Skipping upload to WoWInterface. Install \`\`jq'' or set the game version on the command line (-g)"
+				echo
 				upload_wowinterface=
 				exit_code=1
 			fi
 			if [ -n "$upload_github" ]; then
-				echo
 				echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses. I'm pretty lazy." # and escaping the changelog
+				echo
 				upload_github=
 				exit_code=1
 			fi
@@ -1668,7 +1663,6 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		if [ -f "$nolib_archive" ]; then
-			echo
 			echo "Uploading $nolib_archive_name ($file_type/$game_version/$game_version_id) to $url"
 
 			resultfile="$releasedir/cf_result.json"
@@ -1693,6 +1687,7 @@ if [ -z "$skip_zipfile" ]; then
 			422) echo "Error! $(<"$resultfile")" ;;
 			*) echo "Error! Unknown error ($result)" ;;
 			esac
+			echo
 			if [ "$result" -ne "201" ]; then
 				exit_code=1
 			fi
@@ -1700,7 +1695,6 @@ if [ -z "$skip_zipfile" ]; then
 			rm "$resultfile" 2>/dev/null
 		fi
 
-		echo
 		echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to $url"
 
 		resultfile="$releasedir/cf_result.json"
@@ -1725,6 +1719,7 @@ if [ -z "$skip_zipfile" ]; then
 		422) echo "Error! $(<"$resultfile")" ;;
 		*) echo "Error! Unknown error ($result)" ;;
 		esac
+		echo
 		if [ "$result" -ne "201" ]; then
 			exit_code=1
 		fi
@@ -1734,9 +1729,6 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload tags to WoWInterface.
 	if [ -n "$upload_wowinterface" ]; then
-		echo
-		echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
-
 		if [ -f "$wowi_changelog" ]; then
 			_wowi_changelog="-F changelog=<$wowi_changelog"
 		elif [ -n "$manual_changelog" ]; then
@@ -1746,7 +1738,8 @@ if [ -z "$skip_zipfile" ]; then
 			_wowi_archive="-F archive=No"
 		fi
 
-		# post just what is needed to add a new file
+		echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+
 		resultfile="$releasedir/wi_result.json"
 		result=$( curl -s \
 			  -w "%{http_code}" -o "$resultfile" \
@@ -1774,6 +1767,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ "$result" -ne "200" ]; then
 			exit_code=1
 		fi
+		echo
 
 		rm "$resultfile" 2>/dev/null
 	fi
@@ -1793,7 +1787,7 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 
-		# check if a release exists and delete it (fuck yo couch)
+		# check if a release exists and delete it
 		release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id' )
 		if [ -n "$release_id" ]; then
 			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
@@ -1802,7 +1796,6 @@ if [ -z "$skip_zipfile" ]; then
 			release_id=
 		fi
 
-		echo
 		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 		result=$( curl -s \
 			  -w "%{http_code}" -o "$resultfile" \
@@ -1830,6 +1823,7 @@ if [ -z "$skip_zipfile" ]; then
 			echo "$(<"$resultfile")"
 			exit_code=1
 		fi
+		echo
 
 		rm "$resultfile" 2>/dev/null
 		rm "$releasedir/release.json" 2>/dev/null
@@ -1838,6 +1832,6 @@ fi
 
 # All done.
 
-echo
 echo "Packaging complete."
+echo
 exit $exit_code

@@ -101,6 +101,6 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-g version] [-p slug]
 
 The following environment variables are necessary for uploading:
 
-  - `CF_API_KEY` - your [CurseForge API key](https://wow.curseforge.com/home/api-key/), required for uploading to CurseForge
-  - `GITHUB_OAUTH` - a [GitHub OAuth token](https://github.com/settings/tokens), required for uploading to Github
-  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface
+  - `CF_API_KEY` - your [CurseForge API key](https://wow.curseforge.com/home/api-key/), required for uploading to CurseForge.
+  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
+  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
