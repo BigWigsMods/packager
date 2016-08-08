@@ -54,8 +54,7 @@ game_version_id=
 # Secrets for uploading
 cf_token=$CF_API_KEY
 github_token=$GITHUB_OAUTH
-wowi_user=$WOWI_USERNAME
-wowi_pass=$WOWI_PASSWORD
+wowi_token=$WOWI_API_TOKEN
 
 # Variables set via options.
 slug=
@@ -1589,7 +1588,7 @@ if [ -z "$skip_zipfile" ]; then
 	###
 
 	upload_curseforge=$( test -z "$skip_upload" -a -n "$slug" -a -n "$cf_token" && echo true )
-	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_user" -a -n "$wowi_pass" && echo true )
+	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_token" && echo true )
 	upload_github=$( test -z "$skip_upload" -a -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
 
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ]; then
@@ -1735,56 +1734,48 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload tags to WoWInterface.
 	if [ -n "$upload_wowinterface" ]; then
-		# make a cookie to authenticate with (no oauth/token api yet)
-		cookies="$releasedir/cookies.txt"
-		curl -s -c "$cookies" -d "vb_login_username=$wowi_user&vb_login_password=$wowi_pass&do=login&cookieuser=1" "https://secure.wowinterface.com/forums/login.php" &>/dev/null
+		echo
+		echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
 
-		if [ -s "$cookies" ] && grep 'bbuserid' "$cookies" &>/dev/null; then
-			echo
-			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+		if [ -f "$wowi_changelog" ]; then
+			_wowi_changelog="-F changelog=<$wowi_changelog"
+		elif [ -n "$manual_changelog" ]; then
+			_wowi_changelog="-F changelog=<$pkgdir/$changelog"
+		fi
+		if [ -z "$wowi_archive" ]; then
+			_wowi_archive="-F archive=No"
+		fi
 
-			if [ -f "$wowi_changelog" ]; then
-				_wowi_changelog="-F changelog=<$wowi_changelog"
-			elif [ -n "$manual_changelog" ]; then
-				_wowi_changelog="-F changelog=<$pkgdir/$changelog"
-			fi
-			if [ -z "$wowi_archive" ]; then
-				_wowi_archive="-F archive=No"
-			fi
+		# post just what is needed to add a new file
+		resultfile="$releasedir/wi_result.json"
+		result=$( curl -s \
+			  -w "%{http_code}" -o "$resultfile" \
+			  -H "X-API-Token: $wowi_token" \
+			  -F "id=$addonid" \
+			  -F "version=$archive_version" \
+			  -F "compatible=$game_version" \
+			  $_wowi_changelog \
+			  $_wowi_archive \
+			  -F "updatefile=@$archive" \
+			  "https://api.wowinterface.com/addons/update" )
 
-			# post just what is needed to add a new file
-			resultfile="$releasedir/wi_result.json"
-			result=$( curl -s \
-				  -w "%{http_code}" -o "$resultfile" \
-				  -b "$cookies" \
-				  -F "id=$addonid" \
-				  -F "version=$archive_version" \
-				  -F "compatible=$game_version" \
-				  $_wowi_changelog \
-				  $_wowi_archive \
-				  -F "updatefile=@$archive" \
-				  "http://api.wowinterface.com/addons/update" )
-
-			case $result in
-			200)
-				echo "Success!"
-				rm "$wowi_changelog" 2>/dev/null
-				;;
-			*)
-				echo "Error! ($result)"
-				echo "$(<"$resultfile")"
-				exit_code=1
-				;;
-			esac
-
-			rm "$resultfile" 2>/dev/null
-		else
-			echo
-			echo "Unable to upload to WoWInterface, authentication error."
+		case $result in
+		200|202)
+			echo "Success!"
+			rm "$wowi_changelog" 2>/dev/null
+			;;
+		401) echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files." ;;
+		403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
+		*)
+			echo "Error! ($result)"
+			echo "$(<"$resultfile")"
+			;;
+		esac
+		if [ "$result" -ne "200" ]; then
 			exit_code=1
 		fi
 
-		rm "$cookies" 2>/dev/null
+		rm "$resultfile" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
