@@ -103,5 +103,4 @@ The following environment variables are necessary for uploading:
 
   - `CF_API_KEY` - your [CurseForge API key](https://wow.curseforge.com/home/api-key/), required for uploading to CurseForge
   - `GITHUB_OAUTH` - a [GitHub OAuth token](https://github.com/settings/tokens), required for uploading to Github
-  - `WOWI_USERNAME` - your WoWInterface username, required for uploading to WoWInterface
-  - `WOWI_PASSWORD` - your WoWInterface password, required for uploading to WoWInterface
+  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface
