@@ -692,7 +692,7 @@ localization_unset_filter() {
 		IFS='' read -r _ul_line || _ul_eof=true
 		case $_ul_line in
 		*@localization\(*\)@*)
-			echo "  Found @localization@ with no localization url set for \`\`$slug''" >&2
+			echo "    Found @localization@ with no localization url set for \`\`$slug''" >&2
 			;;
 		esac
 		if [ -n "$_ul_eof" ]; then
@@ -757,7 +757,7 @@ localization_filter() {
 						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
 							_ul_namespace=$_ul_value
 						else
-							echo "  ($_ul_lang) Warning! Invalid localization namespace \`\`$_ul_value''." >&2
+							echo "    ($_ul_lang) Warning! Invalid localization namespace \`\`$_ul_value''." >&2
 							_ul_skip_fetch=true
 						fi
 						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
@@ -768,7 +768,7 @@ localization_filter() {
 						# ckk projects for localizing TOC entries, but warn anyway.
 						# _ul_url_params="${_ul_url_params}&format=lua_additive_table"
 						# _ul_singlekey=$_ul_value
-						echo "  ($_ul_lang) Warning! Fetching a single key is not supported." >&2
+						echo "    ($_ul_lang) Warning! Fetching a single key is not supported." >&2
 						_ul_skip_fetch=true
 						;;
 				esac
@@ -779,9 +779,9 @@ localization_filter() {
 			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
 				if [ -n "$_ul_namespace" ]; then
-					echo "  adding $_ul_lang/$_ul_namespace" >&2
+					echo "    adding $_ul_lang/$_ul_namespace" >&2
 				else
-					echo "  adding $_ul_lang" >&2
+					echo "    adding $_ul_lang" >&2
 				fi
 				# Fetch the localization data, but don't output anything if the namespace was not valid.
 				curl -s "${localization_url}/export.txt?${_ul_url_params}" | awk '/u'\''Not a valid choice'\''/ { o="    Error! "$0; print o >"/dev/stderr"; skip = 1; next } skip == 1 { next } { print }'
@@ -992,7 +992,7 @@ copy_directory_tree() {
 			fi
 			# Copy unskipped files into $_cdt_destdir.
 			if [ -n "$skip_copy" ]; then
-				echo "Ignoring: $file"
+				echo "  Ignoring: $file"
 			else
 				dir=${file%/*}
 				if [ "$dir" != "$file" ]; then
@@ -1004,7 +1004,7 @@ copy_directory_tree() {
 					skip_filter=
 				fi
 				if [ -n "$skip_filter" -o -n "$unchanged" ]; then
-					echo "Copying: $file (unchanged)"
+					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
 					# Set the filter for @localization@ replacement.
@@ -1051,7 +1051,7 @@ copy_directory_tree() {
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
 					set_info_file "$_cdt_srcdir/$file"
-					echo "Copying: $file"
+					echo "  Copying: $file"
 					cat "$_cdt_srcdir/$file" \
 						| simple_filter \
 						| $_cdt_alpha_filter \
