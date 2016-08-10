@@ -1730,7 +1730,7 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
 
 		resultfile="$releasedir/wi_result.json"
-		result=$( curl -s \
+		result=$( IFS=''; curl -s \
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "X-API-Token: $wowi_token" \
 			  -F "id=$addonid" \
