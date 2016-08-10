@@ -1742,7 +1742,7 @@ if [ -z "$skip_zipfile" ]; then
 			  "https://api.wowinterface.com/addons/update" )
 
 		case $result in
-		200|202)
+		202)
 			echo "Success!"
 			rm "$wowi_changelog" 2>/dev/null
 			;;
@@ -1753,7 +1753,7 @@ if [ -z "$skip_zipfile" ]; then
 			echo "$(<"$resultfile")"
 			;;
 		esac
-		if [ "$result" -ne "200" ]; then
+		if [ "$result" -ne "202" ]; then
 			exit_code=1
 		fi
 		echo
