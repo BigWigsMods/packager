@@ -1792,6 +1792,36 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 
+		upload_github_asset() {
+			_ghf_release_id=$1
+			_ghf_file_path=$2
+			_ghf_file_name=$(basename "$_ghf_file_path")
+			_ghf_resultfile="$releasedir/gh_asset_result.json"
+			echo -n "Uploading $_ghf_file_name... "
+			result=$( curl -s \
+					-w "%{http_code}" -o "$_ghf_resultfile" \
+					-H "Authorization: token $github_token" \
+					-H "Content-Type: application/zip" \
+					--data-binary "@$_ghf_file_path" \
+					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name" )
+			status=$?
+			if [ $status -ne 0 ]; then
+				result=$status
+			fi
+			if [ "$result" -eq "201" ]; then
+				echo "Success!"
+			else
+				echo "Error ($result)"
+				if [ -s "$_ghf_resultfile" ]; then
+					echo "$(<"$_ghf_resultfile")"
+				fi
+			fi
+
+			rm "$_ghf_resultfile" 2>/dev/null
+
+			return $result
+		}
+
 		upload_to_github() {
 			resultfile="$releasedir/gh_result.json"
 			# check if a release exists and delete it
@@ -1816,23 +1846,11 @@ if [ -z "$skip_zipfile" ]; then
 
 			if [ "$result" -eq "201" ]; then
 				release_id=$( jq '.id' "$resultfile" )
-				result=$( curl -s \
-					  -w "%{http_code}" -o "$resultfile" \
-					  -H "Authorization: token $github_token" \
-					  -H "Content-Type: application/zip" \
-					  --data-binary "@$archive" \
-					  "https://uploads.github.com/repos/$project_github_slug/releases/$release_id/assets?name=$archive_name" )
-				status=$?
-				if [ $status -ne 0 ]; then
-					result=$status
-				fi
-				if [ "$result" -eq "201" ]; then
-					echo "Success!"
-				else
-					echo "Error uploading zipfile ($result)"
-					if [ -s "$resultfile" ]; then
-						echo "$(<"$resultfile")"
-					fi
+				upload_github_asset $release_id "$archive"
+				result=$?
+				if [ -f "$nolib_archive" ]; then
+					upload_github_asset $release_id "$nolib_archive"
+					result=$?
 				fi
 			else
 				echo "Error! ($result)"
