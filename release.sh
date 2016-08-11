@@ -779,9 +779,9 @@ localization_filter() {
 			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
 				if [ -n "$_ul_namespace" ]; then
-					echo "    adding $_ul_lang/$_ul_namespace" >&2
+					echo "    Adding $_ul_lang/$_ul_namespace" >&2
 				else
-					echo "    adding $_ul_lang" >&2
+					echo "    Adding $_ul_lang" >&2
 				fi
 				# Fetch the localization data, but don't output anything if the namespace was not valid.
 				curl -s "${localization_url}/export.txt?${_ul_url_params}" | awk '/u'\''Not a valid choice'\''/ { o="    Error! "$0; print o >"/dev/stderr"; skip = 1; next } skip == 1 { next } { print }'
@@ -1731,7 +1731,7 @@ if [ -z "$skip_zipfile" ]; then
 			resultfile="$releasedir/wi_result.json"
 			result=$( IFS=''; curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
-				  -H "X-API-Token: $wowi_token" \
+				  -H "x-api-token: $wowi_token" \
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
