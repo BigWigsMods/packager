@@ -1668,7 +1668,7 @@ if [ -z "$skip_zipfile" ]; then
 					-w "%{http_code}" -o "$resultfile" \
 					-H "X-API-Key: $cf_token" \
 					-A "GitHub Curseforge Packager/1.0" \
-					-F "name=$nolib_archive_version" \
+					-F "name=$archive_version" \
 					-F "game_versions=$game_version_id" \
 					-F "file_type=$file_type" \
 					-F "change_log=<$pkgdir/$changelog" \
