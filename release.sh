@@ -1717,26 +1717,26 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload tags to WoWInterface.
 	if [ -n "$upload_wowinterface" ]; then
+		_wowi_args=()
 		if [ -f "$wowi_changelog" ]; then
-			_wowi_changelog="-F changelog=<$wowi_changelog"
+			_wowi_args+=("-F changelog=<$wowi_changelog")
 		elif [ -n "$manual_changelog" ]; then
-			_wowi_changelog="-F changelog=<$pkgdir/$changelog"
+			_wowi_args+=("-F changelog=<$pkgdir/$changelog")
 		fi
 		if [ -z "$wowi_archive" ]; then
-			_wowi_archive="-F archive=No"
+			_wowi_args+=("-F archive=No")
 		fi
 
 		upload_to_wowinterface() {
 			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
 			resultfile="$releasedir/wi_result.json"
-			result=$( IFS=''; curl -s \
+			result=$( curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
 				  -H "x-api-token: $wowi_token" \
 				  -F "id=$addonid" \
 				  -F "version=$archive_version" \
 				  -F "compatible=$game_version" \
-				  $_wowi_changelog \
-				  $_wowi_archive \
+				  "${_wowi_args[@]}" \
 				  -F "updatefile=@$archive" \
 				  "https://api.wowinterface.com/addons/update" )
 			status=$?
