@@ -1591,19 +1591,19 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ]; then
 		# Get game version info from Curse (if we have jq)
 		if jq --version &>/dev/null; then
-			versions_file="game-versions.json"
+			versions_file="$releasedir/game-versions.json"
 			# tweak the json format a bit
 			curl -s "https://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
 
 			# Make sure we got something sane
-			if jq -s '.[] | length' "$versions_file" &>/dev/null; then
+			if cat "$versions_file" | jq -s '.[] | length' &>/dev/null; then
 				if [ -n "$game_version" ]; then
-					game_version_id=$( jq -r '.[] | select(.name == "'$game_version'") | .key | tonumber' "$versions_file" )
+					game_version_id=$( cat "$versions_file" | jq -r '.[] | select(.name == "'$game_version'") | .key | tonumber' )
 				fi
 				# Couldn't find a version that matched, just use the most recent (well, highest index) non-dev entry
 				if [ -z "$game_version_id" ]; then
-					game_version=$( jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .name' "$versions_file" )
-					game_version_id=$( jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .key | tonumber' "$versions_file" )
+					game_version=$( cat "$versions_file" | jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .name' )
+					game_version_id=$( cat "$versions_file" | jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .key | tonumber' )
 				fi
 			fi
 			rm "$versions_file" 2>/dev/null
@@ -1825,7 +1825,7 @@ if [ -z "$skip_zipfile" ]; then
 		upload_to_github() {
 			resultfile="$releasedir/gh_result.json"
 			# check if a release exists and delete it
-			release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id' )
+			release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id | select(. != null)' )
 			if [ -n "$release_id" ]; then
 				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
 				# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
@@ -1845,7 +1845,7 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 
 			if [ "$result" -eq "201" ]; then
-				release_id=$( jq '.id' "$resultfile" )
+				release_id=$( cat "$resultfile" | jq '.id' )
 				upload_github_asset $release_id "$archive"
 				result=$?
 				if [ -f "$nolib_archive" ]; then
