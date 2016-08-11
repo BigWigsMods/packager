@@ -1647,7 +1647,6 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
-		url="https://wow.curseforge.com/addons/$slug"
 		# If the tag contains only dots and digits and optionally starts with
 		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
 		# word "release", then it is considered a release tag. If the above
@@ -1662,69 +1661,74 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
-		if [ -f "$nolib_archive" ]; then
-			echo "Uploading $nolib_archive_name ($file_type/$game_version/$game_version_id) to $url"
-
+		upload_to_curseforge() {
+			file_path="$1"
+			echo "Uploading $(basename "$file_path") ($file_type/$game_version/$game_version_id) to https://wow.curseforge.com/addons/$slug"
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
-				  -w "%{http_code}" -o "$resultfile" \
-				  -H "X-API-Key: $cf_token" \
-				  -A "GitHub Curseforge Packager/1.0" \
-				  -F "name=$nolib_archive_version" \
-				  -F "game_versions=$game_version_id" \
-				  -F "file_type=$file_type" \
-				  -F "change_log=<$pkgdir/$changelog" \
-				  -F "change_markup_type=$changelog_markup" \
-				  -F "known_caveats=" \
-				  -F "caveats_markup_type=plain" \
-				  -F "file=@$nolib_archive" \
-				  "$url/upload-file.json" )
+					-w "%{http_code}" -o "$resultfile" \
+					-H "X-API-Key: $cf_token" \
+					-A "GitHub Curseforge Packager/1.0" \
+					-F "name=$nolib_archive_version" \
+					-F "game_versions=$game_version_id" \
+					-F "file_type=$file_type" \
+					-F "change_log=<$pkgdir/$changelog" \
+					-F "change_markup_type=$changelog_markup" \
+					-F "known_caveats=" \
+					-F "caveats_markup_type=plain" \
+					-F "file=@$file_path" \
+					"https://wow.curseforge.com/addons/$slug/upload-file.json" )
+			status=$?
+			if [ $status -ne 0 ]; then
+				result=$status
+			fi
 
 			case $result in
 			201) echo "Success!" ;;
 			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
 			404) echo "Error! No project for \`\`$slug'' found." ;;
 			422) echo "Error! $(<"$resultfile")" ;;
-			*) echo "Error! Unknown error ($result)" ;;
+			*)
+				echo "Error! ($result)"
+				if [ -s "$resultfile" ]; then
+					echo "$(<"$resultfile")"
+				fi
+				;;
 			esac
-			echo
+
+			rm "$resultfile" 2>/dev/null
+
+			return $result
+		}
+
+		if [ -f "$nolib_archive" ]; then
+			upload_to_curseforge $nolib_archive
+			result=$?
+			for i in {1..3}; do
+				[ "$result" -eq "201" ] && break
+				echo "Retrying in 3 seconds... "
+				sleep 3
+				upload_to_curseforge $nolib_archive
+				result=$?
+			done
 			if [ "$result" -ne "201" ]; then
 				exit_code=1
 			fi
-
-			rm "$resultfile" 2>/dev/null
+			echo
 		fi
 
-		echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to $url"
-
-		resultfile="$releasedir/cf_result.json"
-		result=$( curl -s \
-			  -w "%{http_code}" -o "$resultfile" \
-			  -H "X-API-Key: $cf_token" \
-			  -A "GitHub Curseforge Packager/1.0" \
-			  -F "name=$archive_version" \
-			  -F "game_versions=$game_version_id" \
-			  -F "file_type=$file_type" \
-			  -F "change_log=<$pkgdir/$changelog" \
-			  -F "change_markup_type=$changelog_markup" \
-			  -F "known_caveats=" \
-			  -F "caveats_markup_type=plain" \
-			  -F "file=@$archive" \
-			  "$url/upload-file.json" )
-
-		case $result in
-		201) echo "Success!" ;;
-		403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
-		404) echo "Error! No project for \`\`$slug'' found." ;;
-		422) echo "Error! $(<"$resultfile")" ;;
-		*) echo "Error! Unknown error ($result)" ;;
-		esac
-		echo
+		result=upload_to_curseforge $archive
+		for i in {1..3}; do
+			[ "$result" -eq "201" ] && break
+			echo "Retrying in 3 seconds... "
+			sleep 3
+			upload_to_curseforge $archive
+			result=$?
+		done
 		if [ "$result" -ne "201" ]; then
 			exit_code=1
 		fi
-
-		rm "$resultfile" 2>/dev/null
+		echo
 	fi
 
 	# Upload tags to WoWInterface.
@@ -1738,44 +1742,62 @@ if [ -z "$skip_zipfile" ]; then
 			_wowi_archive="-F archive=No"
 		fi
 
-		echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+		upload_to_wowinterface() {
+			file_path="$1"
+			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+			resultfile="$releasedir/wi_result.json"
+			result=$( IFS=''; curl -s \
+				  -w "%{http_code}" -o "$resultfile" \
+				  -H "X-API-Token: $wowi_token" \
+				  -F "id=$addonid" \
+				  -F "version=$archive_version" \
+				  -F "compatible=$game_version" \
+				  $_wowi_changelog \
+				  $_wowi_archive \
+				  -F "updatefile=@$archive" \
+				  "https://api.wowinterface.com/addons/update" )
+			status=$?
+			if [ $status -ne 0 ]; then
+				result=$status
+			fi
 
-		resultfile="$releasedir/wi_result.json"
-		result=$( IFS=''; curl -s \
-			  -w "%{http_code}" -o "$resultfile" \
-			  -H "X-API-Token: $wowi_token" \
-			  -F "id=$addonid" \
-			  -F "version=$archive_version" \
-			  -F "compatible=$game_version" \
-			  $_wowi_changelog \
-			  $_wowi_archive \
-			  -F "updatefile=@$archive" \
-			  "https://api.wowinterface.com/addons/update" )
+			case $result in
+			202)
+				echo "Success!"
+				rm "$wowi_changelog" 2>/dev/null
+				;;
+			401) echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files." ;;
+			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
+			*)
+				echo "Error! ($result)"
+				if [ -s "$resultfile" ]; then
+					echo "$(<"$resultfile")"
+				fi
+				;;
+			esac
 
-		case $result in
-		202)
-			echo "Success!"
-			rm "$wowi_changelog" 2>/dev/null
-			;;
-		401) echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files." ;;
-		403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
-		*)
-			echo "Error! ($result)"
-			echo "$(<"$resultfile")"
-			;;
-		esac
+			rm "$resultfile" 2>/dev/null
+
+			return $result
+		}
+
+		upload_to_wowinterface
+		result=$?
+		for i in {1..3}; do
+			[ "$result" -eq "202" ] && break
+			echo "Retrying in 3 seconds... "
+			sleep 3
+			upload_to_wowinterface
+			result=$?
+		done
 		if [ "$result" -ne "202" ]; then
 			exit_code=1
 		fi
 		echo
-
-		rm "$resultfile" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
 	if [ -n "$upload_github" ]; then
-		resultfile="$releasedir/gh_result.json"
-
 		cat <<- EOF > "$releasedir/release.json"
 		{
 		  "tag_name": "$tag",
@@ -1787,45 +1809,74 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 
-		# check if a release exists and delete it
-		release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id' )
-		if [ -n "$release_id" ]; then
-			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
-			# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
-			# whatever, we'll display token errors when creating
-			release_id=
-		fi
+		upload_to_github() {
+			resultfile="$releasedir/gh_result.json"
+			# check if a release exists and delete it
+			release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id' )
+			if [ -n "$release_id" ]; then
+				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
+				# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
+				# whatever, we'll display token errors when creating
+				release_id=
+			fi
 
-		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-		result=$( curl -s \
-			  -w "%{http_code}" -o "$resultfile" \
-			  -H "Authorization: token $github_token" \
-			  -d "@$releasedir/release.json" \
-			  "https://api.github.com/repos/$project_github_slug/releases" )
-
-		if [ "$result" -eq "201" ]; then
-			release_id=$( jq '.id' "$resultfile" )
+			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			result=$( curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
 				  -H "Authorization: token $github_token" \
-				  -H "Content-Type: application/zip" \
-				  --data-binary "@$archive" \
-				  "https://uploads.github.com/repos/$project_github_slug/releases/$release_id/assets?name=$archive_name" )
-			if [ "$result" -eq "201" ]; then
-				echo "Success!"
-			else
-				echo "Error uploading zipfile ($result)"
-				echo "$(<"$resultfile")"
-				exit_code=1
+				  -d "@$releasedir/release.json" \
+				  "https://api.github.com/repos/$project_github_slug/releases" )
+			status=$?
+			if [ $status -ne 0 ]; then
+				result=$status
 			fi
-		else
-			echo "Error! ($result)"
-			echo "$(<"$resultfile")"
+
+			if [ "$result" -eq "201" ]; then
+				release_id=$( jq '.id' "$resultfile" )
+				result=$( curl -s \
+					  -w "%{http_code}" -o "$resultfile" \
+					  -H "Authorization: token $github_token" \
+					  -H "Content-Type: application/zip" \
+					  --data-binary "@$archive" \
+					  "https://uploads.github.com/repos/$project_github_slug/releases/$release_id/assets?name=$archive_name" )
+				status=$?
+				if [ $status -ne 0 ]; then
+					result=$status
+				fi
+				if [ "$result" -eq "201" ]; then
+					echo "Success!"
+				else
+					echo "Error uploading zipfile ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+				fi
+			else
+				echo "Error! ($result)"
+				if [ -s "$resultfile" ]; then
+					echo "$(<"$resultfile")"
+				fi
+			fi
+
+			rm "$resultfile" 2>/dev/null
+
+			return $result
+		}
+
+		upload_to_github
+		result=$?
+		for i in {1..3}; do
+			[ "$result" -eq "201" ] && break
+			echo "Retrying in 3 seconds... "
+			sleep 3
+			upload_to_github
+			result=$?
+		done
+		if [ "$result" -ne "201" ]; then
 			exit_code=1
 		fi
 		echo
 
-		rm "$resultfile" 2>/dev/null
 		rm "$releasedir/release.json" 2>/dev/null
 	fi
 fi
@@ -1834,4 +1885,5 @@ fi
 
 echo "Packaging complete."
 echo
+
 exit $exit_code
