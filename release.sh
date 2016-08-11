@@ -492,7 +492,7 @@ yaml_listitem() {
 manual_changelog=
 changelog=
 changelog_markup="plain"
-enable_nolib_creation=true
+enable_nolib_creation=
 ignore=
 license=
 contents=
@@ -515,8 +515,8 @@ if [ -f "$topdir/.pkgmeta" ]; then
 
 			case $yaml_key in
 			enable-nolib-creation)
-				if [ "$yaml_value" = "no" ]; then
-					enable_nolib_creation=
+				if [ "$yaml_value" = "yes" ]; then
+					enable_nolib_creation=true
 				fi
 				;;
 			license-output)
@@ -1575,7 +1575,7 @@ if [ -z "$skip_zipfile" ]; then
 		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
-			exit 1
+			exit_code=1
 		fi
 		echo
 	fi
@@ -1662,8 +1662,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		upload_to_curseforge() {
-			file_path="$1"
-			echo "Uploading $(basename "$file_path") ($file_type/$game_version/$game_version_id) to https://wow.curseforge.com/addons/$slug"
+			echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to https://wow.curseforge.com/addons/$slug"
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
 					-w "%{http_code}" -o "$resultfile" \
@@ -1676,7 +1675,7 @@ if [ -z "$skip_zipfile" ]; then
 					-F "change_markup_type=$changelog_markup" \
 					-F "known_caveats=" \
 					-F "caveats_markup_type=plain" \
-					-F "file=@$file_path" \
+					-F "file=@$archive" \
 					"https://wow.curseforge.com/addons/$slug/upload-file.json" )
 			status=$?
 			if [ $status -ne 0 ]; then
@@ -1701,28 +1700,13 @@ if [ -z "$skip_zipfile" ]; then
 			return $result
 		}
 
-		if [ -f "$nolib_archive" ]; then
-			upload_to_curseforge $nolib_archive
-			result=$?
-			for i in {1..3}; do
-				[ "$result" -eq "201" ] && break
-				echo "Retrying in 3 seconds... "
-				sleep 3
-				upload_to_curseforge $nolib_archive
-				result=$?
-			done
-			if [ "$result" -ne "201" ]; then
-				exit_code=1
-			fi
-			echo
-		fi
-
-		result=upload_to_curseforge $archive
+		upload_to_curseforge
+		result=$?
 		for i in {1..3}; do
 			[ "$result" -eq "201" ] && break
 			echo "Retrying in 3 seconds... "
 			sleep 3
-			upload_to_curseforge $archive
+			upload_to_curseforge
 			result=$?
 		done
 		if [ "$result" -ne "201" ]; then
@@ -1743,7 +1727,6 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		upload_to_wowinterface() {
-			file_path="$1"
 			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
 			resultfile="$releasedir/wi_result.json"
 			result=$( IFS=''; curl -s \

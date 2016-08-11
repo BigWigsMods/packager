@@ -15,10 +15,11 @@ __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
 
   - *externals* (Git and SVN)
   - *ignore*
-  - *license-output* (for default *All Rights Reserved* license)
+  - *license-output* (for a default *All Rights Reserved* license)
   - *manual-changelog*
   - *move-folders*
   - *package-as*
+  - *enable-nolib-creation* (defaults to no, unlike the Curse packager)
 
 You can also use a few directives for WoWInterface uploading.
 
