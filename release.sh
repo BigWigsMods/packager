@@ -39,16 +39,15 @@ if [ -n "$TRAVIS" ]; then
 		echo "Not packaging \`\`${TRAVIS_BRANCH}''."
 		exit 0
 	fi
-	# remove tags created after the commit to prevent incorrect versions
-	# caused by the delay in starting the build
+	# don't need to run the packager if there is a tag pending (or already built)
 	if [ -z "$TRAVIS_TAG" ]; then
 		TRAVIS_COMMIT_TIMESTAMP=$( git -C "$TRAVIS_BUILD_DIR" show --no-patch --format='%at' $TRAVIS_COMMIT)
-	  for tag in $(git -C "$TRAVIS_BUILD_DIR" for-each-ref --sort=-taggerdate --count=3 --format '%(refname:short)' refs/tags); do
-	    if [[ $( git -C "$TRAVIS_BUILD_DIR" cat-file -p "$tag" | awk '/^tagger/ {print $(NF-1); exit}' ) > $TRAVIS_COMMIT_TIMESTAMP ]]; then
-	      echo -n "Found future tag: "
-	      git -C "$TRAVIS_BUILD_DIR" tag -d "$tag"
-	    fi
-	  done
+		for tag in $(git -C "$TRAVIS_BUILD_DIR" for-each-ref --sort=-taggerdate --count=3 --format '%(refname:short)' refs/tags); do
+			if [[ $( git -C "$TRAVIS_BUILD_DIR" cat-file -p "$tag" | awk '/^tagger/ {print $(NF-1); exit}' ) > $TRAVIS_COMMIT_TIMESTAMP ]]; then
+				echo "Found future tag '$tag', not packaging."
+				exit 0
+			fi
+		done
 	fi
 fi
 
