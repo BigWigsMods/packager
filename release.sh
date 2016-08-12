@@ -1359,26 +1359,38 @@ if [ -z "$changelog" ]; then
 fi
 if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" == "markdown" ]]; then
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
-	# Requires cmark - https://github.com/jgm/cmark
+	# Requires either cmark (https://github.com/jgm/cmark) or pandoc (http://pandoc.org/)
+	_html_changelog=
 	if cmark --version &>/dev/null; then
+		_html_changelog=$( cmark -t html --nobreaks "$topdir/$changelog" )
+	elif pandoc --version &>/dev/null; then
+		_html_changelog=$( pandoc -t html "$topdir/$changelog" )
+	fi
+	if [ -n "$_html_changelog" ]; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-		cmark -t html "$topdir/$changelog" \
-			| sed -e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
+		echo "$_html_changelog" | sed \
+			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
 			-e 's/<\(\/\)\?em>/[\1i]/g' \
 			-e 's/<\(\/\)\?strong>/[\1b]/g' \
-			-e 's/<ul>/[list]/g' -e 's/<ol>/[list="1"]/g' \
-			-e 's/<\/[ou]l>/[\/list]/g' \
+			-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
+			-e 's/<\/[ou]l>/[\/list]\n/g' \
 			-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
-			-e 's/<h1>/[size="6"]/g' -e 's/<h2>/[size="5"]/g' -e 's/<h3>/[size="4"]/g' -e 's/<h4>/[size="3"]/g' -e 's/<h5>/[size="2"]/g' -e 's/<h6>/[size="1"]/g' \
-			-e 's/<\/h[1-6]>/[\/size]/g' \
+			-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
+			-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
+			-e 's/<\/h[1-6]>/[\/size]\n/g' \
 			-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
 			-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
-			-e 's/<\(\/\)\?blockquote>/[\1quote]/g' \
-			-e 's/<pre><code>/[code]/g' -e 's/<\/code><\/pre>/[\/code]/g' \
-			-e 's/<code>/[font="Consolas, monospace"]/g' -e 's/<\/code>/[\/font]/g' \
+			-e 's/<\(\/\)\?blockquote>/[\1quote]\n/g' \
+			-e 's/<pre><code>/[code]\n/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
+			-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
 			-e 's/<\/p>/\n/g' \
 			-e 's/<[^>]\+>//g' \
-			| line_ending_filter >> "$wowi_changelog"
+			-e 's/&quot;/"/g' \
+			-e 's/&amp;/&/g' \
+			-e 's/&lt;/</g' \
+			-e 's/&gt;/>/g' \
+			-e "s/&#39;/'/g" \
+			| line_ending_filter > "$wowi_changelog"
 	fi
 fi
 if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
