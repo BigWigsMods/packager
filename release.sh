@@ -585,7 +585,7 @@ fi
 
 # Add untracked/ignored files to the ignore list
 if [ "$repository_type" = "git" ]; then
-	_vcs_ignore=$( git -C "$topdir" ls-files --others | sed -e ':a;N;s/\n/:/;ta' )
+	_vcs_ignore=$( git -C "$topdir" ls-files --others | sed -e ':a' -e 'N' -e 's/\n/:/' -e 'ta' )
 	if [ -n "$_vcs_ignore" ]; then
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
@@ -1415,7 +1415,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		EOF
 		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/$/  /' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1430,7 +1430,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			[list]
 			EOF
 			git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' -e 's/\[ci skip\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 
@@ -1451,7 +1451,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		EOF
 		svn log "$topdir" $svn_revision_range --xml \
 			| awk '/<msg>/,/<\/msg>/' \
-			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e '/^\s*$/d' \
+			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 	fi
