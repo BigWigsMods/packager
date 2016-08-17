@@ -1451,7 +1451,10 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		EOF
 		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/$/  /' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/$/  /' \
+			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
+			      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
+			      -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1466,7 +1469,10 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			[list]
 			EOF
 			git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e 's/git-svn-id:.*//g' -e '/^\s*$/d' \
+				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
+				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
+				      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
+				      -e '/^\s*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 
