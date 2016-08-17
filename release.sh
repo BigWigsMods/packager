@@ -1443,7 +1443,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		fi
 		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
 
-		cat <<- EOF > "$pkgdir/$changelog"
+		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
 
 		## $changelog_version ($changelog_date) [](#top)
@@ -1458,7 +1458,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		# the file is deleted on successful upload
 		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-			cat <<- EOF > "$wowi_changelog"
+			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]$project[/size]
 			[size=4]$changelog_version_wowi ($changelog_date)[/size]
 			$changelog_url_wowi
@@ -1479,7 +1479,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		fi
 		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
 
-		cat <<- EOF > "$pkgdir/$changelog"
+		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
 
 		## $project_version ($changelog_date)
