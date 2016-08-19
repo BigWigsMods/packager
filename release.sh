@@ -1738,19 +1738,19 @@ if [ -z "$skip_zipfile" ]; then
 
 			rm "$resultfile" 2>/dev/null
 
-			return $result
+			return $status
 		}
 
 		upload_to_curseforge
-		result=$?
+		ul_result=$?
 		for i in {1..3}; do
-			[ "$result" -eq "201" ] && break
+			[ $ul_result -eq 0 ] && break
 			echo "Retrying in 3 seconds... "
 			sleep 3
 			upload_to_curseforge
-			result=$?
+			ul_result=$?
 		done
-		if [ "$result" -ne "201" ]; then
+		if [ $ul_result -ne 0 ]; then
 			exit_code=1
 		fi
 		echo
@@ -1802,19 +1802,19 @@ if [ -z "$skip_zipfile" ]; then
 
 			rm "$resultfile" 2>/dev/null
 
-			return $result
+			return $status
 		}
 
 		upload_to_wowinterface
-		result=$?
+		ul_result=$?
 		for i in {1..3}; do
-			[ "$result" -eq "202" ] && break
+			[ $ul_result -eq 0 ] && break
 			echo "Retrying in 3 seconds... "
 			sleep 3
 			upload_to_wowinterface
-			result=$?
+			ul_result=$?
 		done
-		if [ "$result" -ne "202" ]; then
+		if [ $ul_result -ne 0 ]; then
 			exit_code=1
 		fi
 		echo
@@ -1860,7 +1860,7 @@ if [ -z "$skip_zipfile" ]; then
 
 			rm "$_ghf_resultfile" 2>/dev/null
 
-			return $result
+			return $status
 		}
 
 		upload_to_github() {
@@ -1884,7 +1884,6 @@ if [ -z "$skip_zipfile" ]; then
 			if [ $status -ne 0 ]; then
 				result=$status
 			fi
-
 			if [ "$result" -eq "201" ]; then
 				release_id=$( cat "$resultfile" | jq '.id' )
 				upload_github_asset $release_id "$archive"
@@ -1902,19 +1901,19 @@ if [ -z "$skip_zipfile" ]; then
 
 			rm "$resultfile" 2>/dev/null
 
-			return $result
+			return $status
 		}
 
 		upload_to_github
-		result=$?
+		ul_result=$?
 		for i in {1..3}; do
-			[ "$result" -eq "201" ] && break
+			[ $ul_result -eq 0 ] && break
 			echo "Retrying in 3 seconds... "
 			sleep 3
 			upload_to_github
-			result=$?
+			ul_result=$?
 		done
-		if [ "$result" -ne "201" ]; then
+		if [ $ul_result -ne 0 ]; then
 			exit_code=1
 		fi
 		echo
