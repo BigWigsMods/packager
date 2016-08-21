@@ -1460,11 +1460,15 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
 		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+			changelog_previous_wowi=
+			if [ -n "$project_github_url" -a -n "$github_token" ]; then
+				changelog_previous_wowi="[url=${project_github_url}/releases]Previous releases[/url]"
+			fi
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]$project[/size]
 			[size=4]$changelog_version_wowi ($changelog_date)[/size]
-			$changelog_url_wowi
+			$changelog_url_wowi $changelog_previous_wowi
 
 			[list]
 			EOF
