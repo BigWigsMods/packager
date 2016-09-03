@@ -298,6 +298,7 @@ set_info_git() {
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
 	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+	# XXX --depth limits rev-list :\ [ ! -s "$(git rev-parse --git-dir)/shallow" ] || git fetch --unshallow --no-tags
 	si_project_revision=$( git -C "$si_repo_dir" rev-list --count $si_project_hash 2>/dev/null )
 
 	# Get the tag for the HEAD.
@@ -1773,7 +1774,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		upload_to_wowinterface() {
-			echo "Uploading $archive_name ($game_version) to http://www.wowinterface.com/downloads/info$addonid"
+			echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
 			resultfile="$releasedir/wi_result.json"
 			result=$( curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
