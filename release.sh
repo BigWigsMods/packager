@@ -1177,6 +1177,7 @@ checkout_external() {
 		;;
 	*)
 		echo "Unknown external: $_external_uri" >&2
+		return 1
 		;;
 	esac
 	# Copy the checkout into the proper external directory.
