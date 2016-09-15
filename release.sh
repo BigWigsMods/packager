@@ -1731,14 +1731,24 @@ if [ -z "$skip_zipfile" ]; then
 
 			case $result in
 			201) echo "Success!" ;;
-			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
-			404) echo "Error! No project for \`\`$slug'' found." ;;
-			422) echo "Error! $(<"$resultfile")" ;;
+			403)
+				echo "Error! Incorrect api key or you do not have permission to upload files."
+				exit_code=1
+				;;
+			404)
+				echo "Error! No project for \`\`$slug'' found."
+				exit_code=1
+				;;
+			422)
+				echo "Error! $(<"$resultfile")"
+				exit_code=1
+				;;
 			*)
 				echo "Error! ($result)"
 				if [ -s "$resultfile" ]; then
 					echo "$(<"$resultfile")"
 				fi
+				exit_code=1
 				;;
 			esac
 
@@ -1796,13 +1806,20 @@ if [ -z "$skip_zipfile" ]; then
 				echo "Success!"
 				rm "$wowi_changelog" 2>/dev/null
 				;;
-			401) echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files." ;;
-			403) echo "Error! Incorrect api key or you do not have permission to upload files." ;;
+			401)
+				echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files."
+				exit_code=1
+				;;
+			403)
+				echo "Error! Incorrect api key or you do not have permission to upload files."
+				exit_code=1
+				;;
 			*)
 				echo "Error! ($result)"
 				if [ -s "$resultfile" ]; then
 					echo "$(<"$resultfile")"
 				fi
+				exit_code=1
 				;;
 			esac
 
@@ -1862,6 +1879,7 @@ if [ -z "$skip_zipfile" ]; then
 				if [ -s "$_ghf_resultfile" ]; then
 					echo "$(<"$_ghf_resultfile")"
 				fi
+				exit_code=1
 			fi
 
 			rm "$_ghf_resultfile" 2>/dev/null
@@ -1903,6 +1921,7 @@ if [ -z "$skip_zipfile" ]; then
 				if [ -s "$resultfile" ]; then
 					echo "$(<"$resultfile")"
 				fi
+				exit_code=1
 			fi
 
 			rm "$resultfile" 2>/dev/null
