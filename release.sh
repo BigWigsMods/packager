@@ -1578,12 +1578,14 @@ fi
 ###
 
 if [ -z "$skip_zipfile" ]; then
+	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
+
 	archive_version="$project_version"
-	archive_name="$package-$project_version.zip"
+	archive_name="$archive_package_name-$project_version.zip"
 	archive="$releasedir/$archive_name"
 
 	nolib_archive_version="$project_version-nolib"
-	nolib_archive_name="$package-$nolib_archive_version.zip"
+	nolib_archive_name="$archive_package_name-$nolib_archive_version.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
 	if [ -n "$nolib" ]; then
