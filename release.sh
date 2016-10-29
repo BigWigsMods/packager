@@ -1552,6 +1552,12 @@ if [ -f "$topdir/.pkgmeta" ]; then
 						if [ -n "$license" -a -f "$pkgdir/$license" -a ! -f "$destdir/$license" ]; then
 							cp -f "$pkgdir/$license" "$destdir/$license"
 						fi
+						# Check to see if the base source directory is empty
+						_mf_basedir=${srcdir%$(basename "$yaml_key")}
+						if [ ! "$(ls -A $_mf_basedir )" ]; then
+							echo "Removing empty directory ${_mf_basedir#$releasedir/}"
+							rm -fr "$_mf_basedir"
+						fi
 					fi
 					# update external dir
 					nolib_exclude=${nolib_exclude//$srcdir/$destdir}
