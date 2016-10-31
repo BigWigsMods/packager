@@ -250,6 +250,7 @@ if [ -f "$topdir/$tocfile" ]; then
 	# Grab CurseForge slug and WoWI ID from the TOC file.
 	if [ -z "$slug" ]; then
 		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
+		slug="${slug/$'\r'}"
 	fi
 	if [ -z "$addonid" ]; then
 		addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" )
