@@ -1442,6 +1442,8 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		if [ -z "$project_github_url" ]; then
 			changelog_url=
 			changelog_version=$project_version
+			changelog_url_wowi=
+			changelog_version_wowi=$project_version
 		fi
 		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
 
@@ -1453,7 +1455,8 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		EOF
 		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/$/  /' \
+			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' \
+			      -e 's/$/  /' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
 			      -e '/^\s*$/d' \
@@ -1471,7 +1474,6 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			[size=5]$project[/size]
 			[size=4]$changelog_version_wowi ($changelog_date)[/size]
 			$changelog_url_wowi $changelog_previous_wowi
-
 			[list]
 			EOF
 			git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
@@ -1499,9 +1501,30 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		EOF
 		svn log "$topdir" $svn_revision_range --xml \
 			| awk '/<msg>/,/<\/msg>/' \
-			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' -e '/^\s*$/d' \
+			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' \
+			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
+			      -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
+		# WoWI uses BBCode, generate something usable to post to the site
+		# the file is deleted on successful upload
+		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+			cat <<- EOF | line_ending_filter > "$wowi_changelog"
+			[size=5]$project[/size]
+			[size=4]$project_version ($changelog_date)[/size]
+
+			[list]
+			EOF
+			svn log "$topdir" $svn_revision_range --xml \
+				| awk '/<msg>/,/<\/msg>/' \
+				| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
+				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
+				      -e '/^\s*$/d' \
+				| line_ending_filter >> "$wowi_changelog"
+			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
+
+		fi
 	fi
 
 	echo
