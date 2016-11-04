@@ -1454,8 +1454,8 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		$changelog_url
 
 		EOF
-		git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
-			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' \
+		git -C "$topdir" log $git_commit_range --pretty=format:"###%B" \
+			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' \
 			      -e 's/$/  /' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
@@ -1476,7 +1476,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			$changelog_url_wowi $changelog_previous_wowi
 			[list]
 			EOF
-			git -C "$topdir" log $git_commit_range --pretty=format:"###   %B" \
+			git -C "$topdir" log $git_commit_range --pretty=format:"###%B" \
 				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 				      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
@@ -1501,7 +1501,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		EOF
 		svn log "$topdir" $svn_revision_range --xml \
 			| awk '/<msg>/,/<\/msg>/' \
-			| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/-/g' \
+			| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/^\s*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
@@ -1518,7 +1518,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			EOF
 			svn log "$topdir" $svn_revision_range --xml \
 				| awk '/<msg>/,/<\/msg>/' \
-				| sed -e 's/<msg>/###   /g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
+				| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 				      -e '/^\s*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
