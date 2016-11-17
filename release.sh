@@ -1443,7 +1443,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			changelog_url=
 			changelog_version=$project_version
 			changelog_url_wowi=
-			changelog_version_wowi=$project_version
+			changelog_version_wowi="[color=orange]$project_version[/color]"
 		fi
 		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
 
@@ -1512,7 +1512,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]$project[/size]
-			[size=4]$project_version ($changelog_date)[/size]
+			[size=4][color=orange]$project_version[/color] ($changelog_date)[/size]
 
 			[list]
 			EOF
