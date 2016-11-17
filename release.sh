@@ -1096,11 +1096,11 @@ checkout_external() {
 	_external_dir=$1
 	_external_uri=$2
 	_external_tag=$3
+	_external_type=$4
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
 	echo
-	case $_external_uri in
-	git:*|http://git*|https://git*)
+	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
 			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir"
@@ -1122,8 +1122,7 @@ checkout_external() {
 		fi
 		set_info_git "$_cqe_checkout_dir"
 		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
-		;;
-	svn:*|http://svn*|https://svn*)
+	elif [ "$_external_type" = "svn" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
 			svn checkout -q "$_external_uri" "$_cqe_checkout_dir"
@@ -1163,12 +1162,10 @@ checkout_external() {
 		fi
 		set_info_svn "$_cqe_checkout_dir"
 		echo "Checked out r$si_project_revision"
-		;;
-	*)
+	else
 		echo "Unknown external: $_external_uri" >&2
 		return 1
-		;;
-	esac
+	fi
 	# Copy the checkout into the proper external directory.
 	(
 		cd "$_cqe_checkout_dir" || return 1
@@ -1231,12 +1228,45 @@ external_pids=()
 external_dir=
 external_uri=
 external_tag=
+external_type=
 process_external() {
 	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
 		echo "Fetching external: $external_dir"
 		(
+			# convert old curse repo urls and detect the type of new ones
+			# this could be condensed quite a bit.. a task for another day
+			case $external_uri in
+			git:*|http://git*|https://git*)
+				external_type=git
+				if [[ "$external_uri" == "git://git.curseforge.com"* || "$external_uri" == "git://git.wowace.com"* ]]; then
+					# git://git.(curseforge|wowace).com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
+					external_uri=${external_uri%/mainline.git}
+					external_uri=${external_uri/#git:\/\/git/https://repos}
+				fi
+				;;
+			svn:*|http://svn*|https://svn*)
+				external_type=svn
+				if [[ "$external_uri" == "svn://svn.curseforge.com"* || "$external_uri" == "svn://svn.wowace.com"* ]]; then
+					# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
+					external_uri=${external_uri/\/mainline/}
+					external_uri=${external_uri/#svn:\/\/svn/https://repos}
+				fi
+				;;
+			https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
+				_pe_path=${external_uri#*/wow/}
+				_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
+				# note: the svn repo trunk is used as the url with another field specifying a tag instead of using the tags dir directly
+				# not sure if by design or convention, but hopefully remains true
+				if [[ "$_pe_path" == "trunk"* ]]; then
+					external_type=svn
+				else
+					external_type=git
+				fi
+				;;
+			esac
+
 			output_file="$releasedir/.${RANDOM}.externalout"
-			checkout_external "$external_dir" "$external_uri" "$external_tag" &> "$output_file"
+			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" &> "$output_file"
 			status=$?
 			cat "$output_file" 2>/dev/null
 			rm "$output_file" 2>/dev/null
@@ -1247,6 +1277,7 @@ process_external() {
 	external_dir=
 	external_uri=
 	external_tag=
+	external_type=
 }
 
 # Don't leave extra files around if exited early
