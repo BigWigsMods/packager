@@ -1671,24 +1671,24 @@ if [ -z "$skip_zipfile" ]; then
 		if jq --version &>/dev/null; then
 			versions_file="$releasedir/game-versions.json"
 			# tweak the json format a bit
-			curl -s "https://wow.curseforge.com/game-versions.json" | jq -r 'with_entries(.value.key = .key) | .[]' | jq --slurp -c '.' > "$versions_file"
+			curl -s -H "X-Api-Token: $cf_token" -A "GitHub Curseforge Packager/1.1" "https://wow.curseforge.com/api/game/versions" > "$versions_file"
 
 			# Make sure we got something sane
 			if cat "$versions_file" | jq -s '.[] | length' &>/dev/null; then
 				if [ -n "$game_version" ]; then
-					game_version_id=$( cat "$versions_file" | jq -r '.[] | select(.name == "'$game_version'") | .key | tonumber' )
+					game_version_id=$( cat "$versions_file" | jq -r '.[] | select(.name == "'$game_version'") | .id' )
 				fi
-				# Couldn't find a version that matched, just use the most recent (well, highest index) non-dev entry
+				# Couldn't find a version that matched, just use the most recent (well, highest index) entry
 				if [ -z "$game_version_id" ]; then
-					game_version=$( cat "$versions_file" | jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .name' )
-					game_version_id=$( cat "$versions_file" | jq -r 'max_by(select(.is_development == false) | .key | tonumber) | .key | tonumber' )
+					game_version=$( cat "$versions_file" | jq -r 'max_by(.id) | .name' )
+					game_version_id=$( cat "$versions_file" | jq -r 'max_by(.id) | .id' )
 				fi
 			fi
 			rm "$versions_file" 2>/dev/null
 
 			# Just check here instead of nesting later
 			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
-				echo "Error fetching game version info from https://wow.curseforge.com/game-versions.json"
+				echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
 				echo
 				if [ -n "$upload_curseforge" ]; then
 					echo "Skipping upload to CurseForge."
@@ -1730,48 +1730,47 @@ if [ -z "$skip_zipfile" ]; then
 		# word "release", then it is considered a release tag. If the above
 		# conditions don't match, it is considered a beta tag. Untagged commits
 		# are considered alphas.
-		file_type=a
+		file_type=alpha
 		if [ -n "$tag" ]; then
 			if [[ "$tag" =~ ^v?[0-9][0-9.]*$ || "$tag" == *"release"* ]]; then
-				file_type=r
+				file_type=release
 			else
-				file_type=b
+				file_type=beta
 			fi
 		fi
 
 		upload_to_curseforge() {
+			cat <<- EOF > "$releasedir/cf_upload.json"
+			{
+			  "displayName": "$project_version",
+			  "gameVersions": [$game_version_id],
+			  "releaseType": "$file_type",
+			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' )
+			}
+			EOF
+
 			echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to https://wow.curseforge.com/addons/$slug"
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
 					-w "%{http_code}" -o "$resultfile" \
-					-H "X-API-Key: $cf_token" \
-					-A "GitHub Curseforge Packager/1.0" \
-					-F "name=$archive_version" \
-					-F "game_versions=$game_version_id" \
-					-F "file_type=$file_type" \
-					-F "change_log=<$pkgdir/$changelog" \
-					-F "change_markup_type=$changelog_markup" \
-					-F "known_caveats=" \
-					-F "caveats_markup_type=plain" \
+					-H "X-Api-Token: $cf_token" \
+					-A "GitHub Curseforge Packager/1.1" \
+					-F "metadata=<$releasedir/cf_upload.json" \
 					-F "file=@$archive" \
-					"https://wow.curseforge.com/addons/$slug/upload-file.json" )
+					"https://wow.curseforge.com/api/projects/$slug/upload-file" )
 			status=$?
 			if [ $status -ne 0 ]; then
 				result=$status
 			fi
 
 			case $result in
-			201) echo "Success!" ;;
-			403)
-				echo "Error! Incorrect api key or you do not have permission to upload files."
+			200) echo "Success!" ;;
+			302)
+				echo "Error!"
 				exit_code=1
 				;;
 			404)
 				echo "Error! No project for \`\`$slug'' found."
-				exit_code=1
-				;;
-			422)
-				echo "Error! $(<"$resultfile")"
 				exit_code=1
 				;;
 			*)
@@ -1783,6 +1782,7 @@ if [ -z "$skip_zipfile" ]; then
 				;;
 			esac
 
+			rm "$releasedir/cf_upload.json" 2>/dev/null
 			rm "$resultfile" 2>/dev/null
 
 			return $status
@@ -1876,7 +1876,7 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
 	if [ -n "$upload_github" ]; then
-		cat <<- EOF > "$releasedir/release.json"
+		cat <<- EOF > "$releasedir/gh_upload.json"
 		{
 		  "tag_name": "$tag",
 		  "target_commitish": "master",
@@ -1974,7 +1974,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		echo
 
-		rm "$releasedir/release.json" 2>/dev/null
+		rm "$releasedir/gh_upload.json" 2>/dev/null
 	fi
 fi
 
