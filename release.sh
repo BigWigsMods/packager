@@ -1678,7 +1678,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-		game_version_id=$( curl -s -H "X-Api-Token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' )
+		game_version_id=$( curl -s -H "X-Api-Token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
 		if [ -z "$game_version_id" ]; then
 			echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
 			echo
@@ -1690,7 +1690,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == "Yes") | .id' )
+		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == "Yes") | .id' 2>/dev/null )
 		if [ -z "$game_version" ]; then
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
 			echo
