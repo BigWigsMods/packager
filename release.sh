@@ -1911,7 +1911,7 @@ if [ -z "$skip_zipfile" ]; then
 			result=$( curl -s \
 				  -w "%{http_code}" -o "$resultfile" \
 				  -H "Authorization: token $github_token" \
-				  -d "@$releasedir/release.json" \
+				  -d "@$releasedir/gh_upload.json" \
 				  "https://api.github.com/repos/$project_github_slug/releases" )
 			status=$?
 			if [ $status -ne 0 ]; then
