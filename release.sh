@@ -93,13 +93,12 @@ usage() {
 	echo "  -z               Skip zipfile creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
-	echo "  -g version       Set the game version for uploading to CurseForge and WoWInterface." >&2
 	echo "  -p slug          Set the project slug used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 }
 
 OPTIND=1
-while getopts ":celzusop:dw:r:t:g:" opt; do
+while getopts ":celzusop:dw:r:t:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -147,16 +146,6 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 	z)
 		# Skip generating the zipfile.
 		skip_zipfile=true
-		;;
-	g)
-		# Set version (x.y.z)
-		if [[ "$OPTARG" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
-			game_version="$OPTARG"
-		else
-			echo "Invalid argument for option \`\`-v'' ($OPTARG)" >&2
-			usage
-			exit 1
-		fi
 		;;
 	:)
 		echo "Option \`\`-$OPTARG'' requires an argument." >&2
@@ -1666,60 +1655,49 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_token" && echo true )
 	upload_github=$( test -z "$skip_upload" -a -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
 
-	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ]; then
-		# Get game version info from Curse (if we have jq)
-		if jq --version &>/dev/null; then
-			versions_file="$releasedir/game-versions.json"
-			# tweak the json format a bit
-			curl -s -H "X-Api-Token: $cf_token" -A "GitHub Curseforge Packager/1.1" "https://wow.curseforge.com/api/game/versions" > "$versions_file"
+	# Warn about bailing because of not having jq
+	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! jq --version &>/dev/null; then
+		if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
+			echo "Skipping upload to CurseForge. Install \`\`jq'' to allow fetching the latest version id from Curse."
+			echo
+			upload_curseforge=
+			exit_code=1
+		fi
+		if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
+			echo "Skipping upload to WoWInterface. Install \`\`jq'' to allow fetching the default version from WoWInterface."
+			echo
+			upload_wowinterface=
+			exit_code=1
+		fi
+		if [ -n "$upload_github" ]; then
+			echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses. I'm pretty lazy." # and escaping the changelog
+			echo
+			upload_github=
+			exit_code=1
+		fi
+	fi
 
-			# Make sure we got something sane
-			if cat "$versions_file" | jq -s '.[] | length' &>/dev/null; then
-				if [ -n "$game_version" ]; then
-					game_version_id=$( cat "$versions_file" | jq -r '.[] | select(.name == "'$game_version'") | .id' )
-				fi
-				# Couldn't find a version that matched, just use the most recent (well, highest index) entry
-				if [ -z "$game_version_id" ]; then
-					game_version=$( cat "$versions_file" | jq -r 'max_by(.id) | .name' )
-					game_version_id=$( cat "$versions_file" | jq -r 'max_by(.id) | .id' )
-				fi
-			fi
-			rm "$versions_file" 2>/dev/null
+	if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
+		game_version_id=$( curl -s -H "X-Api-Token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' )
+		if [ -z "$game_version_id" ]; then
+			echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
+			echo
+			echo "Skipping upload to CurseForge."
+			echo
+			upload_curseforge=
+			exit_code=1
+		fi
+	fi
 
-			# Just check here instead of nesting later
-			if [ -z "$game_version" -a -n "$upload_wowinterface" ] || [ -z "$game_version_id" -a -n "$upload_curseforge" ]; then
-				echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
-				echo
-				if [ -n "$upload_curseforge" ]; then
-					echo "Skipping upload to CurseForge."
-					upload_curseforge=
-				fi
-				if [ -n "$upload_wowinterface" ]; then
-					echo "Skipping upload to WoWInterface."
-					upload_wowinterface=
-				fi
-				exit_code=1
-			fi
-		else
-			# Warn about bailing because of not having jq
-			if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-				echo "Skipping upload to CurseForge. Install \`\`jq'' to allow fetching the current version id from Curse."
-				echo
-				upload_curseforge=
-				exit_code=1
-			fi
-			if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-				echo "Skipping upload to WoWInterface. Install \`\`jq'' or set the game version on the command line (-g)"
-				echo
-				upload_wowinterface=
-				exit_code=1
-			fi
-			if [ -n "$upload_github" ]; then
-				echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses. I'm pretty lazy." # and escaping the changelog
-				echo
-				upload_github=
-				exit_code=1
-			fi
+	if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
+		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == "Yes") | .id' )
+		if [ -z "$game_version" ]; then
+			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
+			echo
+			echo "Skipping upload to WoWInterface."
+			echo
+			upload_wowinterface=
+			exit_code=1
 		fi
 	fi
 
@@ -1749,7 +1727,7 @@ if [ -z "$skip_zipfile" ]; then
 			}
 			EOF
 
-			echo "Uploading $archive_name ($file_type/$game_version/$game_version_id) to https://wow.curseforge.com/addons/$slug"
+			echo "Uploading $archive_name ($file_type/$game_version_id) to https://wow.curseforge.com/addons/$slug"
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
 					-w "%{http_code}" -o "$resultfile" \
