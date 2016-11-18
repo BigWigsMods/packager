@@ -1754,7 +1754,8 @@ if [ -z "$skip_zipfile" ]; then
 			  "displayName": "$project_version",
 			  "gameVersions": [$game_version_id],
 			  "releaseType": "$file_type",
-			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' )
+			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+			  "changelogType": "markdown"
 			}
 			EOF
 
