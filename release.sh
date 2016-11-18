@@ -1754,7 +1754,8 @@ if [ -z "$skip_zipfile" ]; then
 			  "displayName": "$project_version",
 			  "gameVersions": [$game_version_id],
 			  "releaseType": "$file_type",
-			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' )
+			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+			  "changelogType": 2
 			}
 			EOF
 
@@ -1762,7 +1763,7 @@ if [ -z "$skip_zipfile" ]; then
 			resultfile="$releasedir/cf_result.json"
 			result=$( curl -s \
 					-w "%{http_code}" -o "$resultfile" \
-					-H "X-Api-Token: $cf_token" \
+					-H "x-api-token: $cf_token" \
 					-A "GitHub Curseforge Packager/1.1" \
 					-F "metadata=<$releasedir/cf_upload.json" \
 					-F "file=@$archive" \
