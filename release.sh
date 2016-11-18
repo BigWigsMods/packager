@@ -1721,7 +1721,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == "Yes") | .id' 2>/dev/null )
+		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
 		if [ -z "$game_version" ]; then
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
 			echo
