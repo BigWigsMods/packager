@@ -102,7 +102,7 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p slug] [-w wowi-id]
   -z               Skip zipfile creation.
   -t topdir        Set top-level directory of checkout.
   -r releasedir    Set directory containing the package directory. Defaults to ``$topdir/.release''.
-  -p slug          Set the project slug used on CurseForge for localization and uploading.
+  -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
 ```
 
