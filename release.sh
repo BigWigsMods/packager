@@ -1709,7 +1709,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-		game_version_id=$( curl -s -H "X-Api-Token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
+		game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
 		if [ -z "$game_version_id" ]; then
 			echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
 			echo
