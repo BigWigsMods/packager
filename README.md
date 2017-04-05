@@ -91,7 +91,7 @@ The recommended way to include __release.sh__ in a project is to:
 # Usage
 
 ```
-Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p slug] [-w wowi-id]
+Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id]
   -c               Skip copying files into the package directory.
   -d               Skip uploading.
   -e               Skip checkout of external repositories.
