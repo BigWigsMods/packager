@@ -36,7 +36,7 @@ if [ -n "$TRAVIS" ]; then
 	fi
 	# only want to package master and tags
 	if [ "$TRAVIS_BRANCH" != "master" -a -z "$TRAVIS_TAG" ]; then
-		echo "Not packaging \`\`${TRAVIS_BRANCH}''."
+		echo "Not packaging \"${TRAVIS_BRANCH}\"."
 		exit 0
 	fi
 	# don't need to run the packager if there is a tag pending (or already built)
@@ -85,11 +85,11 @@ usage() {
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -o               Keep existing package directory, overwriting its contents." >&2
-	echo "  -s               Create a stripped-down \`\`nolib'' package." >&2
+	echo "  -s               Create a stripped-down \"nolib\" package." >&2
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -z               Skip zipfile creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
-	echo "  -r releasedir    Set directory containing the package directory. Defaults to \`\`\$topdir/.release''." >&2
+	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 }
@@ -145,13 +145,13 @@ while getopts ":celzusop:dw:r:t:" opt; do
 		skip_zipfile=true
 		;;
 	:)
-		echo "Option \`\`-$OPTARG'' requires an argument." >&2
+		echo "Option \"-$OPTARG\" requires an argument." >&2
 		usage
 		exit 1
 		;;
 	\?)
 		if [ "$OPTARG" != "?" -a "$OPTARG" != "h" ]; then
-			echo "Unknown option \`\`-$OPTARG''." >&2
+			echo "Unknown option \"-$OPTARG\"." >&2
 		fi
 		usage
 		exit 1
@@ -205,7 +205,7 @@ if [ -d "$topdir/.git" ]; then
 elif [ -d "$topdir/.svn" ]; then
 	repository_type=svn
 else
-	echo "No Git or SVN checkout found in \`\`$topdir''." >&2
+	echo "No Git or SVN checkout found in \"$topdir\"." >&2
 	exit 1
 fi
 
@@ -214,7 +214,7 @@ case $releasedir in
 /*)			;;
 $topdir/*)	;;
 *)
-	echo "The release directory \`\`$releasedir'' must be an absolute path or inside \`\`$topdir''." >&2
+	echo "The release directory \"$releasedir\" must be an absolute path or inside \"$topdir\"." >&2
 	exit 1
 	;;
 esac
@@ -752,11 +752,11 @@ localization_filter() {
 						if [ "$_ul_value" = "concat" ]; then # concat with /
 							_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
 						elif [ "$_ul_value" = "subtable" ]; then
-							echo "    ($_ul_lang) Warning! \`\`${_ul_key}''=\`\`${_ul_value}'' is not supported. Use format=\`\`lua_table'' instead." >&2
+							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Use format=\"lua_table\" instead." >&2
 						fi
 						;;
 					key)
-						echo "    ($_ul_lang) Warning! \`\`${_ul_key}'' is not supported, skipping entire line." >&2
+						echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported, skipping entire line." >&2
 						_ul_skip_fetch=true
 						;;
 					locale)
@@ -769,11 +769,11 @@ localization_filter() {
 						;;
 					namespace-delimiter)
 						if [ "$_ul_value" != "/" ]; then
-							echo "    ($_ul_lang) Warning! \`\`${_ul_key}''=\`\`${_ul_value}'' is not supported." >&2
+							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported." >&2
 						fi
 						;;
 					prefix-values)
-						echo "    ($_ul_lang) Warning! \`\`${_ul_key}'' is not supported." >&2
+						echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported." >&2
 						;;
 					same-key-is-true)
 						if [ "$_ul_value" = "true" ]; then
@@ -1131,7 +1131,7 @@ checkout_external() {
 			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching tag \`\`$_external_tag'' from external $_external_uri"
+			echo "Fetching tag \"$_external_tag\" from external $_external_uri"
 			git clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir"
 			if [ $? -ne 0 ]; then return 1; fi
 		else # [ "$_external_tag" = "latest" ]; then
@@ -1139,7 +1139,7 @@ checkout_external() {
 			if [ $? -ne 0 ]; then return 1; fi
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-taggerdate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
-				echo "Fetching tag \`\`$_external_tag'' from external $_external_uri"
+				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
 				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag"
 			else
 				echo "Fetching latest version of external $_external_uri"
@@ -1180,7 +1180,7 @@ checkout_external() {
 				if [ -n "$_cqe_svn_subdir" ]; then
 					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
-				echo "Fetching tag \`\`$_external_tag'' from external $_cqe_external_uri"
+				echo "Fetching tag \"$_external_tag\" from external $_cqe_external_uri"
 				svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir"
 				if [ $? -ne 0 ]; then return 1; fi
 			fi
@@ -1714,19 +1714,19 @@ if [ -z "$skip_zipfile" ]; then
 	# Warn about bailing because of not having jq
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! jq --version &>/dev/null; then
 		if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-			echo "Skipping upload to CurseForge. Install \`\`jq'' to allow fetching the latest version id from Curse."
+			echo "Skipping upload to CurseForge. Install \"jq\" to allow fetching the latest version id from Curse."
 			echo
 			upload_curseforge=
 			exit_code=1
 		fi
 		if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-			echo "Skipping upload to WoWInterface. Install \`\`jq'' to allow fetching the default version from WoWInterface."
+			echo "Skipping upload to WoWInterface. Install \"jq\" to allow fetching the default version from WoWInterface."
 			echo
 			upload_wowinterface=
 			exit_code=1
 		fi
 		if [ -n "$upload_github" ]; then
-			echo "Skipping release to GitHub. Install \`\`jq'' to allow parsing responses. I'm pretty lazy." # and escaping the changelog
+			echo "Skipping release to GitHub. Install \"jq\" to allow parsing responses." # and escaping the changelog
 			echo
 			upload_github=
 			exit_code=1
@@ -1805,7 +1805,7 @@ if [ -z "$skip_zipfile" ]; then
 				exit_code=1
 				;;
 			404)
-				echo "Error! No project for \`\`$slug'' found."
+				echo "Error! No project for \"$slug\" found."
 				exit_code=1
 				;;
 			*)
@@ -1873,7 +1873,7 @@ if [ -z "$skip_zipfile" ]; then
 				rm "$wowi_changelog" 2>/dev/null
 				;;
 			401)
-				echo "Error! No addon for id \`\`$addonid'' found or you do not have permission to upload files."
+				echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
 				exit_code=1
 				;;
 			403)

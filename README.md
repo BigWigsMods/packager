@@ -97,11 +97,11 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
   -o               Keep existing package directory, overwriting its contents.
-  -s               Create a stripped-down ``nolib'' package.
+  -s               Create a stripped-down "nolib" package.
   -u               Use Unix line-endings.
   -z               Skip zipfile creation.
   -t topdir        Set top-level directory of checkout.
-  -r releasedir    Set directory containing the package directory. Defaults to ``$topdir/.release''.
+  -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
 ```
