@@ -54,9 +54,6 @@ fi
 # Script return code
 exit_code=0
 
-# Site URLs, used to find the localization web app.
-site_url="https://wow.curseforge.com https://www.wowace.com"
-
 # Game versions for uploading
 game_version=
 game_version_id=
@@ -660,17 +657,17 @@ simple_filter() {
 		-e "s/@file-timestamp@/$si_file_timestamp/g"
 }
 
-# Find URL of localization app.
-localization_url=
-cache_localization_url() {
+# Find URL of localization api.
+set_localization_url() {
 	localization_url=
-	if [ -n "$slug" ]; then
-		for _ul_site_url in $site_url; do
-			_localization_url="${_ul_site_url}/addons/$slug/localization"
-			if curl -s -I "$_localization_url/" | grep -q "200 OK"; then
-				localization_url=$_localization_url
-			fi
-		done
+	if [ -n "$slug" -a -n "$cf_token" ] && [[ "$slug" =~ ^[0-9]+$ ]]; then
+		# There is no good way of differentiating between sites short of using different TOC fields for CF and WowAce
+		# Curse does redirect to the proper site when using the project id, so we'll use that to get the API url
+		_ul_test_url="https://wow.curseforge.com/projects/$slug"
+		_ul_test_url_result=$( curl -s -L -w "%{url_effective}" -o /dev/null $_ul_test_url )
+		if [ "$_ul_test_url" != "$_ul_test_url_result" ]; then
+			localization_url="${_ul_test_url_result%%/project*}/api/projects/$slug/localization/export"
+		fi
 	fi
 }
 
@@ -681,7 +678,8 @@ localization_unset_filter() {
 		IFS='' read -r _ul_line || _ul_eof=true
 		case $_ul_line in
 		*@localization\(*\)@*)
-			echo "    Found @localization@ with no localization url set for \`\`$slug''" >&2
+			echo "    Warning! Skipping localization" >&2
+			_ul_line=
 			;;
 		esac
 		if [ -n "$_ul_eof" ]; then
@@ -693,6 +691,8 @@ localization_unset_filter() {
 }
 
 # Filter to handle @localization@ repository keyword replacement.
+# https://www.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions
+declare -A unlocalized_values=( ["english"]="ShowPrimary" ["comment"]="ShowPrimaryAsComment" ["blank"]="ShowBlankAsComment" ["ignore"]="Ignore" )
 localization_filter() {
 	_ul_eof=
 	while [ -z "$_ul_eof" ]; do
@@ -701,8 +701,10 @@ localization_filter() {
 		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
 		*@localization\(*\)@*)
+			_ul_skip_fetch=
 			_ul_lang=
 			_ul_namespace=
+			_ul_tablename="L"
 			# Get the prefix of the line before the comment.
 			_ul_prefix=${_ul_line%%@localization(*}
 			_ul_prefix=${_ul_prefix%%--*}
@@ -712,72 +714,95 @@ localization_filter() {
 			# Sanitize the params a bit. (namespaces are restricted to [a-zA-Z0-9_], separated by [./:])
 			_ul_params=${_ul_params// /}
 			_ul_params=${_ul_params//,/, }
-			# Generate a URL parameter string from the localization parameters.
+			# Pull the locale language first (mainly for warnings).
+			_ul_lang="enUS"
+			if [[ $_ul_params == *"locale=\""* ]]; then
+				_ul_lang=${_ul_params##*locale=\"}
+				_ul_lang=${_ul_lang:0:4}
+				_ul_lang=${_ul_lang%%\"*}
+			else
+				echo "    Warning! No locale set, using enUS." >&2
+			fi
+			# Generate a URL parameter string from the localization parameters. https://www.curseforge.com/docs/api
+			_ul_url_params=""
 			set -- ${_ul_params}
-			_ul_url_params=
-			_ul_skip_fetch=
 			for _ul_param; do
 				_ul_key=${_ul_param%%=*}
-				_ul_value=${_ul_param#*=\"}
+				_ul_value=${_ul_param#*=}
+				_ul_value=${_ul_value%,*}
+				_ul_value=${_ul_value#*\"}
 				_ul_value=${_ul_value%\"*}
 				case ${_ul_key} in
 					escape-non-ascii)
-						if [ "$_ul_param" = "true" ]; then
-							_ul_url_params="${_ul_url_params}&escape_non_ascii=y"
+						if [ "$_ul_value" = "true" ]; then
+							_ul_url_params="${_ul_url_params}&escape-non-ascii-characters=true"
 						fi
 						;;
 					format)
-						_ul_url_params="${_ul_url_params}&format=${_ul_value}"
+						if [ "$_ul_value" = "lua_table" ]; then
+							_ul_url_params="${_ul_url_params}&export-type=Table"
+						fi
 						;;
 					handle-unlocalized)
-						_ul_url_params="${_ul_url_params}&handle_unlocalized=${_ul_value}"
+						if [ "$_ul_value" != "english" -a -n "${unlocalized_values[$_ul_value]}" ]; then
+							_ul_url_params="${_ul_url_params}&unlocalized=${unlocalized_values[$_ul_value]}"
+						fi
 						;;
 					handle-subnamespaces)
-						_ul_url_params="${_ul_url_params}&handle_subnamespaces=${_ul_value}"
+						if [ "$_ul_value" = "concat" ]; then # concat with /
+							_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
+						elif [ "$_ul_value" = "subtable" ]; then
+							echo "    ($_ul_lang) Warning! \`\`${_ul_key}''=\`\`${_ul_value}'' is not supported. Use format=\`\`lua_table'' instead." >&2
+						fi
+						;;
+					key)
+						echo "    ($_ul_lang) Warning! \`\`${_ul_key}'' is not supported, skipping entire line." >&2
+						_ul_skip_fetch=true
 						;;
 					locale)
-						_ul_url_params="${_ul_url_params}&language=${_ul_value}"
 						_ul_lang=$_ul_value
 						;;
 					namespace)
-						# Verify that the localization namespace is valid.  The CF packager will silently allow
-						# and remove @localization@ calls with invalid namespaces.
-						_ul_namespace_url=$( echo "${localization_url}/namespaces/${_ul_value}" | tr '[:upper:]' '[:lower:]' )
-						if curl -s -I "$_ul_namespace_url/" | grep -q "200 OK"; then
-							_ul_namespace=$_ul_value
-						else
-							echo "    ($_ul_lang) Warning! Invalid localization namespace \`\`$_ul_value''." >&2
-							_ul_skip_fetch=true
-						fi
-						_ul_url_params="${_ul_url_params}&namespace=${_ul_value}"
+						_ul_namespace="/${_ul_value}"
+						# _ul_url_params="${_ul_url_params}&namespaces=${_ul_value##*/}" # strip parent namespace(s)
+						_ul_url_params="${_ul_url_params}&namespaces=${_ul_value}"
 						;;
-					key)
-						# Curse API can't do this, which means we'd have to pull the locale
-						# and parse it for the one entry specified. I've only seen this with
-						# ckk projects for localizing TOC entries, but warn anyway.
-						# _ul_url_params="${_ul_url_params}&format=lua_additive_table"
-						# _ul_singlekey=$_ul_value
-						echo "    ($_ul_lang) Warning! Fetching a single key is not supported." >&2
-						_ul_skip_fetch=true
+					namespace-delimiter)
+						if [ "$_ul_value" != "/" ]; then
+							echo "    ($_ul_lang) Warning! \`\`${_ul_key}''=\`\`${_ul_value}'' is not supported." >&2
+						fi
+						;;
+					prefix-values)
+						echo "    ($_ul_lang) Warning! \`\`${_ul_key}'' is not supported." >&2
+						;;
+					same-key-is-true)
+						if [ "$_ul_value" = "true" ]; then
+							_ul_url_params="${_ul_url_params}&true-if-value-equals-key=true"
+						fi
+						;;
+					table-name)
+						if [ "$_ul_value" != "L" ]; then
+							_ul_tablename="$_ul_value"
+							_ul_url_params="${_ul_url_params}&table-name=${_ul_value}"
+						fi
 						;;
 				esac
 			done
-			# Strip any leading or trailing ampersands.
-			_ul_url_params=${_ul_url_params#&}
-			_ul_url_params=${_ul_url_params%&}
-			echo -n "$_ul_prefix"
 			if [ -z "$_ul_skip_fetch" ]; then
-				if [ -n "$_ul_namespace" ]; then
-					echo "    Adding $_ul_lang/$_ul_namespace" >&2
-				else
-					echo "    Adding $_ul_lang" >&2
+				_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
+
+				echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+
+				# Write text that preceded the substitution.
+				echo -n "$_ul_prefix"
+
+				# Fetch the localization data, but don't output anything if there is an error.
+				curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
+
+				# Insert a trailing blank line to match CF packager.
+				if [ -z "$_ul_eof" ]; then
+					echo ""
 				fi
-				# Fetch the localization data, but don't output anything if the namespace was not valid.
-				curl -s "${localization_url}/export.txt?${_ul_url_params}" | awk '/u'\''Not a valid choice'\''/ { o="    Error! "$0; print o >"/dev/stderr"; skip = 1; next } skip == 1 { next } { print }'
-			fi
-			# Insert a trailing blank line to match CF packager.
-			if [ -z "$_ul_eof" ]; then
-				echo ""
 			fi
 			;;
 		*)
@@ -937,7 +962,7 @@ copy_directory_tree() {
 		d)	_cdt_debug=true ;;
 		i)	_cdt_ignored_patterns=$OPTARG ;;
 		l)	_cdt_localization=true
-			cache_localization_url
+			set_localization_url
 			;;
 		n)	_cdt_nolib=true ;;
 		p)	_cdt_do_not_package=true ;;
