@@ -669,6 +669,10 @@ set_localization_url() {
 			localization_url="${_ul_test_url_result%%/project*}/api/projects/$slug/localization/export"
 		fi
 	fi
+	if [ -z "$localization_url" ]; then
+		echo "Skipping localization! Missing CurseForge API token and/or project id is invalid."
+		echo
+	fi
 }
 
 # Filter to print an error for unhandled @localization@ repository keyword replacement.
@@ -676,17 +680,37 @@ localization_unset_filter() {
 	_ul_eof=
 	while [ -z "$_ul_eof" ]; do
 		IFS='' read -r _ul_line || _ul_eof=true
+		# Strip any trailing CR character.
+		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
 		*@localization\(*\)@*)
-			echo "    Warning! Skipping localization" >&2
-			_ul_line=
+			_ul_lang=
+			if [[ $_ul_line == *"locale=\""* ]]; then
+				_ul_lang=${_ul_line##*locale=\"}
+				_ul_lang=${_ul_lang%%\"*}
+				_ul_lang=" (${_ul_lang})"
+			fi
+			echo "    Skipping localization${_ul_lang}" >&2
+
+			# Skip the entire line for TOC entries
+			if [[ $_ul_line != "## "* ]]; then
+				_ul_line=${_ul_line%%@localization(*}
+				_ul_line=${_ul_line%%--*}
+				if [ -n "$_ul_eof" ]; then
+					echo -n "$_ul_line"
+				else
+					echo "$_ul_line"
+				fi
+			fi
+			;;
+		*)
+			if [ -n "$_ul_eof" ]; then
+				echo -n "$_ul_line"
+			else
+				echo "$_ul_line"
+			fi
 			;;
 		esac
-		if [ -n "$_ul_eof" ]; then
-			echo -n "$_ul_line"
-		else
-			echo "$_ul_line"
-		fi
 	done
 }
 
@@ -1022,13 +1046,10 @@ copy_directory_tree() {
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
 					# Set the filter for @localization@ replacement.
-					_cdt_localization_filter=cat
-					if [ -n "$_cdt_localization" ]; then
-						if [ -n "$localization_url" ]; then
-							_cdt_localization_filter=localization_filter
-						else
-							_cdt_localization_filter=localization_unset_filter
-						fi
+					if [ -n "$_cdt_localization" -a -n "$localization_url" ]; then
+						_cdt_localization_filter=localization_filter
+					else
+						_cdt_localization_filter=localization_unset_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
 					_cdt_alpha_filter=cat
@@ -1240,7 +1261,7 @@ checkout_external() {
 				esac
 			done < "$_cqe_checkout_dir/.pkgmeta"
 		fi
-		copy_directory_tree -dlnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
