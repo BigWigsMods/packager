@@ -725,9 +725,9 @@ localization_filter() {
 		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
 		*@localization\(*\)@*)
-			_ul_skip_fetch=
 			_ul_lang=
 			_ul_namespace=
+			_ul_singlekey=
 			_ul_tablename="L"
 			# Get the prefix of the line before the comment.
 			_ul_prefix=${_ul_line%%@localization(*}
@@ -780,8 +780,11 @@ localization_filter() {
 						fi
 						;;
 					key)
-						echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported, skipping entire line." >&2
-						_ul_skip_fetch=true
+						# _ul_params was stripped of spaces, so reparse the line for the key
+						_ul_singlekey=${_ul_line#*@localization(}
+						_ul_singlekey=${_ul_singlekey#*key=\"}
+						_ul_singlekey=${_ul_singlekey%%\",*}
+						_ul_singlekey=${_ul_singlekey%%\")@*}
 						;;
 					locale)
 						_ul_lang=$_ul_value
@@ -812,11 +815,11 @@ localization_filter() {
 						;;
 				esac
 			done
-			if [ -z "$_ul_skip_fetch" ]; then
-				_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
 
-				echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+			_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
+			echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
 
+			if [ -z "$_ul_singlekey" ]; then
 				# Write text that preceded the substitution.
 				echo -n "$_ul_prefix"
 
@@ -826,6 +829,13 @@ localization_filter() {
 				# Insert a trailing blank line to match CF packager.
 				if [ -z "$_ul_eof" ]; then
 					echo ""
+				fi
+			else
+				# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
+				_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
+				if [ -n "$_ul_value" -a "$_ul_value" != "$_ul_singlekey" ]; then
+					# The result is different from the base value so print out the line.
+					echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
 				fi
 			fi
 			;;
