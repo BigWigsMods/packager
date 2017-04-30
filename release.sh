@@ -610,10 +610,13 @@ if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
 if [ -n "$slug" ]; then
-	echo "CurseForge ID: $slug"
+	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
 fi
 if [ -n "$addonid" ]; then
-	echo "WoWInterface ID: $addonid"
+	echo "WoWInterface ID: $addonid${wowi_token:+ [token set]}"
+fi
+if [ -n "$project_github_slug" ]; then
+	echo "GitHub: $project_github_slug${github_token:+ [token set]}"
 fi
 echo
 echo "Checkout directory: $topdir"
