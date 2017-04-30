@@ -1807,69 +1807,51 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
-		upload_to_curseforge() {
-			cat <<- EOF > "$releasedir/cf_upload.json"
-			{
-			  "displayName": "$project_version",
-			  "gameVersions": [$game_version_id],
-			  "releaseType": "$file_type",
-			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
-			  "changelogType": "markdown"
-			}
-			EOF
-
-			echo "Uploading $archive_name ($file_type/$game_version_id) to https://wow.curseforge.com/addons/$slug"
-			resultfile="$releasedir/cf_result.json"
-			result=$( curl -s \
-					-w "%{http_code}" -o "$resultfile" \
-					-H "x-api-token: $cf_token" \
-					-A "GitHub Curseforge Packager/1.1" \
-					-F "metadata=<$releasedir/cf_upload.json" \
-					-F "file=@$archive" \
-					"https://wow.curseforge.com/api/projects/$slug/upload-file" )
-			status=$?
-			if [ $status -ne 0 ]; then
-				result=$status
-			fi
-
-			case $result in
-			200) echo "Success!" ;;
-			302)
-				echo "Error!"
-				exit_code=1
-				;;
-			404)
-				echo "Error! No project for \"$slug\" found."
-				exit_code=1
-				;;
-			*)
-				echo "Error! ($result)"
-				if [ -s "$resultfile" ]; then
-					echo "$(<"$resultfile")"
-				fi
-				exit_code=1
-				;;
-			esac
-
-			rm -f "$releasedir/cf_upload.json" 2>/dev/null
-			rm -f "$resultfile" 2>/dev/null
-
-			return $status
+		cat <<- EOF > "$releasedir/cf_upload.json"
+		{
+		  "displayName": "$project_version",
+		  "gameVersions": [$game_version_id],
+		  "releaseType": "$file_type",
+		  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+		  "changelogType": "markdown"
 		}
+		EOF
 
-		upload_to_curseforge
-		ul_result=$?
-		for i in {1..3}; do
-			[ $ul_result -eq 0 ] && break
-			echo "Retrying in 3 seconds... "
-			sleep 3
-			upload_to_curseforge
-			ul_result=$?
-		done
-		if [ $ul_result -ne 0 ]; then
+		echo "Uploading $archive_name ($file_type/$game_version_id) to https://wow.curseforge.com/addons/$slug"
+		resultfile="$releasedir/cf_result.json"
+		result=$( curl -sS --retry 3 --retry-delay 10 \
+				-w "%{http_code}" -o "$resultfile" \
+				-H "x-api-token: $cf_token" \
+				-F "metadata=<$releasedir/cf_upload.json" \
+				-F "file=@$archive" \
+				"https://wow.curseforge.com/api/projects/$slug/upload-file" )
+		if [ $? -eq 0 ]; then
+			case $result in
+				200) echo "Success!" ;;
+				302)
+					echo "Error! ($result)"
+					# don't need to ouput the redirect page
+					exit_code=1
+					;;
+				404)
+					echo "Error! No project for \"$slug\" found."
+					exit_code=1
+					;;
+				*)
+					echo "Error! ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+					exit_code=1
+					;;
+			esac
+		else
 			exit_code=1
 		fi
 		echo
+
+		rm -f "$releasedir/cf_upload.json" 2>/dev/null
+		rm -f "$resultfile" 2>/dev/null
 	fi
 
 	# Upload tags to WoWInterface.
@@ -1884,63 +1866,45 @@ if [ -z "$skip_zipfile" ]; then
 			_wowi_args+=("-F archive=No")
 		fi
 
-		upload_to_wowinterface() {
-			echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
-			resultfile="$releasedir/wi_result.json"
-			result=$( curl -s \
-				  -w "%{http_code}" -o "$resultfile" \
-				  -H "x-api-token: $wowi_token" \
-				  -F "id=$addonid" \
-				  -F "version=$archive_version" \
-				  -F "compatible=$game_version" \
-				  "${_wowi_args[@]}" \
-				  -F "updatefile=@$archive" \
-				  "https://api.wowinterface.com/addons/update" )
-			status=$?
-			if [ $status -ne 0 ]; then
-				result=$status
-			fi
-
+		echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
+		resultfile="$releasedir/wi_result.json"
+		result=$( curl -sS --retry 3 --retry-delay 10 \
+			  -w "%{http_code}" -o "$resultfile" \
+			  -H "x-api-token: $wowi_token" \
+			  -F "id=$addonid" \
+			  -F "version=$archive_version" \
+			  -F "compatible=$game_version" \
+			  "${_wowi_args[@]}" \
+			  -F "updatefile=@$archive" \
+			  "https://api.wowinterface.com/addons/update" )
+		if [ $? -eq 0 ]; then
 			case $result in
-			202)
-				echo "Success!"
-				rm -f "$wowi_changelog" 2>/dev/null
-				;;
-			401)
-				echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
-				exit_code=1
-				;;
-			403)
-				echo "Error! Incorrect api key or you do not have permission to upload files."
-				exit_code=1
-				;;
-			*)
-				echo "Error! ($result)"
-				if [ -s "$resultfile" ]; then
-					echo "$(<"$resultfile")"
-				fi
-				exit_code=1
-				;;
+				202)
+					echo "Success!"
+					rm -f "$wowi_changelog" 2>/dev/null
+					;;
+				401)
+					echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
+					exit_code=1
+					;;
+				403)
+					echo "Error! Incorrect api key or you do not have permission to upload files."
+					exit_code=1
+					;;
+				*)
+					echo "Error! ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+					exit_code=1
+					;;
 			esac
-
-			rm -f "$resultfile" 2>/dev/null
-
-			return $status
-		}
-
-		upload_to_wowinterface
-		ul_result=$?
-		for i in {1..3}; do
-			[ $ul_result -eq 0 ] && break
-			echo "Retrying in 3 seconds... "
-			sleep 3
-			upload_to_wowinterface
-			ul_result=$?
-		done
-		if [ $ul_result -ne 0 ]; then
+		else
 			exit_code=1
 		fi
 		echo
+
+		rm -f "$resultfile" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
@@ -1962,59 +1926,49 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_file_name=$(basename "$_ghf_file_path")
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
 			echo -n "Uploading $_ghf_file_name... "
-			result=$( curl -s \
+			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$_ghf_resultfile" \
 					-H "Authorization: token $github_token" \
 					-H "Content-Type: application/zip" \
 					--data-binary "@$_ghf_file_path" \
 					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name" )
-			status=$?
-			if [ $status -ne 0 ]; then
-				result=$status
-			fi
-			if [ "$result" -eq "201" ]; then
-				echo "Success!"
-			else
-				echo "Error ($result)"
-				if [ -s "$_ghf_resultfile" ]; then
-					echo "$(<"$_ghf_resultfile")"
+			if [ $? -eq 0 ]; then
+				if [ "$result" -eq "201" ]; then
+					echo "Success!"
+				else
+					echo "Error ($result)"
+					if [ -s "$_ghf_resultfile" ]; then
+						echo "$(<"$_ghf_resultfile")"
+					fi
+					exit_code=1
 				fi
+			else
 				exit_code=1
 			fi
 
 			rm -f "$_ghf_resultfile" 2>/dev/null
-
-			return $status
 		}
 
-		upload_to_github() {
-			resultfile="$releasedir/gh_result.json"
-			# check if a release exists and delete it
-			release_id=$( curl -s "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id | select(. != null)' )
-			if [ -n "$release_id" ]; then
-				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
-				# possible responses: 204 = success, 401 = bad token, 404 = no token or invalid id (wtf)
-				# whatever, we'll display token errors when creating
-				release_id=
-			fi
+		resultfile="$releasedir/gh_result.json"
+		# check if a release exists and delete it
+		release_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id | select(. != null)' )
+		if [ -n "$release_id" ]; then
+			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
+			release_id=
+		fi
 
-			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			result=$( curl -s \
-				  -w "%{http_code}" -o "$resultfile" \
-				  -H "Authorization: token $github_token" \
-				  -d "@$releasedir/gh_upload.json" \
-				  "https://api.github.com/repos/$project_github_slug/releases" )
-			status=$?
-			if [ $status -ne 0 ]; then
-				result=$status
-			fi
-			if [ "$result" -eq "201" ]; then
+		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
+		result=$( curl -sS --retry 3 --retry-delay 10 \
+				-w "%{http_code}" -o "$resultfile" \
+				-H "Authorization: token $github_token" \
+				-d "@$releasedir/gh_upload.json" \
+				"https://api.github.com/repos/$project_github_slug/releases" )
+		if [ $? -eq 0 ]; then
+			if [ "$result" = "201" ]; then
 				release_id=$( cat "$resultfile" | jq '.id' )
 				upload_github_asset $release_id "$archive"
-				result=$?
 				if [ -f "$nolib_archive" ]; then
 					upload_github_asset $release_id "$nolib_archive"
-					result=$?
 				fi
 			else
 				echo "Error! ($result)"
@@ -2023,27 +1977,12 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 				exit_code=1
 			fi
-
-			rm -f "$resultfile" 2>/dev/null
-
-			return $status
-		}
-
-		upload_to_github
-		ul_result=$?
-		for i in {1..3}; do
-			[ $ul_result -eq 0 ] && break
-			echo "Retrying in 3 seconds... "
-			sleep 3
-			upload_to_github
-			ul_result=$?
-		done
-		if [ $ul_result -ne 0 ]; then
+		else
 			exit_code=1
 		fi
-		echo
 
 		rm -f "$releasedir/gh_upload.json" 2>/dev/null
+		rm -f "$resultfile" 2>/dev/null
 	fi
 fi
 
