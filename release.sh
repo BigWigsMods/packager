@@ -1325,7 +1325,7 @@ process_external() {
 			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" &> "$output_file"
 			status=$?
 			cat "$output_file" 2>/dev/null
-			rm "$output_file" 2>/dev/null
+			rm -f "$output_file" 2>/dev/null
 			exit $status
 		) &
 		external_pids+=($!)
@@ -1848,8 +1848,8 @@ if [ -z "$skip_zipfile" ]; then
 				;;
 			esac
 
-			rm "$releasedir/cf_upload.json" 2>/dev/null
-			rm "$resultfile" 2>/dev/null
+			rm -f "$releasedir/cf_upload.json" 2>/dev/null
+			rm -f "$resultfile" 2>/dev/null
 
 			return $status
 		}
@@ -1901,7 +1901,7 @@ if [ -z "$skip_zipfile" ]; then
 			case $result in
 			202)
 				echo "Success!"
-				rm "$wowi_changelog" 2>/dev/null
+				rm -f "$wowi_changelog" 2>/dev/null
 				;;
 			401)
 				echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
@@ -1920,7 +1920,7 @@ if [ -z "$skip_zipfile" ]; then
 				;;
 			esac
 
-			rm "$resultfile" 2>/dev/null
+			rm -f "$resultfile" 2>/dev/null
 
 			return $status
 		}
@@ -1979,7 +1979,7 @@ if [ -z "$skip_zipfile" ]; then
 				exit_code=1
 			fi
 
-			rm "$_ghf_resultfile" 2>/dev/null
+			rm -f "$_ghf_resultfile" 2>/dev/null
 
 			return $status
 		}
@@ -2021,7 +2021,7 @@ if [ -z "$skip_zipfile" ]; then
 				exit_code=1
 			fi
 
-			rm "$resultfile" 2>/dev/null
+			rm -f "$resultfile" 2>/dev/null
 
 			return $status
 		}
@@ -2040,7 +2040,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		echo
 
-		rm "$releasedir/gh_upload.json" 2>/dev/null
+		rm -f "$releasedir/gh_upload.json" 2>/dev/null
 	fi
 fi
 
