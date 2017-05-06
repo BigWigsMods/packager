@@ -79,7 +79,7 @@ skip_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id]" >&2
+	echo "Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -d               Skip uploading." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
@@ -92,10 +92,11 @@ usage() {
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
+	echo "  -g game-version  Set the game version to use for CurseForge and WoWInterface uploading." >&2
 }
 
 OPTIND=1
-while getopts ":celzusop:dw:r:t:" opt; do
+while getopts ":celzusop:dw:r:t:g:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -143,6 +144,16 @@ while getopts ":celzusop:dw:r:t:" opt; do
 	z)
 		# Skip generating the zipfile.
 		skip_zipfile=true
+		;;
+	g)
+		# Set version (x.y.z)
+		if [[ "$OPTARG" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
+			game_version="$OPTARG"
+		else
+			echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
+			usage
+			exit 1
+		fi
 		;;
 	:)
 		echo "Option \"-$OPTARG\" requires an argument." >&2
@@ -1767,8 +1778,14 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 	fi
 
-	if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-		game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
+	if [ -n "$upload_curseforge" ]; then
+		if [ -n "$game_version" ]; then
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r '.[] | select(.name == "'$game_version'") | .id' 2>/dev/null )
+		fi
+		if [ -z "$game_version_id" ]; then
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
+			game_version=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
+		fi
 		if [ -z "$game_version_id" ]; then
 			echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
 			echo
@@ -1779,8 +1796,13 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 	fi
 
-	if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+	if [ -n "$upload_wowinterface" ]; then
+		if [ -n "$game_version" ]; then
+			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.id == "'$game_version'") | .id' 2>/dev/null )
+		fi
+		if [ -z "$game_version" ]; then
+			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+		fi
 		if [ -z "$game_version" ]; then
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
 			echo
@@ -1817,7 +1839,7 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 
-		echo "Uploading $archive_name ($file_type/$game_version_id) to https://wow.curseforge.com/addons/$slug"
+		echo "Uploading $archive_name ($game_version $file_type) to https://wow.curseforge.com/addons/$slug"
 		resultfile="$releasedir/cf_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \

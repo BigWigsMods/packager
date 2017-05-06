@@ -104,6 +104,7 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi
   -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
+  -g game-version  Set the game version to use for CurseForge and WoWInterface uploading.
 ```
 
 The following environment variables are necessary for uploading:
