@@ -689,45 +689,6 @@ set_localization_url() {
 	fi
 }
 
-# Filter to print an error for unhandled @localization@ repository keyword replacement.
-localization_unset_filter() {
-	_ul_eof=
-	while [ -z "$_ul_eof" ]; do
-		IFS='' read -r _ul_line || _ul_eof=true
-		# Strip any trailing CR character.
-		_ul_line=${_ul_line%$carriage_return}
-		case $_ul_line in
-		*@localization\(*\)@*)
-			_ul_lang=
-			if [[ $_ul_line == *"locale=\""* ]]; then
-				_ul_lang=${_ul_line##*locale=\"}
-				_ul_lang=${_ul_lang%%\"*}
-				_ul_lang=" (${_ul_lang})"
-			fi
-			echo "    Skipping localization${_ul_lang}" >&2
-
-			# Skip the entire line for TOC entries
-			if [[ $_ul_line != "## "* ]]; then
-				_ul_line=${_ul_line%%@localization(*}
-				_ul_line=${_ul_line%%--*}
-				if [ -n "$_ul_eof" ]; then
-					echo -n "$_ul_line"
-				else
-					echo "$_ul_line"
-				fi
-			fi
-			;;
-		*)
-			if [ -n "$_ul_eof" ]; then
-				echo -n "$_ul_line"
-			else
-				echo "$_ul_line"
-			fi
-			;;
-		esac
-	done
-}
-
 # Filter to handle @localization@ repository keyword replacement.
 # https://www.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions
 declare -A unlocalized_values=( ["english"]="ShowPrimary" ["comment"]="ShowPrimaryAsComment" ["blank"]="ShowBlankAsComment" ["ignore"]="Ignore" )
@@ -830,26 +791,39 @@ localization_filter() {
 				esac
 			done
 
-			_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
-			echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+			if [ -z "$_cdt_localization" -o -z "$localization_url" ]; then
+				echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&2
 
-			if [ -z "$_ul_singlekey" ]; then
-				# Write text that preceded the substitution.
-				echo -n "$_ul_prefix"
-
-				# Fetch the localization data, but don't output anything if there is an error.
-				curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
-
-				# Insert a trailing blank line to match CF packager.
-				if [ -z "$_ul_eof" ]; then
-					echo ""
+				# If the line isn't a TOC entry, print anything before the keyword.
+				if [[ $_ul_line != "## "* ]]; then
+					if [ -n "$_ul_eof" ]; then
+						echo -n "$_ul_prefix"
+					else
+						echo "$_ul_prefix"
+					fi
 				fi
 			else
-				# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
-				_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
-				if [ -n "$_ul_value" -a "$_ul_value" != "$_ul_singlekey" ]; then
-					# The result is different from the base value so print out the line.
-					echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
+				_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
+				echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+
+				if [ -z "$_ul_singlekey" ]; then
+					# Write text that preceded the substitution.
+					echo -n "$_ul_prefix"
+
+					# Fetch the localization data, but don't output anything if there is an error.
+					curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
+
+					# Insert a trailing blank line to match CF packager.
+					if [ -z "$_ul_eof" ]; then
+						echo ""
+					fi
+				else
+					# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
+					_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
+					if [ -n "$_ul_value" -a "$_ul_value" != "$_ul_singlekey" ]; then
+						# The result is different from the base value so print out the line.
+						echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
+					fi
 				fi
 			fi
 			;;
@@ -1070,10 +1044,9 @@ copy_directory_tree() {
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
 					# Set the filter for @localization@ replacement.
-					if [ -n "$_cdt_localization" -a -n "$localization_url" ]; then
+					_cdt_localization_filter=cat
+					if [ -n "$_cdt_localization" ]; then
 						_cdt_localization_filter=localization_filter
-					else
-						_cdt_localization_filter=localization_unset_filter
 					fi
 					# Set the alpha, debug, and nolib filters for replacement based on file extension.
 					_cdt_alpha_filter=cat
