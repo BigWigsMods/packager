@@ -1423,11 +1423,9 @@ if [ -z "$changelog" ]; then
 fi
 if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" == "markdown" ]]; then
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
-	# Requires either cmark (https://github.com/jgm/cmark) or pandoc (http://pandoc.org/)
+	# Requires pandoc (http://pandoc.org/)
 	_html_changelog=
-	if cmark --version &>/dev/null; then
-		_html_changelog=$( cmark -t html --nobreaks "$topdir/$changelog" )
-	elif pandoc --version &>/dev/null; then
+	if which pandoc &>/dev/null; then
 		_html_changelog=$( pandoc -t html "$topdir/$changelog" )
 	fi
 	if [ -n "$_html_changelog" ]; then
@@ -1455,6 +1453,13 @@ if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" =
 			-e 's/&gt;/>/g' \
 			-e "s/&#39;/'/g" \
 			| line_ending_filter > "$wowi_changelog"
+
+			# extra conversion for discount markdown
+			# -e 's/&\(ld\|rd\)quo;/"/g' \
+			# -e "s/&\(ls\|rs\)quo;/'/g" \
+			# -e 's/&ndash;/--/g' \
+			# -e 's/&hellip;/.../g' \
+			# -e 's/^[ \t]*//g' \
 	fi
 fi
 if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
