@@ -12,11 +12,11 @@ GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 [Usage](#usage) for more info.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[CurseForge Knowledge base page](http://legacy.curseforge.com/wiki/projects/pkgmeta-file/) for more info.
+[CurseForge Knowledge Base page](https://www.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file) for more info.
 
-  - *externals* (Git and SVN)
+  - *externals* (Git and SVN) Caveats: An external's .pkgmeta is only parsed for ignore and will not have localization keywords replaced.
   - *ignore*
-  - *license-output* (for a default *All Rights Reserved* license)
+  - *license-output* (creates an *All Rights Reserved* license)
   - *manual-changelog*
   - *move-folders*
   - *package-as*
@@ -35,16 +35,19 @@ You can also use a few directives for WoWInterface uploading.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
-[CurseForge Knowledge bases page](http://legacy.curseforge.com/wiki/repositories/repository-keyword-substitutions/) for more info.
+[CurseForge Knowledge Base page](https://www.curseforge.com/knowledge-base/world-of-warcraft/532-repository-keyword-substitutions) for more info.
 
   - *@alpha@*...*@end-alpha@*
   - *@debug@*...*@end-debug@*
   - *@do-not-package@*...*@end-do-not-package@*
-  - *@localization(locale="locale", format="format", ...)@*
+  - *@[localization](https://www.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions)(locale="locale", format="format", ...)@*
     - *escape-non-ascii*
-    - *handle-subnamespaces*
     - *handle-unlocalized*
+    - *handle-subnamespaces="concat"*
+    - *key*
     - *namespace*
+    - *same-key-is-true*
+    - *table-name*
   - *@no-lib-strip@*...*@end-no-lib-strip@*
   - *@non-alpha@*...*@end-non-alpha@*
   - *@non-debug@*...*@end-non-debug@*
