@@ -1518,7 +1518,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
 
-		## $changelog_version ($changelog_date) [](#top)
+		## $changelog_version ($changelog_date)
 		$changelog_url
 
 		EOF
