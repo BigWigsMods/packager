@@ -1734,26 +1734,13 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_token" && echo true )
 	upload_github=$( test -z "$skip_upload" -a -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
 
-	# Warn about bailing because of not having jq
-	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! jq --version &>/dev/null; then
-		if [ -n "$upload_curseforge" -a -z "$game_version_id" ]; then
-			echo "Skipping upload to CurseForge. Install \"jq\" to allow fetching the latest version id from Curse."
-			echo
-			upload_curseforge=
-			exit_code=1
-		fi
-		if [ -n "$upload_wowinterface" -a -z "$game_version" ]; then
-			echo "Skipping upload to WoWInterface. Install \"jq\" to allow fetching the default version from WoWInterface."
-			echo
-			upload_wowinterface=
-			exit_code=1
-		fi
-		if [ -n "$upload_github" ]; then
-			echo "Skipping release to GitHub. Install \"jq\" to allow parsing responses." # and escaping the changelog
-			echo
-			upload_github=
-			exit_code=1
-		fi
+	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! which jq &>/dev/null; then
+		echo "Skipping upload because \"jq\" was not found."
+		echo
+		upload_curseforge=
+		upload_wowinterface=
+		upload_github=
+		exit_code=1
 	fi
 
 	if [ -n "$upload_curseforge" ]; then
