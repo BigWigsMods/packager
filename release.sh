@@ -1898,8 +1898,8 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_github" ]; then
 		upload_github_asset() {
 			_ghf_release_id=$1
-			_ghf_file_path=$2
-			_ghf_file_name=$(basename "$_ghf_file_path")
+			_ghf_file_name=$2
+			_ghf_file_path=$3
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
 			echo -n "Uploading $_ghf_file_name... "
 			result=$( curl -sS --retry 3 --retry-delay 10 \
@@ -1954,9 +1954,9 @@ if [ -z "$skip_zipfile" ]; then
 		if [ $? -eq 0 ]; then
 			if [ "$result" = "201" ]; then
 				release_id=$( cat "$resultfile" | jq '.id' )
-				upload_github_asset $release_id "$archive"
+				upload_github_asset "$release_id" "$archive_name" "$archive"
 				if [ -f "$nolib_archive" ]; then
-					upload_github_asset $release_id "$nolib_archive"
+					upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
 				fi
 			else
 				echo "Error! ($result)"
@@ -1968,6 +1968,7 @@ if [ -z "$skip_zipfile" ]; then
 		else
 			exit_code=1
 		fi
+		echo
 
 		rm -f "$resultfile" 2>/dev/null
 	fi
