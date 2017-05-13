@@ -1794,7 +1794,7 @@ if [ -z "$skip_zipfile" ]; then
 			fi
 		fi
 
-		cat <<- EOF > "$releasedir/cf_upload.json"
+		_cf_payload=$( cat <<-EOF
 		{
 		  "displayName": "$project_version",
 		  "gameVersions": [$game_version_id],
@@ -1803,13 +1803,14 @@ if [ -z "$skip_zipfile" ]; then
 		  "changelogType": "markdown"
 		}
 		EOF
+		)
 
 		echo "Uploading $archive_name ($game_version $file_type) to https://wow.curseforge.com/addons/$slug"
 		resultfile="$releasedir/cf_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "x-api-token: $cf_token" \
-				-F "metadata=<$releasedir/cf_upload.json" \
+				-F "metadata=$_cf_payload" \
 				-F "file=@$archive" \
 				"https://wow.curseforge.com/api/projects/$slug/upload-file" )
 		if [ $? -eq 0 ]; then
@@ -1837,7 +1838,6 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		echo
 
-		rm -f "$releasedir/cf_upload.json" 2>/dev/null
 		rm -f "$resultfile" 2>/dev/null
 	fi
 
@@ -1896,17 +1896,6 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
 	if [ -n "$upload_github" ]; then
-		cat <<- EOF > "$releasedir/gh_upload.json"
-		{
-		  "tag_name": "$tag",
-		  "target_commitish": "master",
-		  "name": "$tag",
-		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
-		  "draft": false,
-		  "prerelease": false
-		}
-		EOF
-
 		upload_github_asset() {
 			_ghf_release_id=$1
 			_ghf_file_path=$2
@@ -1936,7 +1925,6 @@ if [ -z "$skip_zipfile" ]; then
 			rm -f "$_ghf_resultfile" 2>/dev/null
 		}
 
-		resultfile="$releasedir/gh_result.json"
 		# check if a release exists and delete it
 		release_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id | select(. != null)' )
 		if [ -n "$release_id" ]; then
@@ -1944,11 +1932,24 @@ if [ -z "$skip_zipfile" ]; then
 			release_id=
 		fi
 
+		_gh_payload=$( cat <<-EOF
+		{
+		  "tag_name": "$tag",
+		  "target_commitish": "master",
+		  "name": "$tag",
+		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+		  "draft": false,
+		  "prerelease": false
+		}
+		EOF
+		)
+
 		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
+		resultfile="$releasedir/gh_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "Authorization: token $github_token" \
-				-d "@$releasedir/gh_upload.json" \
+				-d "$_gh_payload" \
 				"https://api.github.com/repos/$project_github_slug/releases" )
 		if [ $? -eq 0 ]; then
 			if [ "$result" = "201" ]; then
@@ -1968,7 +1969,6 @@ if [ -z "$skip_zipfile" ]; then
 			exit_code=1
 		fi
 
-		rm -f "$releasedir/gh_upload.json" 2>/dev/null
 		rm -f "$resultfile" 2>/dev/null
 	fi
 fi
