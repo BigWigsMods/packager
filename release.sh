@@ -751,7 +751,7 @@ localization_filter() {
 						if [ "$_ul_value" = "concat" ]; then # concat with /
 							_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
 						elif [ "$_ul_value" = "subtable" ]; then
-							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Use format=\"lua_table\" instead." >&2
+							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Include each full subnamespace, comma delimited." >&2
 						fi
 						;;
 					key)
@@ -765,9 +765,12 @@ localization_filter() {
 						_ul_lang=$_ul_value
 						;;
 					namespace)
-						_ul_namespace="/${_ul_value}"
-						# _ul_url_params="${_ul_url_params}&namespaces=${_ul_value##*/}" # strip parent namespace(s)
-						_ul_url_params="${_ul_url_params}&namespaces=${_ul_value}"
+						# reparse to get all namespaces if multiple
+						_ul_namespace=${_ul_params##*namespace=\"}
+						_ul_namespace=${_ul_namespace%%\"*}
+						_ul_namespace=${_ul_namespace//, /,}
+						_ul_url_params="${_ul_url_params}&namespaces=${_ul_namespace}"
+						_ul_namespace="/${_ul_namespace}"
 						;;
 					namespace-delimiter)
 						if [ "$_ul_value" != "/" ]; then
