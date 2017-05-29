@@ -595,7 +595,7 @@ elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
 	IFS=$'\n'
-	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore | awk '/^[?I]/' | cut -c9- | tr '\\' '/' ); do
+	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- | tr '\\' '/' ); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore/*"
 		fi
