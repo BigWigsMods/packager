@@ -76,9 +76,6 @@ use that as the current version number.  It will search back through parent
 commits for the previous tag that is a release version number and generate a
 changelog containing the commits since that previous release tag.
 
-__release.sh__ will create a default license file in the project directory with
-the contents *All Rights Reserved* if a license file does not already exist.
-
 By default, __release.sh__ creates releases in the *.release* subdirectory of the
 top-level directory of the checkout.
 
@@ -88,7 +85,7 @@ The recommended way to include __release.sh__ in a project is to:
 
 1.  Create a *.release* subdirectory in your top-level checkout.
 2.  Copy __release.sh__ into the *.release* directory.
-3.  Ignore the *.release* subdirectory in __.pkgmeta__.
+3.  Ignore the *.release* subdirectory in __.gitignore__.
 4.  Run __release.sh__.
 
 # Usage
