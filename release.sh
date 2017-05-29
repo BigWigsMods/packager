@@ -243,7 +243,7 @@ if [ -f "$topdir/$tocfile" ]; then
 	# Set the package name from the TOC filename.
 	package=${tocfile%.toc}
 	# Parse the TOC file for the title of the project used in the changelog.
-	project=$( grep '## Title:' "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+	project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 	# Grab CurseForge slug and WoWI ID from the TOC file.
 	if [ -z "$slug" ]; then
 		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
@@ -285,7 +285,7 @@ set_info_git() {
 	si_repo_type="git"
 	si_repo_url=$( git -C "$si_repo_dir" remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	if [ -z "$si_repo_url" ]; then # no origin so grab the first fetch url
-		si_repo_url=$( git -C "$si_repo_dir" remote -v | grep '(fetch)' | awk '{ print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
+		si_repo_url=$( git -C "$si_repo_dir" remote -v | awk '/(fetch)/ { print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	fi
 
 	# Populate filter vars.
@@ -595,7 +595,7 @@ elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
 	IFS=$'\n'
-	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore | grep '^[?I]' | cut -c9- | tr '\\' '/' ); do
+	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore | awk '/^[?I]/' | cut -c9- | tr '\\' '/' ); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore/*"
 		fi
