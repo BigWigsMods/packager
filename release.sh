@@ -1764,23 +1764,6 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 	fi
 
-	if [ -n "$upload_wowinterface" ]; then
-		if [ -n "$game_version" ]; then
-			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.id == "'$game_version'") | .id' 2>/dev/null )
-		fi
-		if [ -z "$game_version" ]; then
-			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
-		fi
-		if [ -z "$game_version" ]; then
-			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
-			echo
-			echo "Skipping upload to WoWInterface."
-			echo
-			upload_wowinterface=
-			exit_code=1
-		fi
-	fi
-
 	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
 		# If the tag contains only dots and digits and optionally starts with
@@ -1808,7 +1791,7 @@ if [ -z "$skip_zipfile" ]; then
 		EOF
 		)
 
-		echo "Uploading $archive_name ($game_version $file_type) to https://wow.curseforge.com/addons/$slug"
+		echo "Uploading $archive_name ($game_version $file_type) to https://wow.curseforge.com/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
@@ -1842,6 +1825,23 @@ if [ -z "$skip_zipfile" ]; then
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
+	fi
+
+	if [ -n "$upload_wowinterface" ]; then
+		if [ -n "$game_version" ]; then
+			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.id == "'$game_version'") | .id' 2>/dev/null )
+		fi
+		if [ -z "$game_version" ]; then
+			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+		fi
+		if [ -z "$game_version" ]; then
+			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
+			echo
+			echo "Skipping upload to WoWInterface."
+			echo
+			upload_wowinterface=
+			exit_code=1
+		fi
 	fi
 
 	# Upload tags to WoWInterface.
