@@ -173,20 +173,20 @@ shift $((OPTIND - 1))
 # Set $topdir to top-level directory of the checkout.
 if [ -z "$topdir" ]; then
 	dir=$( pwd )
-	if [ -d "$dir/.git" -o -d "$dir/.svn" ]; then
+	if [ -d "$dir/.git" -o -d "$dir/.svn" -o -d "$dir/.hg" ]; then
 		topdir=.
 	else
 		dir=${dir%/*}
 		topdir=..
 		while [ -n "$dir" ]; do
-			if [ -d "$topdir/.git" -o -d "$topdir/.svn" ]; then
+			if [ -d "$topdir/.git" -o -d "$topdir/.svn" -o -d "$topdir/.hg" ]; then
 				break
 			fi
 			dir=${dir%/*}
 			topdir="$topdir/.."
 		done
-		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" ]; then
-			echo "No Git or SVN checkout found." >&2
+		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" -a ! -d "$topdir/.hg" ]; then
+			echo "No Git, SVN, or Hg checkout found." >&2
 			exit 1
 		fi
 	fi
@@ -208,14 +208,16 @@ case $basedir in
 	;;
 esac
 
-# Set $repository_type to "git" or "svn".
+# Set $repository_type to "git" or "svn" or "hg".
 repository_type=
 if [ -d "$topdir/.git" ]; then
 	repository_type=git
 elif [ -d "$topdir/.svn" ]; then
 	repository_type=svn
+elif [ -d "$topdir/.hg" ]; then
+	repository_type=hg
 else
-	echo "No Git or SVN checkout found in \"$topdir\"." >&2
+	echo "No Git, SVN, or Hg checkout found in \"$topdir\"." >&2
 	exit 1
 fi
 
@@ -239,16 +241,16 @@ releasedir=$( cd "$releasedir" && pwd )
 ###
 ### set_info_<repo> returns the following information:
 ###
-si_repo_type= # "git" or "svn"
+si_repo_type= # "git" or "svn" or "hg"
 si_repo_dir= # the checkout directory
 si_repo_url= # the checkout url
 si_tag= # tag for HEAD
 si_previous_tag= # previous tag
-si_previous_revision= # [SVN] revision number for previous tag
+si_previous_revision= # [SVN|Hg] revision number for previous tag
 
 si_project_revision= # Turns into the highest revision of the entire project in integer form, e.g. 1234, for SVN. Turns into the commit count for the project's hash for Git.
-si_project_hash= # [Git] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
-si_project_abbreviated_hash= # [Git] Turns into the abbreviated hash of the entire project in hex form. e.g. 106c63f
+si_project_hash= # [Git|Hg] Turns into the hash of the entire project in hex form. e.g. 106c634df4b3dd4691bf24e148a23e9af35165ea
+si_project_abbreviated_hash= # [Git|Hg] Turns into the abbreviated hash of the entire project in hex form. e.g. 106c63f
 si_project_author= # Turns into the last author of the entire project. e.g. ckknight
 si_project_date_iso= # Turns into the last changed date (by UTC) of the entire project in ISO 8601. e.g. 2008-05-01T12:34:56Z
 si_project_date_integer= # Turns into the last changed date (by UTC) of the entire project in a readable integer fashion. e.g. 2008050123456
@@ -368,6 +370,43 @@ set_info_svn() {
 	fi
 }
 
+set_info_hg() {
+	si_repo_dir="$1"
+	si_repo_type="hg"
+	si_repo_url=$( hg --cwd "$si_repo_dir" paths -q default )
+	if [ -z "$si_repo_url" ]; then # no default so grab the first path
+		si_repo_url=$( hg --cwd "$si_repo_dir" paths | awk '{ print $3; exit }' )
+	fi
+
+	# Populate filter vars.
+	si_project_hash=$( hg --cwd "$si_repo_dir" log -r . --template '{node}' 2>/dev/null )
+	si_project_abbreviated_hash=$( hg --cwd "$si_repo_dir" log -r . --template '{node|short}' 2>/dev/null )
+	si_project_author=$( hg --cwd "$si_repo_dir" log -r . --template '{author}' 2>/dev/null )
+	si_project_timestamp=$( hg --cwd "$si_repo_dir" log -r . --template '{date}' 2>/dev/null | cut -d. -f1 )
+	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
+	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+	si_project_revision=$( hg --cwd "$si_repo_dir" log -r . --template '{rev}' 2>/dev/null )
+
+	# Get tag info
+	si_tag=
+	# I'm just muddling through revsets, so there is probably a better way to do this
+	# Ignore tag commits, so v1.0-1 will package as v1.0
+	if [ "$( hg --cwd "$si_repo_dir" log -r '.-filelog(.hgtags)' --template '{rev}' 2>/dev/null )" == "" ]; then
+		_si_tip=$( hg --cwd "$si_repo_dir" log -r 'last(parents(.))' --template '{rev}' 2>/dev/null )
+	else
+		_si_tip=$( hg --cwd "$si_repo_dir" log -r . --template '{rev}' 2>/dev/null )
+	fi
+	si_previous_tag=$( hg --cwd "$si_repo_dir" log -r $_si_tip --template '{latesttag}' 2>/dev/null )
+	# si_project_version=$( hg --cwd "$si_repo_dir" log -r $_si_tip --template "{ ifeq(changessincelatesttag, 0, latesttag, '{latesttag}-{changessincelatesttag}-m{node|short}') }" 2>/dev/null ) # git style
+	si_project_version=$( hg --cwd "$si_repo_dir" log -r $_si_tip --template "{ ifeq(changessincelatesttag, 0, latesttag, 'r{rev}') }" 2>/dev/null ) # svn style
+	if [ "$si_previous_tag" = "$si_project_version" ]; then
+		# we're on a tag
+		si_tag=$si_previous_tag
+		si_previous_tag=$( hg --cwd "$si_repo_dir" log -r "last(parents($_si_tip))" --template '{latesttag}' 2>/dev/null )
+	fi
+	si_previous_revision=$( hg --cwd "$si_repo_dir" log -r $si_previous_tag --template '{rev}' 2>/dev/null )
+}
+
 set_info_file() {
 	if [ "$si_repo_type" = "git" ]; then
 		_si_file=${1#si_repo_dir} # need the path relative to the checkout
@@ -378,7 +417,7 @@ set_info_file() {
 		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
 		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
-		si_file_revision=$( git -C "$si_repo_dir" rev-list --count $si_file_hash 2>/dev/null )
+		si_file_revision=$( git -C "$si_repo_dir" rev-list --count $si_file_hash 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
 	elif [ "$si_repo_type" = "svn" ]; then
 		_si_file="$1"
 		# Temporary file to hold results of "svn info".
@@ -398,6 +437,16 @@ set_info_file() {
 
 			rm -f "$_sif_svninfo" 2>/dev/null
 		fi
+	elif [ "$si_repo_type" = "hg" ]; then
+		_si_file=${1#si_repo_dir} # need the path relative to the checkout
+		# Populate filter vars.
+		si_file_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
+		si_file_author=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{author}' "$_si_file" 2>/dev/null )
+		si_file_timestamp=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{date}' "$_si_file" 2>/dev/null | cut -d. -f1 )
+		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
+		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
+		si_file_revision=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
 	fi
 }
 
@@ -405,6 +454,7 @@ set_info_file() {
 case $repository_type in
 git)	set_info_git "$topdir" ;;
 svn)	set_info_svn "$topdir" ;;
+hg) 	set_info_hg  "$topdir" ;;
 esac
 
 tag=$si_tag
@@ -620,6 +670,15 @@ elif [ "$repository_type" = "svn" ]; then
 		fi
 	done
 	IFS=$OLDIFS
+elif [ "$repository_type" = "hg" ]; then
+	_vcs_ignore=$( hg --cwd "$topdir" status --ignored --unknown --no-status | sed -e ':a' -e 'N' -e 's/\n/:/' -e 'ta' )
+	if [ -n "$_vcs_ignore" ]; then
+		if [ -z "$ignore" ]; then
+			ignore="$_vcs_ignore"
+		else
+			ignore="$ignore:$_vcs_ignore"
+		fi
+	fi
 fi
 
 # TOC file processing.
@@ -1235,8 +1294,7 @@ checkout_external() {
 	elif [ "$_external_type" = "svn" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			svn checkout -q "$_external_uri" "$_cqe_checkout_dir"
-			if [ $? -ne 0 ]; then return 1; fi
+			svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else
 			case $_external_uri in
 			*/trunk)
@@ -1269,6 +1327,25 @@ checkout_external() {
 			fi
 		fi
 		set_info_svn "$_cqe_checkout_dir"
+		echo "Checked out r$si_project_revision"
+	elif [ "$_external_type" = "hg" ]; then
+		if [ -z "$_external_tag" ]; then
+			echo "Fetching latest version of external $_external_uri"
+			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+		elif [ "$_external_tag" != "latest" ]; then
+			echo "Fetching tag \"$_external_tag\" from external $_external_uri"
+			hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
+		else # [ "$_external_tag" = "latest" ]; then
+			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+			_external_tag=$( hg --cwd "$_cqe_checkout_dir" log -r . --template '{latesttag}' )
+			if [ -n "$_external_tag" ]; then
+				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
+				hg --cwd "$_cqe_checkout_dir" update -q "$_external_tag"
+			else
+				echo "Fetching latest version of external $_external_uri"
+			fi
+		fi
+		set_info_hg "$_cqe_checkout_dir"
 		echo "Checked out r$si_project_revision"
 	else
 		echo "Unknown external: $_external_uri" >&2
@@ -1328,6 +1405,15 @@ process_external() {
 					# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
 					external_uri=${external_uri/\/mainline/}
 					external_uri=${external_uri/#svn:\/\/svn/https://repos}
+				fi
+				;;
+			http://hg*|https://hg*)
+				if [[ "$external_uri" == *"://hg.curseforge.com"* || "$external_uri" == *"://hg.wowace.com"* ]]; then
+					external_type=hg
+					# https?://hg.(curseforge|wowace).com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
+					external_uri=${external_uri%/mainline}
+					external_uri=${external_uri/#http:/https:}
+					external_uri=${external_uri/#https:\/\/hg/https://repos}
 				fi
 				;;
 			https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
@@ -1592,7 +1678,6 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 				      -e '/^\s*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
-
 		fi
 
 	elif [ "$repository_type" = "svn" ]; then
@@ -1635,7 +1720,35 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 				      -e '/^\s*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
+		fi
 
+	elif [ "$repository_type" = "hg" ]; then
+		_changelog_range=.
+		if [ -n "$previous_revision" ]; then
+			_changelog_range="::$project_revision - ::$previous_revision - filelog(.hgtags)"
+		fi
+		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
+
+		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
+		# $project
+
+		## $project_version ($changelog_date)
+
+		EOF
+		hg --cwd "$topdir" log -r "$_changelog_range" --template '- {fill(desc|strip, 76, "", "  ")}\n' | line_ending_filter >> "$pkgdir/$changelog"
+
+		# WoWI uses BBCode, generate something usable to post to the site
+		# the file is deleted on successful upload
+		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+			cat <<- EOF | line_ending_filter > "$wowi_changelog"
+			[size=5]$project[/size]
+			[size=4][color=orange]$project_version[/color] ($changelog_date)[/size]
+
+			[list]
+			EOF
+			hg --cwd "$topdir" log $_changelog_range --template '[*]{desc|strip|escape}\n' | line_ending_filter >> "$wowi_changelog"
+			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
 	fi
 
