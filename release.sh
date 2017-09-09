@@ -1496,35 +1496,35 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		changelog_version=
 		changelog_url_wowi=
 		changelog_version_wowi=
-		git_commit_range=
+		_changelog_range=
 		if [ -z "$previous_version" -a -z "$tag" ]; then
 			# no range, show all commits up to ours
 			changelog_url="[Full Changelog](${project_github_url}/commits/$project_hash)"
 			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
 			changelog_url_wowi="[url=${project_github_url}/commits/$project_hash]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/$project_hash]$project_version[/url]"
-			git_commit_range="$project_hash"
+			_changelog_range="$project_hash"
 		elif [ -z "$previous_version" -a -n "$tag" ]; then
 			# first tag, show all commits upto it
 			changelog_url="[Full Changelog](${project_github_url}/commits/$tag)"
 			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
 			changelog_url_wowi="[url=${project_github_url}/commits/$tag]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/$tag]$project_version[/url]"
-			git_commit_range="$tag"
+			_changelog_range="$tag"
 		elif [ -n "$previous_version" -a -z "$tag" ]; then
 			# compare between last tag and our commit
 			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$project_hash)"
 			changelog_version="[$project_version](${project_github_url}/tree/$project_hash)"
 			changelog_url_wowi="[url=${project_github_url}/compare/$previous_version...$project_hash]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/$project_hash]$project_version[/url]"
-			git_commit_range="$previous_version..$project_hash"
+			_changelog_range="$previous_version..$project_hash"
 		elif [ -n "$previous_version" -a -n "$tag" ]; then
 			# compare between last tag and our tag
 			changelog_url="[Full Changelog](${project_github_url}/compare/$previous_version...$tag)"
 			changelog_version="[$project_version](${project_github_url}/tree/$tag)"
 			changelog_url_wowi="[url=${project_github_url}/compare/$previous_version...$tag]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/$tag]$project_version[/url]"
-			git_commit_range="$previous_version..$tag"
+			_changelog_range="$previous_version..$tag"
 		fi
 		# lazy way out
 		if [ -z "$project_github_url" ]; then
@@ -1542,7 +1542,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		$changelog_url
 
 		EOF
-		git -C "$topdir" log $git_commit_range --pretty=format:"###%B" \
+		git -C "$topdir" log $_changelog_range --pretty=format:"###%B" \
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e 's/_/\\_/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
@@ -1564,7 +1564,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 			$changelog_url_wowi $changelog_previous_wowi
 			[list]
 			EOF
-			git -C "$topdir" log $git_commit_range --pretty=format:"###%B" \
+			git -C "$topdir" log $_changelog_range --pretty=format:"###%B" \
 				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 				      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
@@ -1575,9 +1575,9 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		fi
 
 	elif [ "$repository_type" = "svn" ]; then
-		svn_revision_range=
+		_changelog_range=
 		if [ -n "$previous_version" ]; then
-			svn_revision_range="-r$project_revision:$previous_revision"
+			_changelog_range="-r$project_revision:$previous_revision"
 		fi
 		changelog_date=$( date -ud "@$project_timestamp" +%Y-%m-%d )
 
@@ -1587,7 +1587,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		## $project_version ($changelog_date)
 
 		EOF
-		svn log "$topdir" $svn_revision_range --xml \
+		svn log "$topdir" $_changelog_range --xml \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 			      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
@@ -1606,7 +1606,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 			[list]
 			EOF
-			svn log "$topdir" $svn_revision_range --xml \
+			svn log "$topdir" $_changelog_range --xml \
 				| awk '/<msg>/,/<\/msg>/' \
 				| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 				      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
