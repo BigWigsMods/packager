@@ -246,10 +246,10 @@ if [ -f "$topdir/$tocfile" ]; then
 	project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 	# Grab CurseForge slug and WoWI ID from the TOC file.
 	if [ -z "$slug" ]; then
-		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" )
+		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
 	fi
 	if [ -z "$addonid" ]; then
-		addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" )
+		addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
 	fi
 fi
 
