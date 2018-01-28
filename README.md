@@ -1,13 +1,13 @@
 # release.sh
 
-__release.sh__ generates an addon zipfile from a Git or SVN checkout.
+__release.sh__ generates an addon zip file from a Git or SVN checkout.
 
 __release.sh__ works by creating a new project directory, checking out external
 repositories within the project directory, then copying files from the checkout
 into the project directory.  The project directory is then zipped to create a
-distributable addon zipfile.
+distributable addon zip file.
 
-__release.sh__ can also upload your zipfile to CurseForge, WoWInterface, and
+__release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
 GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 [Usage](#usage) for more info.
 
@@ -99,7 +99,7 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi
   -o               Keep existing package directory, overwriting its contents.
   -s               Create a stripped-down "nolib" package.
   -u               Use Unix line-endings.
-  -z               Skip zipfile creation.
+  -z               Skip zip file creation.
   -t topdir        Set top-level directory of checkout.
   -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
@@ -110,5 +110,5 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi
 The following environment variables are necessary for uploading:
 
   - `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), required for the CurseForge API to fetch localization and upload files.
-  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
   - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
+  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
