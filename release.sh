@@ -283,7 +283,7 @@ set_info_git() {
 	si_project_abbreviated_hash=$( git -C "$si_repo_dir" show --no-patch --format="%h" 2>/dev/null )
 	si_project_author=$( git -C "$si_repo_dir" show --no-patch --format="%an" 2>/dev/null )
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
-	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null )
+	si_project_date_iso=$( date -ud "@$si_project_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
 	si_project_date_integer=$( date -ud "@$si_project_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 	# XXX --depth limits rev-list :\ [ ! -s "$(git rev-parse --git-dir)/shallow" ] || git fetch --unshallow --no-tags
 	si_project_revision=$( git -C "$si_repo_dir" rev-list --count $si_project_hash 2>/dev/null )
@@ -365,7 +365,7 @@ set_info_svn() {
 		si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
 		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
 		si_project_timestamp=$( date -ud "$_si_timestamp" +%s 2>/dev/null )
-		si_project_date_iso=$( date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
+		si_project_date_iso=$( date -ud "$_si_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
 		si_project_date_integer=$( date -ud "$_si_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 		# SVN repositories have no project hash.
 		si_project_hash=
@@ -383,7 +383,7 @@ set_info_file() {
 		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1  --format="%h"  "$_si_file" 2>/dev/null )
 		si_file_author=$( git -C "$si_repo_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
-		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null )
+		si_file_date_iso=$( date -ud "@$si_file_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
 		si_file_date_integer=$( date -ud "@$si_file_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 		si_file_revision=$( git -C "$si_repo_dir" rev-list --count $si_file_hash 2>/dev/null )
 	elif [ "$si_repo_type" = "svn" ]; then
@@ -397,7 +397,7 @@ set_info_file() {
 			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_sif_svninfo" | cut -d" " -f4- )
 			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_sif_svninfo" )
 			si_file_timestamp=$( date -ud "$_si_timestamp" +%s 2>/dev/null )
-			si_file_date_iso=$( date -ud "$_si_timestamp" -Iseconds 2>/dev/null )
+			si_file_date_iso=$( date -ud "$_si_timestamp" -Iseconds 2>/dev/null | sed 's/+00:00/Z/' )
 			si_file_date_integer=$( date -ud "$_si_timestamp" +%Y%m%d%H%M%S 2>/dev/null )
 			# SVN repositories have no project hash.
 			si_file_hash=
