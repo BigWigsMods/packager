@@ -689,7 +689,7 @@ set_localization_url() {
 }
 
 # Filter to handle @localization@ repository keyword replacement.
-# https://www.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions
+# https://authors.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions
 declare -A unlocalized_values=( ["english"]="ShowPrimary" ["comment"]="ShowPrimaryAsComment" ["blank"]="ShowBlankAsComment" ["ignore"]="Ignore" )
 localization_filter() {
 	_ul_eof=
@@ -721,7 +721,7 @@ localization_filter() {
 			else
 				echo "    Warning! No locale set, using enUS." >&2
 			fi
-			# Generate a URL parameter string from the localization parameters. https://www.curseforge.com/docs/api
+			# Generate a URL parameter string from the localization parameters. https://authors.curseforge.com/docs/api
 			_ul_url_params=""
 			set -- ${_ul_params}
 			for _ul_param; do
