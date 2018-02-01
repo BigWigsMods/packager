@@ -1252,7 +1252,7 @@ checkout_external() {
 						case $pkgmeta_phase in
 						ignore)
 							pattern=$yaml_item
-							if [ -d "$topdir/$pattern" ]; then
+							if [ -d "$_cqe_checkout_dir/$pattern" ]; then
 								pattern="$pattern/*"
 							fi
 							if [ -z "$ignore" ]; then
