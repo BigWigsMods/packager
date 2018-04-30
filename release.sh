@@ -45,7 +45,7 @@ fi
 exit_code=0
 
 # Game versions for uploading
-game_version=
+game_version=7.3.5
 game_version_id=
 
 # Secrets for uploading
