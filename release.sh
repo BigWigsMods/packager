@@ -1948,11 +1948,10 @@ if [ -z "$skip_zipfile" ]; then
 		_gh_payload=$( cat <<-EOF
 		{
 		  "tag_name": "$tag",
-		  "target_commitish": "master",
 		  "name": "$tag",
 		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
 		  "draft": false,
-		  "prerelease": false
+		  "prerelease": $( [[ "${tag,,}" == *"beta"* ]] && echo true || echo false )
 		}
 		EOF
 		)
