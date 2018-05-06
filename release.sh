@@ -1743,7 +1743,7 @@ if [ -z "$skip_zipfile" ]; then
 	### Deploy the zipfile.
 	###
 
-	upload_curseforge=$( test -z "$skip_upload" -a -n "$slug" -a -n "$cf_token" -a "$project_site" == "https://wow.curseforge.com" && echo true )
+	upload_curseforge=$( test -z "$skip_upload" -a -n "$slug" -a -n "$cf_token" -a -n "$project_site" && echo true )
 	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_token" && echo true )
 	upload_github=$( test -z "$skip_upload" -a -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
 
@@ -1758,14 +1758,14 @@ if [ -z "$skip_zipfile" ]; then
 
 	if [ -n "$upload_curseforge" ]; then
 		if [ -n "$game_version" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r '.[] | select(.name == "'$game_version'") | .id' 2>/dev/null )
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r '.[] | select(.name == "'$game_version'") | .id' 2>/dev/null )
 		fi
 		if [ -z "$game_version_id" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
-			game_version=$( curl -s -H "x-api-token: $cf_token" https://wow.curseforge.com/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
+			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
 		fi
 		if [ -z "$game_version_id" ]; then
-			echo "Error fetching game version info from https://wow.curseforge.com/api/game/versions"
+			echo "Error fetching game version info from $project_site/api/game/versions"
 			echo
 			echo "Skipping upload to CurseForge."
 			echo
@@ -1801,14 +1801,14 @@ if [ -z "$skip_zipfile" ]; then
 		EOF
 		)
 
-		echo "Uploading $archive_name ($game_version $file_type) to https://wow.curseforge.com/projects/$slug"
+		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "x-api-token: $cf_token" \
 				-F "metadata=$_cf_payload" \
 				-F "file=@$archive" \
-				"https://wow.curseforge.com/api/projects/$slug/upload-file" )
+				"$project_site/api/projects/$slug/upload-file" )
 		if [ $? -eq 0 ]; then
 			case $result in
 				200) echo "Success!" ;;
