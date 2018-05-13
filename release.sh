@@ -1642,7 +1642,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
-					if [ -d "$destdir" -a -z "$overwrite" ]; then
+					if [[ -d "$destdir" && -z "$overwrite" && "$srcdir" != "$destdir/"*  ]]; then
 						rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
