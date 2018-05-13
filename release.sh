@@ -1432,6 +1432,12 @@ if [ -z "$changelog" ]; then
 	changelog_markup="markdown"
 fi
 if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" == "markdown" ]]; then
+	echo "Using manual changelog at $changelog"
+	echo
+	cat "$topdir/$changelog" | head -n50
+	[ "$( wc -l < "$topdir/$changelog" )" -gt 50 ] && echo "..."
+	echo
+
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
 	_html_changelog=
