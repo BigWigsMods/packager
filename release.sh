@@ -137,13 +137,15 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 		;;
 	g)
 		# Set version (x.y.z)
-		if [[ "$OPTARG" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
-			game_version="$OPTARG"
-		else
-			echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
-			usage
-			exit 1
-		fi
+		IFS=',' read -a V <<< "$OPTARG"
+		for i in "${V[@]}"; do
+			if [[ ! "$i" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
+				echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
+				usage
+				exit 1
+			fi
+		done
+		game_version="$OPTARG"
 		;;
 	:)
 		echo "Option \"-$OPTARG\" requires an argument." >&2
@@ -1773,10 +1775,19 @@ if [ -z "$skip_zipfile" ]; then
 
 	if [ -n "$upload_curseforge" ]; then
 		if [ -n "$game_version" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r '.[] | select(.name == "'$game_version'") | .id' 2>/dev/null )
+			game_version_id=$(
+				_v=
+				IFS=',' read -a V <<< "$game_version"
+				for i in "${V[@]}"; do
+					_v="$_v,\"$i\""
+				done
+				_v="[${_v#,}]"
+				# jq -c '["8.0.1","7.3.5"] as $v | map(select(.name as $x | $v | index($x)) | .id)'
+				curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c --argjson v $_v 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
+			)
 		fi
 		if [ -z "$game_version_id" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .id' 2>/dev/null )
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c 'max_by(.id) | [.id]' 2>/dev/null )
 			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
 		fi
 		if [ -z "$game_version_id" ]; then
@@ -1808,7 +1819,7 @@ if [ -z "$skip_zipfile" ]; then
 		_cf_payload=$( cat <<-EOF
 		{
 		  "displayName": "$project_version",
-		  "gameVersions": [$game_version_id],
+		  "gameVersions": $game_version_id,
 		  "releaseType": "$file_type",
 		  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
 		  "changelogType": "markdown"
