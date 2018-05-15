@@ -428,16 +428,6 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 	project_github_slug=${project_github_url#https://github.com/}
 fi
 
-# Set the slug for cf/wowace checkouts.
-if [ -z "$slug" ] && [[ "$si_repo_url" == *"curseforge.com"* || "$si_repo_url" == *"wowace.com"* ]]; then
-	slug=${si_repo_url#*/wow/}
-	slug=${slug%%/*}
-fi
-# The default slug is the lowercase basename of the checkout directory.
-if [ -z "$slug" ]; then
-	slug=$( echo "$basedir" | tr '[:upper:].' '[:lower:]-' )
-fi
-
 # Set the Curse project site
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
 	# There is no good way of differentiating between sites short of using different TOC fields for CF and WowAce
