@@ -227,22 +227,6 @@ mkdir -p "$releasedir"
 topdir=$( cd "$topdir" && pwd )
 releasedir=$( cd "$releasedir" && pwd )
 
-package=$basedir
-tocfile=$( cd "$topdir" && ls *.toc -1 2>/dev/null | head -n 1 )
-if [ -f "$topdir/$tocfile" ]; then
-	# Set the package name from the TOC filename.
-	package=${tocfile%.toc}
-	# Parse the TOC file for the title of the project used in the changelog.
-	project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
-	# Grab CurseForge slug and WoWI ID from the TOC file.
-	if [ -z "$slug" ]; then
-		slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
-	fi
-	if [ -z "$addonid" ]; then
-		addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
-	fi
-fi
-
 ###
 ### set_info_<repo> returns the following information:
 ###
@@ -427,17 +411,7 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 	project_github_url=${si_repo_url%.git}
 	project_github_slug=${project_github_url#https://github.com/}
 fi
-
-# Set the Curse project site
-if [[ "$slug" =~ ^[0-9]+$ ]]; then
-	# There is no good way of differentiating between sites short of using different TOC fields for CF and WowAce
-	# Curse does redirect to the proper site when using the project id, so we'll use that to get the API url
-	_ul_test_url="https://wow.curseforge.com/projects/$slug"
-	_ul_test_url_result=$( curl -s -L -w "%{url_effective}" -o /dev/null $_ul_test_url )
-	if [ "$_ul_test_url" != "$_ul_test_url_result" ]; then
-		project_site=${_ul_test_url_result%%/project*}
-	fi
-fi
+project_site=
 
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
@@ -477,9 +451,10 @@ yaml_listitem() {
 ###
 
 # Variables set via .pkgmeta.
+package=
 manual_changelog=
 changelog=
-changelog_markup="plain"
+changelog_markup=plain
 enable_nolib_creation=
 ignore=
 license=
@@ -599,6 +574,42 @@ elif [ "$repository_type" = "svn" ]; then
 	IFS=$OLDIFS
 fi
 
+# TOC file processing.
+tocfile=$(
+	cd "$topdir" || exit
+	filename=$( ls *.toc -1 2>/dev/null | head -n1 )
+	if [[ -z "$filename" && -n "$package" ]]; then
+		# Handle having the core addon in a sub dir, which people have starting doing
+		# for some reason. Tons of caveats, just make the base dir your base addon people!
+		filename=$( ls $package/*.toc -1 2>/dev/null | head -n1 )
+	fi
+	echo $filename
+)
+if [[ -z "$tocfile" || ! -f "$topdir/$tocfile" ]]; then
+	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta"
+	exit 1
+fi
+
+# Set the package name from the TOC filename.
+toc_name=$( basename "$tocfile" | sed 's/\.toc$//' )
+if [[ -n "$package" && "$package" != "$toc_name" ]]; then
+	echo "Addon package name does not match TOC file name."
+	exit 1
+fi
+if [ -z "$package" ]; then
+	package=$toc_name
+fi
+
+# Get the title of the project for using in the changelog.
+project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+# Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
+if [ -z "$slug" ]; then
+	slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
+fi
+if [ -z "$addonid" ]; then
+	addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
+fi
+
 echo
 if [ -z "$nolib" ]; then
 	echo "Packaging $package"
@@ -611,7 +622,15 @@ fi
 if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
-if [ -n "$slug" ]; then
+if [[ "$slug" =~ ^[0-9]+$ ]]; then
+	# Set the Curse project site
+	# There is no good way of differentiating between sites short of using different TOC fields for CF and WowAce
+	# Curse does redirect to the proper site when using the project id, so we'll use that to get the API url
+	_ul_test_url="https://wow.curseforge.com/projects/$slug"
+	_ul_test_url_result=$( curl -s -L -w "%{url_effective}" --retry 3 --retry-delay 1 -o /dev/null $_ul_test_url )
+	if [ "$_ul_test_url" != "$_ul_test_url_result" ]; then
+		project_site=${_ul_test_url_result%%/project*}
+	fi
 	if [ "$project_site" == "https://www.wowace.com" ]; then
 		echo "WowAce ID: $slug${cf_token:+ [token set]}"
 	else
