@@ -47,6 +47,7 @@ exit_code=0
 # Game versions for uploading
 game_version=7.3.5
 game_version_id=
+toc_version=
 
 # Secrets for uploading
 cf_token=$CF_API_KEY
@@ -602,6 +603,8 @@ if [ -z "$package" ]; then
 	package=$toc_name
 fi
 
+# Get the interface version for setting upload version.
+toc_version=$( awk '/## Interface:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
 # Get the title of the project for using in the changelog.
 project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
@@ -1864,9 +1867,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_wowinterface" ]; then
-		if [ -n "$game_version" ]; then
-			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.id == "'$game_version'") | .id' 2>/dev/null )
-		fi
+		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.interface == "'$toc_version'") | .id' 2>/dev/null )
 		if [ -z "$game_version" ]; then
 			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
 		fi
