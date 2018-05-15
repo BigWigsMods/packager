@@ -67,27 +67,29 @@ skip_externals=
 skip_localization=
 skip_zipfile=
 skip_upload=
+skip_cf_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]" >&2
+	echo "Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -d               Skip uploading." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
+	echo "  -L               Only do @localization@ keyword replacement (skip upload to CurseForge)." >&2
 	echo "  -o               Keep existing package directory, overwriting its contents." >&2
 	echo "  -s               Create a stripped-down \"nolib\" package." >&2
 	echo "  -u               Use Unix line-endings." >&2
-	echo "  -z               Skip zipfile creation." >&2
+	echo "  -z               Skip zip file creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
-	echo "  -g game-version  Set the game version to use for CurseForge and WoWInterface uploading." >&2
+	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
 }
 
 OPTIND=1
-while getopts ":celzusop:dw:r:t:g:" opt; do
+while getopts ":celLzusop:dw:r:t:g:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -100,6 +102,10 @@ while getopts ":celzusop:dw:r:t:g:" opt; do
 	l)
 		# Skip @localization@ keyword replacement.
 		skip_localization=true
+		;;
+	L)
+		# Skip uploading to CurseForge.
+		skip_cf_upload=true
 		;;
 	d)
 		# Skip uploading.
@@ -1763,9 +1769,9 @@ if [ -z "$skip_zipfile" ]; then
 	### Deploy the zipfile.
 	###
 
-	upload_curseforge=$( test -z "$skip_upload" -a -n "$slug" -a -n "$cf_token" -a -n "$project_site" && echo true )
-	upload_wowinterface=$( test -z "$skip_upload" -a -n "$tag" -a -n "$addonid" -a -n "$wowi_token" && echo true )
-	upload_github=$( test -z "$skip_upload" -a -n "$tag" -a -n "$project_github_slug" -a -n "$github_token" && echo true )
+	upload_curseforge=$( [[ -z "$skip_upload" && -z "$skip_cf_upload" && -n "$slug" && -n "$cf_token" && -n "$project_site" ]] && echo true )
+	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
+	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! which jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."

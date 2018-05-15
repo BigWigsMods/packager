@@ -91,11 +91,12 @@ The recommended way to include __release.sh__ in a project is to:
 # Usage
 
 ```
-Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id]
+Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]
   -c               Skip copying files into the package directory.
   -d               Skip uploading.
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
+  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
   -o               Keep existing package directory, overwriting its contents.
   -s               Create a stripped-down "nolib" package.
   -u               Use Unix line-endings.
@@ -104,7 +105,7 @@ Usage: release.sh [-cdelosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi
   -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
-  -g game-version  Set the game version to use for CurseForge and WoWInterface uploading.
+  -g game-version  Set the game version to use for CurseForge uploading.
 ```
 
 The following environment variables are necessary for uploading:
