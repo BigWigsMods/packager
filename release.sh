@@ -1018,8 +1018,10 @@ copy_directory_tree() {
 		if [ -f "$_cdt_srcdir/$file" ]; then
 			# Check if the file should be ignored.
 			skip_copy=
+			_cdt_cropped_dir=${_cdt_destdir#$pkgdir/} # the cropped dir is the way a user would specify a path for an external to be excluded from packaging in the top-level pkgmeta file.
+
 			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
-			if [ -z "$skip_copy" ] && match_pattern "$file" "$_cdt_ignored_patterns"; then
+			if [ -z "$skip_copy" ] && ( match_pattern "$file" "$_cdt_ignored_patterns" || match_pattern "$_cdt_cropped_dir/$file" "$_cdt_ignored_patterns" ); then
 				skip_copy=true
 			fi
 			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
