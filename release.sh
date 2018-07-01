@@ -1229,7 +1229,7 @@ checkout_external() {
 			fi
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
-		ignore=
+		_cqe_specific_ignore=$ignore
 		if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
 			yaml_eof=
 			while [ -z "$yaml_eof" ]; do
@@ -1255,10 +1255,10 @@ checkout_external() {
 							if [ -d "$_cqe_checkout_dir/$pattern" ]; then
 								pattern="$pattern/*"
 							fi
-							if [ -z "$ignore" ]; then
-								ignore="$pattern"
+							if [ -z "$_cqe_specific_ignore" ]; then
+								_cqe_specific_ignore="$pattern"
 							else
-								ignore="$ignore:$pattern"
+								_cqe_specific_ignore="$_cqe_specific_ignore:$pattern"
 							fi
 							;;
 						esac
@@ -1268,7 +1268,7 @@ checkout_external() {
 				esac
 			done < "$_cqe_checkout_dir/.pkgmeta"
 		fi
-		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+		copy_directory_tree -dnp -i "$_cqe_specific_ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
