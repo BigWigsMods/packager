@@ -472,6 +472,45 @@ nolib_exclude=
 wowi_gen_changelog=true
 wowi_archive=true
 
+parse_ignore() {
+	pkgmeta=$1
+	[ -f "$pkgmeta" ] || return 1
+
+	yaml_eof=
+	while [ -z "$yaml_eof" ]; do
+		IFS='' read -r yaml_line || yaml_eof=true
+		# Strip any trailing CR character.
+		yaml_line=${yaml_line%$carriage_return}
+		case $yaml_line in
+		[!\ ]*:*)
+			# Split $yaml_line into a $yaml_key, $yaml_value pair.
+			yaml_keyvalue "$yaml_line"
+			# Set the $pkgmeta_phase for stateful processing.
+			pkgmeta_phase=$yaml_key
+			;;
+		[\ ]*"- "*)
+			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+			# Get the YAML list item.
+			yaml_listitem "$yaml_line"
+			if [ "$pkgmeta_phase" = "ignore" ]; then
+				pattern=$yaml_item
+				if [ -d "$topdir/$pattern" ]; then
+					pattern="$pattern/*"
+				elif [ ! -f "$topdir/$pattern" ]; then
+					# doesn't exist so match both a file and a path
+					pattern="$pattern:$pattern/*"
+				fi
+				if [ -z "$ignore" ]; then
+					ignore="$pattern"
+				else
+					ignore="$ignore:$pattern"
+				fi
+			fi
+			;;
+		esac
+	done < "$pkgmeta"
+}
+
 if [ -f "$topdir/.pkgmeta" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
@@ -1038,8 +1077,13 @@ copy_directory_tree() {
 		if [ -f "$_cdt_srcdir/$file" ]; then
 			# Check if the file should be ignored.
 			skip_copy=
+			# Prefix external files with the relative pkgdir path
+			_cdt_check_file=$file
+			if [ -n "${_cdt_destdir#$pkgdir}" ]; then
+				_cdt_check_file="${_cdt_destdir#$pkgdir/}/$file"
+			fi
 			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
-			if [ -z "$skip_copy" ] && match_pattern "$file" "$_cdt_ignored_patterns"; then
+			if [ -z "$skip_copy" ] && match_pattern "$_cdt_check_file" "$_cdt_ignored_patterns"; then
 				skip_copy=true
 			fi
 			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
@@ -1141,6 +1185,10 @@ if [ -z "$skip_copying" ]; then
 	eval copy_directory_tree $cdt_args "\"$topdir\"" "\"$pkgdir\""
 	echo
 fi
+
+# Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
+ignore=
+parse_ignore "$topdir/.pkgmeta"
 
 ###
 ### Create a default license if not present and .pkgmeta requests one.
@@ -1249,45 +1297,7 @@ checkout_external() {
 			fi
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
-		ignore=
-		if [ -f "$_cqe_checkout_dir/.pkgmeta" ]; then
-			yaml_eof=
-			while [ -z "$yaml_eof" ]; do
-				IFS='' read -r yaml_line || yaml_eof=true
-				# Strip any trailing CR character.
-				yaml_line=${yaml_line%$carriage_return}
-				case $yaml_line in
-				[!\ ]*:*)
-					# Split $yaml_line into a $yaml_key, $yaml_value pair.
-					yaml_keyvalue "$yaml_line"
-					# Set the $pkgmeta_phase for stateful processing.
-					pkgmeta_phase=$yaml_key
-					;;
-				" "*)
-					yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-					case $yaml_line in
-					"- "*)
-						# Get the YAML list item.
-						yaml_listitem "$yaml_line"
-						case $pkgmeta_phase in
-						ignore)
-							pattern=$yaml_item
-							if [ -d "$_cqe_checkout_dir/$pattern" ]; then
-								pattern="$pattern/*"
-							fi
-							if [ -z "$ignore" ]; then
-								ignore="$pattern"
-							else
-								ignore="$ignore:$pattern"
-							fi
-							;;
-						esac
-						;;
-					esac
-					;;
-				esac
-			done < "$_cqe_checkout_dir/.pkgmeta"
-		fi
+		parse_ignore "$_cqe_checkout_dir/.pkgmeta"
 		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
