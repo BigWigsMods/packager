@@ -1553,8 +1553,8 @@ fi
 if [[ -n "$manual_changelog" && -f "$topdir/$changelog" && "$changelog_markup" == "markdown" ]]; then
 	echo "Using manual changelog at $changelog"
 	echo
-	cat "$topdir/$changelog" | head -n50
-	[ "$( wc -l < "$topdir/$changelog" )" -gt 50 ] && echo "..."
+	cat "$topdir/$changelog" | head -n7
+	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
 	echo
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
