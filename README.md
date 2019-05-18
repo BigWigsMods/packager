@@ -111,8 +111,12 @@ Usage: release.sh [-celzdLCWHosu] [-t topdir] [-r releasedir] [-p curse-id] [-w 
   -g game-version  Set the game version to use for CurseForge uploading.
 ```
 
-The following environment variables are necessary for uploading:
+In addition, the following environmental variables are accepted (optionally as `.env` file):
 
-  - `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), required for the CurseForge API to fetch localization and upload files.
-  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
-  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
+  - `CF_ID` - your CurseForge project ID.
+  - `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), **required** for the CurseForge API to fetch localization and upload files.
+  - `WOWI_ID` - your WoWInterface addon ID.
+  - `WOWI_ID_TEST` - a different WoWInterface addon ID for alpha/beta versions (optional).
+  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), **required** for uploading to WoWInterface.
+  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), **required** for uploading to Github.
+  - `TRAVIS`, `TRAVIS_PULL_REQUEST`, `TRAVIS_BRANCH`, `TRAVIS_TAG` - for usage in Travis CI
