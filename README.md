@@ -91,7 +91,7 @@ The recommended way to include __release.sh__ in a project is to:
 # Usage
 
 ```
-Usage: release.sh [-celzdLCWHosu] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-w wowi-id-test] [-g game-version]
+Usage: release.sh [-celzdLCWHGosui] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-b wowi-id-test] [-j github-slug] [-k gitlab-slug] [-g game-version]
   -c               Skip copying files into the package directory.
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
@@ -100,14 +100,18 @@ Usage: release.sh [-celzdLCWHosu] [-t topdir] [-r releasedir] [-p curse-id] [-w 
   -C|L             Skip upload to CurseForge.
   -W               Skip upload to WoWInterface.
   -H               Skip upload to GitHub.
+	-G               Skip upload to GitLab.
   -o               Keep existing package directory, overwriting its contents.
   -s               Create a stripped-down "nolib" package.
   -u               Use Unix line-endings.
+  -i               Don't try to infer GitHub/GitLab URLs from the Git remote URL or each other.
   -t topdir        Set top-level directory of checkout.
   -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
   -b wowi-id-test  Set the addon id used on WoWInterface for uploading alpha/beta versions.
+	-j github-slug   Set the project slug used on GitHub, if different from Git remote URL.
+	-k gitlab-slug   Set the project slug used on GitLab, if different from Git remote URL.
   -g game-version  Set the game version to use for CurseForge uploading.
 ```
 
@@ -118,5 +122,8 @@ In addition, the following environmental variables are accepted (optionally as `
   - `WOWI_ID` - your WoWInterface addon ID.
   - `WOWI_ID_TEST` - a different WoWInterface addon ID for alpha/beta versions (optional).
   - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), **required** for uploading to WoWInterface.
-  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), **required** for uploading to Github.
+  - `GH_SLUG` - your GitHub project slug, if different from Git remote URL.
+  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), **required** for uploading to GitHub.
+  - `GL_SLUG` - your GitLab project slug, if different from Git remote URL.
+  - `GITLAB_TOKEN` - your [GitLab personal access token](https://gitlab.com/profile/personal_access_tokens), **required** for uploading to GitLab.
   - `TRAVIS`, `TRAVIS_PULL_REQUEST`, `TRAVIS_BRANCH`, `TRAVIS_TAG` - for usage in Travis CI
