@@ -27,6 +27,11 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
+# read vars from .env file if present
+if [ -f ".env" ]; then
+	. ".env"
+fi
+
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
 	# don't need to run the packager for pull requests
@@ -63,8 +68,9 @@ github_token=$GITHUB_OAUTH
 wowi_token=$WOWI_API_TOKEN
 
 # Variables set via options.
-slug=
-addonid=
+slug=$CF_ID
+addonid=$WOWI_ID
+addonid_test=$WOWI_ID_TEST
 topdir=
 releasedir=
 overwrite=
@@ -76,28 +82,33 @@ skip_localization=
 skip_zipfile=
 skip_upload=
 skip_cf_upload=
+skip_wi_upload=
+skip_gh_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]" >&2
+	echo "Usage: release.sh [-celzdLCWHosu] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-w wowi-id-test] [-g game-version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
-	echo "  -d               Skip uploading." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
-	echo "  -L               Only do @localization@ keyword replacement (skip upload to CurseForge)." >&2
+	echo "  -z               Skip zip file creation." >&2
+	echo "  -d               Skip uploading." >&2
+	echo "  -C|L             Skip upload to CurseForge." >&2
+	echo "  -W               Skip upload to WoWInterface." >&2
+	echo "  -H               Skip upload to GitHub." >&2
 	echo "  -o               Keep existing package directory, overwriting its contents." >&2
 	echo "  -s               Create a stripped-down \"nolib\" package." >&2
 	echo "  -u               Use Unix line-endings." >&2
-	echo "  -z               Skip zip file creation." >&2
 	echo "  -t topdir        Set top-level directory of checkout." >&2
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
+	echo "  -b wowi-id-test  Set the addon id used on WoWInterface for uploading unstable versions." >&2
 	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
 }
 
 OPTIND=1
-while getopts ":celLzusop:dw:r:t:g:" opt; do
+while getopts ":celzdLCWHosut:r:p:w:b:g:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -111,13 +122,24 @@ while getopts ":celLzusop:dw:r:t:g:" opt; do
 		# Skip @localization@ keyword replacement.
 		skip_localization=true
 		;;
-	L)
-		# Skip uploading to CurseForge.
-		skip_cf_upload=true
-		;;
 	d)
 		# Skip uploading.
 		skip_upload=true
+		;;
+	L)
+		# This is just for legacy support
+		;&
+	C)
+		# Skip uploading to CurseForge.
+		skip_cf_upload=true
+		;;
+	W)
+		# Skip uploading to WoWInterface.
+		skip_wi_upload=true
+		;;
+	H)
+		# Skip uploading to GitHub.
+		skip_gh_upload=true
 		;;
 	o)
 		# Skip deleting any previous package directory.
@@ -128,6 +150,9 @@ while getopts ":celLzusop:dw:r:t:g:" opt; do
 		;;
 	w)
 		addonid="$OPTARG"
+		;;
+	b)
+		addonid_test="$OPTARG"
 		;;
 	r)
 		# Set the release directory to a non-default value.
@@ -480,6 +505,26 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 fi
 project_site=
 
+# Untagged commits or commit tags containing the word "alpha" are
+# considered alphas. If the tag contains only dots and digits and
+# optionally starts with the letter v (such as "v1.2.3" or "v1.23"
+# or "3.2") or contains the word "release" or "stable", then it is
+# considered a release tag. If the above conditions don't match, it
+# is considered a beta tag.
+release_type=
+if [[ -z $tag || "${tag,,}" == *"alpha"* ]]; then
+	release_type=alpha
+elif [[ "$tag" =~ ^v?[0-9][0-9.]*$ || "${tag,,}" == *"release"* || "${tag,,}" == *"stable"* ]]; then
+	release_type=release
+else
+	release_type=beta
+fi
+
+# Switch to WoWInterface test project if provided
+if [[ -n "$addonid_test" && "$release_type" != "release" ]]; then
+	addonid=$addonid_test
+fi
+
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
 
@@ -733,6 +778,7 @@ if [ -z "$nolib" ]; then
 else
 	echo "Packaging $package (nolib)"
 fi
+echo "Release type: $release_type"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
@@ -1833,13 +1879,12 @@ fi
 ### Create the final zipfile for the addon.
 ###
 
+archive_package_name="${package//[^A-Za-z0-9._-]/_}"
+archive_version="$project_version"
+archive_name="$archive_package_name-$project_version.zip"
+archive="$releasedir/$archive_name"
+
 if [ -z "$skip_zipfile" ]; then
-	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
-
-	archive_version="$project_version"
-	archive_name="$archive_package_name-$project_version.zip"
-	archive="$releasedir/$archive_name"
-
 	nolib_archive_version="$project_version-nolib"
 	nolib_archive_name="$archive_package_name-$nolib_archive_version.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
@@ -1890,24 +1935,35 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		echo
 	fi
+fi
 
-	###
-	### Deploy the zipfile.
-	###
+###
+### Deploy the zipfile.
+###
 
-	upload_curseforge=$( [[ -z "$skip_upload" && -z "$skip_cf_upload" && -n "$slug" && -n "$cf_token" && -n "$project_site" ]] && echo true )
-	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
-	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
+if [ -z "$skip_upload" ]; then
+	if [ ! -f "$archive" ]; then
+		echo "Skipping upload because archive file is missing."
+		skip_gh_upload=true
+		skip_cf_upload=true
+		skip_wi_upload=true
+		exit_code=1
+	fi
+
+	upload_github=$( [[ -z "$skip_gh_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
+	upload_curseforge=$( [[ -z "$skip_cf_upload" && -n "$slug" && -n "$cf_token" && -n "$project_site" ]] && echo true )
+	upload_wowinterface=$( [[ -z "$skip_wi_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
 
 	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! which jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
+		upload_github=
 		upload_curseforge=
 		upload_wowinterface=
-		upload_github=
 		exit_code=1
 	fi
 
+	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
 		if [ -n "$game_version" ]; then
 			game_version_id=$(
@@ -1925,85 +1981,123 @@ if [ -z "$skip_zipfile" ]; then
 			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c 'max_by(.id) | [.id]' 2>/dev/null )
 			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
 		fi
-		if [ -z "$game_version_id" ]; then
+
+		if [ -n "$game_version_id" ]; then
+			_cf_payload=$( cat <<-EOF
+			{
+			  "displayName": "$project_version",
+			  "gameVersions": $game_version_id,
+			  "releaseType": "$release_type",
+			  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+			  "changelogType": "markdown"
+			}
+			EOF
+			)
+
+			echo "Uploading $archive_name ($game_version $release_type) to $project_site/projects/$slug"
+			resultfile="$releasedir/cf_result.json"
+			result=$( curl -sS --retry 3 --retry-delay 10 \
+					-w "%{http_code}" -o "$resultfile" \
+					-H "x-api-token: $cf_token" \
+					-F "metadata=$_cf_payload" \
+					-F "file=@$archive" \
+					"$project_site/api/projects/$slug/upload-file" )
+			if [ $? -eq 0 ]; then
+				case $result in
+					200) echo "Success!" ;;
+					302)
+						echo "Error! ($result)"
+						# don't need to ouput the redirect page
+						exit_code=1
+						;;
+					404)
+						echo "Error! No project for \"$slug\" found."
+						exit_code=1
+						;;
+					*)
+						echo "Error! ($result)"
+						if [ -s "$resultfile" ]; then
+							echo "$(<"$resultfile")"
+						fi
+						exit_code=1
+						;;
+				esac
+			else
+				exit_code=1
+			fi
+			echo
+
+			rm -f "$resultfile" 2>/dev/null
+		else
 			echo "Error fetching game version info from $project_site/api/game/versions"
 			echo
 			echo "Skipping upload to CurseForge."
 			echo
-			upload_curseforge=
 			exit_code=1
 		fi
 	fi
 
-	# Upload to CurseForge.
-	if [ -n "$upload_curseforge" ]; then
-		# If the tag contains only dots and digits and optionally starts with
-		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
-		# word "release", then it is considered a release tag. If the above
-		# conditions don't match, it is considered a beta tag. Untagged commits
-		# are considered alphas.
-		file_type=alpha
-		if [ -n "$tag" ]; then
-			if [[ "$tag" =~ ^v?[0-9][0-9.]*$ || "${tag,,}" == *"release"* ]]; then
-				file_type=release
-			else
-				file_type=beta
-			fi
-		fi
-
-		_cf_payload=$( cat <<-EOF
-		{
-		  "displayName": "$project_version",
-		  "gameVersions": $game_version_id,
-		  "releaseType": "$file_type",
-		  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
-		  "changelogType": "markdown"
-		}
-		EOF
-		)
-
-		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
-		resultfile="$releasedir/cf_result.json"
-		result=$( curl -sS --retry 3 --retry-delay 10 \
-				-w "%{http_code}" -o "$resultfile" \
-				-H "x-api-token: $cf_token" \
-				-F "metadata=$_cf_payload" \
-				-F "file=@$archive" \
-				"$project_site/api/projects/$slug/upload-file" )
-		if [ $? -eq 0 ]; then
-			case $result in
-				200) echo "Success!" ;;
-				302)
-					echo "Error! ($result)"
-					# don't need to ouput the redirect page
-					exit_code=1
-					;;
-				404)
-					echo "Error! No project for \"$slug\" found."
-					exit_code=1
-					;;
-				*)
-					echo "Error! ($result)"
-					if [ -s "$resultfile" ]; then
-						echo "$(<"$resultfile")"
-					fi
-					exit_code=1
-					;;
-			esac
-		else
-			exit_code=1
-		fi
-		echo
-
-		rm -f "$resultfile" 2>/dev/null
-	fi
-
+	# Upload tags to WoWInterface.
 	if [ -n "$upload_wowinterface" ]; then
 		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.interface == "'$toc_version'") | .id' 2>/dev/null )
 		if [ -z "$game_version" ]; then
 			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
 		fi
-		if [ -z "$game_version" ]; then
+
+		if [ -n "$game_version" ]; then
+			_wowi_changelog=
+			if [ -f "$wowi_changelog" ]; then
+				_wowi_changelog="<$wowi_changelog"
+			elif [ -n "$manual_changelog" ]; then
+				_wowi_changelog="<$pkgdir/$changelog"
+			fi
+
+			_wowi_archive="Yes"
+			if [ -z "$wowi_archive" ]; then
+				_wowi_archive="No"
+			fi
+
+			echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
+			resultfile="$releasedir/wi_result.json"
+			result=$( curl -sS --retry 3 --retry-delay 10 \
+				  -w "%{http_code}" -o "$resultfile" \
+				  -H "x-api-token: $wowi_token" \
+				  -F "id=$addonid" \
+				  -F "version=$archive_version" \
+				  -F "compatible=$game_version" \
+				  -F "changelog=$_wowi_changelog" \
+				  -F "archive=$_wowi_archive" \
+				  -F "updatefile=@$archive" \
+				  "https://api.wowinterface.com/addons/update" )
+			if [ $? -eq 0 ]; then
+				case $result in
+					202)
+						echo "Success!"
+						rm -f "$wowi_changelog" 2>/dev/null
+						;;
+					401)
+						echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
+						exit_code=1
+						;;
+					403)
+						echo "Error! Incorrect api key or you do not have permission to upload files."
+						exit_code=1
+						;;
+					*)
+						echo "Error! ($result)"
+						if [ -s "$resultfile" ]; then
+							echo "$(<"$resultfile")"
+						fi
+						exit_code=1
+						;;
+				esac
+			else
+				exit_code=1
+			fi
+			echo
+
+			rm -f "$resultfile" 2>/dev/null
+		else
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
 			echo
 			echo "Skipping upload to WoWInterface."
@@ -2011,59 +2105,6 @@ if [ -z "$skip_zipfile" ]; then
 			upload_wowinterface=
 			exit_code=1
 		fi
-	fi
-
-	# Upload tags to WoWInterface.
-	if [ -n "$upload_wowinterface" ]; then
-		_wowi_args=()
-		if [ -f "$wowi_changelog" ]; then
-			_wowi_args+=("-F changelog=<$wowi_changelog")
-		elif [ -n "$manual_changelog" ]; then
-			_wowi_args+=("-F changelog=<$pkgdir/$changelog")
-		fi
-		if [ -z "$wowi_archive" ]; then
-			_wowi_args+=("-F archive=No")
-		fi
-
-		echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
-		resultfile="$releasedir/wi_result.json"
-		result=$( curl -sS --retry 3 --retry-delay 10 \
-			  -w "%{http_code}" -o "$resultfile" \
-			  -H "x-api-token: $wowi_token" \
-			  -F "id=$addonid" \
-			  -F "version=$archive_version" \
-			  -F "compatible=$game_version" \
-			  "${_wowi_args[@]}" \
-			  -F "updatefile=@$archive" \
-			  "https://api.wowinterface.com/addons/update" )
-		if [ $? -eq 0 ]; then
-			case $result in
-				202)
-					echo "Success!"
-					rm -f "$wowi_changelog" 2>/dev/null
-					;;
-				401)
-					echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
-					exit_code=1
-					;;
-				403)
-					echo "Error! Incorrect api key or you do not have permission to upload files."
-					exit_code=1
-					;;
-				*)
-					echo "Error! ($result)"
-					if [ -s "$resultfile" ]; then
-						echo "$(<"$resultfile")"
-					fi
-					exit_code=1
-					;;
-			esac
-		else
-			exit_code=1
-		fi
-		echo
-
-		rm -f "$resultfile" 2>/dev/null
 	fi
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
@@ -2104,13 +2145,40 @@ if [ -z "$skip_zipfile" ]; then
 			release_id=
 		fi
 
+		project_site_name="CurseForge"
+		if [ "$project_site" == "https://www.wowace.com" ]; then
+			project_site_name="WowAce";
+		fi
+
+		# Create github changelog
+		changelog_github="$pkgdir/$changelog"
+		_changelog_github="$releasedir/CHANGELOG_GITHUB.md"
+		if [ -f "$changelog_github" ]; then
+			cp "$changelog_github" "$_changelog_github"
+			changelog_github="$_changelog_github"
+
+			if [[ -n "$slug" || -n "$addonid" ]]; then
+				echo -e "\nGet from " >> "$changelog_github"
+
+				if [ -n "$slug" ]; then
+					echo "[$project_site_name]($project_site/projects/$slug)" >> "$changelog_github"
+				fi
+				if [[ -n "$slug" && -n "$addonid" ]]; then
+					echo " or " >> "$changelog_github"
+				fi
+				if [ -n "$addonid" ]; then
+					echo "[WoWInterface](https://www.wowinterface.com/downloads/info$addonid.html)" >> "$changelog_github"
+				fi
+			fi
+		fi
+
 		_gh_payload=$( cat <<-EOF
 		{
 		  "tag_name": "$tag",
-		  "name": "$tag",
-		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+		  "name": "Version $tag",
+		  "body": $( cat "$changelog_github" | jq --slurp --raw-input '.' ),
 		  "draft": false,
-		  "prerelease": $( [[ "${tag,,}" == *"beta"* ]] && echo true || echo false )
+		  "prerelease": $( [[ "$release_type" =~ "release" ]] && echo true || echo false )
 		}
 		EOF
 		)
@@ -2142,6 +2210,10 @@ if [ -z "$skip_zipfile" ]; then
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
+
+		if [ -f "$_changelog_github" ]; then
+			rm -f "$_changelog_github" 2>/dev/null
+		fi
 	fi
 fi
 
