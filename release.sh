@@ -537,6 +537,7 @@ contents=
 nolib_exclude=
 wowi_gen_changelog=true
 wowi_archive=true
+declare -A relations=()
 
 parse_ignore() {
 	pkgmeta=$1
@@ -635,6 +636,15 @@ if [ -f "$topdir/.pkgmeta" ]; then
 					else
 						ignore="$ignore:$pattern"
 					fi
+					;;
+				tools-used)
+					relations["$yaml_item"]="tool"
+					;;
+				required-dependencies)
+					relations["$yaml_item"]="requiredDependency"
+					;;
+				optional-dependencies)
+					relations["$yaml_item"]="optionalDependency"
 					;;
 				esac
 				;;
@@ -1334,6 +1344,7 @@ checkout_external() {
 	_external_uri=$2
 	_external_tag=$3
 	_external_type=$4
+	_external_slug=$5
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
 	echo
@@ -1422,16 +1433,12 @@ checkout_external() {
 		# Set the slug for external localization, if needed.
 		# Note: We don't actually do localization since we need the project id and
 		# the only way to convert slug->id would be to scrape the project page :\
-		slug=
+		slug= #$_external_slug
 		project_site=
-		if [[ "$_external_uri" == *"curseforge.com"* || "$_external_uri" == *"wowace.com"* ]]; then
-			slug=${_external_uri#*/wow/}
-			slug=${slug%%/*}
-			if [[ "$_external_uri" == *"wowace.com"* ]]; then
-				project_site="https://www.wowace.com"
-			else
-				project_site="https://wow.curseforge.com"
-			fi
+		if [[ "$_external_uri" == *"wowace.com"* ]]; then
+			project_site="https://www.wowace.com"
+		elif [[ "$_external_uri" == *"curseforge.com"* ]]; then
+			project_site="https://wow.curseforge.com"
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
 		parse_ignore "$_cqe_checkout_dir/.pkgmeta"
@@ -1449,59 +1456,68 @@ external_dir=
 external_uri=
 external_tag=
 external_type=
+external_slug=
 process_external() {
-	if [ -n "$external_dir" -a -n "$external_uri" -a -z "$skip_externals" ]; then
+	if [[ -n "$external_dir" && -n "$external_uri" && -z "$skip_externals" ]]; then
+		# convert old curse repo urls and detect the type of new ones
+		# this could be condensed quite a bit.. a task for another day
+		case $external_uri in
+		git:*|http://git*|https://git*)
+			external_type=git
+			if [[ "$external_uri" == "git://git.curseforge.com"* || "$external_uri" == "git://git.wowace.com"* ]]; then
+				# git://git.(curseforge|wowace).com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
+				external_uri=${external_uri%/mainline.git}
+				external_uri=${external_uri/#git:\/\/git/https://repos}
+			fi
+			;;
+		svn:*|http://svn*|https://svn*)
+			external_type=svn
+			if [[ "$external_uri" == "svn://svn.curseforge.com"* || "$external_uri" == "svn://svn.wowace.com"* ]]; then
+				# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
+				external_uri=${external_uri/\/mainline/}
+				external_uri=${external_uri/#svn:\/\/svn/https://repos}
+			fi
+			;;
+		http://hg*|https://hg*)
+			if [[ "$external_uri" == *"://hg.curseforge.com"* || "$external_uri" == *"://hg.wowace.com"* ]]; then
+				external_type=hq
+				# https?://hg.(curseforge|wowace).com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
+				external_uri=${external_uri%/mainline}
+				external_uri=${external_uri/#http:/https:}
+				external_uri=${external_uri/#https:\/\/hg/https://repos}
+			fi
+			;;
+		https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
+			_pe_path=${external_uri#*/wow/}
+			_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
+			# note: the svn repo trunk is usually used as the url with another field specifying a tag instead of using the tags dir directly
+			if [[ "$_pe_path" == "trunk"* || "$_pe_path" == "tags/"* ]]; then
+				external_type=svn
+				if [[ "$_pe_path" == "tags"* ]]; then
+					external_tag=${_pe_path#tags/}
+					external_tag=${external_tag%%/*}
+					external_uri="${external_uri%/tags*}/trunk${_pe_path#tags/$external_tag}"
+				fi
+			else
+				external_type=git
+			fi
+			;;
+		esac
+
+		if [[ -z $external_slug ]] && [[ $external_uri == "https://repos.curseforge.com/wow/"* || $external_uri == "https://repos.wowace.com/wow/"* ]]; then
+			external_slug=${external_uri#*/wow/}
+			external_slug=${external_slug%%/*}
+		fi
+		if [[ -n $external_slug && $external_slug != "libstub" && $external_slug != "callbackhandler" ]]; then
+			relations["$external_slug"]="embeddedLibrary"
+		fi
+
 		echo "Fetching external: $external_dir"
 		(
-			# convert old curse repo urls and detect the type of new ones
-			# this could be condensed quite a bit.. a task for another day
-			case $external_uri in
-			git:*|http://git*|https://git*)
-				external_type=git
-				if [[ "$external_uri" == "git://git.curseforge.com"* || "$external_uri" == "git://git.wowace.com"* ]]; then
-					# git://git.(curseforge|wowace).com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
-					external_uri=${external_uri%/mainline.git}
-					external_uri=${external_uri/#git:\/\/git/https://repos}
-				fi
-				;;
-			svn:*|http://svn*|https://svn*)
-				external_type=svn
-				if [[ "$external_uri" == "svn://svn.curseforge.com"* || "$external_uri" == "svn://svn.wowace.com"* ]]; then
-					# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
-					external_uri=${external_uri/\/mainline/}
-					external_uri=${external_uri/#svn:\/\/svn/https://repos}
-				fi
-				;;
-			http://hg*|https://hg*)
-				if [[ "$external_uri" == *"://hg.curseforge.com"* || "$external_uri" == *"://hg.wowace.com"* ]]; then
-					external_type=hg
-					# https?://hg.(curseforge|wowace).com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
-					external_uri=${external_uri%/mainline}
-					external_uri=${external_uri/#http:/https:}
-					external_uri=${external_uri/#https:\/\/hg/https://repos}
-				fi
-				;;
-			https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
-				_pe_path=${external_uri#*/wow/}
-				_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
-				# note: the svn repo trunk is usually used as the url with another field specifying a tag instead of using the tags dir directly
-				if [[ "$_pe_path" == "trunk"* || "$_pe_path" == "tags/"* ]]; then
-					external_type=svn
-					if [[ "$_pe_path" == "tags"* ]]; then
-						external_tag=${_pe_path#tags/}
-						external_tag=${external_tag%%/*}
-						external_uri="${external_uri%/tags*}/trunk${_pe_path#tags/$external_tag}"
-					fi
-				else
-					external_type=git
-				fi
-				;;
-			esac
-
 			output_file="$releasedir/.${RANDOM}.externalout"
-			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" &> "$output_file"
+			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" &> "$output_file"
 			status=$?
-			cat "$output_file" 2>/dev/null
+			echo "$(<"$output_file")"
 			rm -f "$output_file" 2>/dev/null
 			exit $status
 		) &
@@ -1511,6 +1527,7 @@ process_external() {
 	external_uri=
 	external_tag=
 	external_type=
+	external_slug=
 }
 
 # Don't leave extra files around if exited early
@@ -1546,14 +1563,9 @@ if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
 				case $pkgmeta_phase in
 				externals)
 					case $yaml_key in
-					url)
-						# Queue external URI for checkout.
-						external_uri=$yaml_value
-						;;
-					tag)
-						# Queue external tag for checkout.
-						external_tag=$yaml_value
-						;;
+					url) external_uri=$yaml_value ;;
+					tag) external_tag=$yaml_value ;;
+					curse-slug) external_slug=$yaml_value ;;
 					*)
 						# Started a new external, so checkout any queued externals.
 						process_external
@@ -2037,6 +2049,14 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 		)
+		_cf_payload_relations=
+		for i in "${!relations[@]}"; do
+			_cf_payload_relations="$_cf_payload_relations{\"slug\":\"$i\",\"type\":\"${relations[$i]}\"},"
+		done
+		if [[ -n $_cf_payload_relations ]]; then
+			_cf_payload_relations="{\"relations\":{\"projects\":[${_cf_payload_relations%,}]}}"
+			_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
+		fi
 
 		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
