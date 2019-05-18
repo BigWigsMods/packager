@@ -1922,8 +1922,8 @@ if [ -z "$skip_zipfile" ]; then
 			)
 		fi
 		if [ -z "$game_version_id" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c 'max_by(.id) | [.id]' 2>/dev/null )
-			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'max_by(.id) | .name' 2>/dev/null )
+			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | [.id]' 2>/dev/null )
+			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | .name' 2>/dev/null )
 		fi
 		if [ -z "$game_version_id" ]; then
 			echo "Error fetching game version info from $project_site/api/game/versions"
