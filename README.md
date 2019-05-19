@@ -8,7 +8,7 @@ into the project directory.  The project directory is then zipped to create a
 distributable addon zip file.
 
 __release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
-GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
+GitHub/GitLab (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 [Usage](#usage) for more info.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
