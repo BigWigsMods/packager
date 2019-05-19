@@ -66,14 +66,14 @@ toc_version=
 cf_token=$CF_API_KEY
 wowi_token=$WOWI_API_TOKEN
 github_token=$GITHUB_OAUTH
-gitlab_token=$GITLAB_TOKEN
+gitlab_token=$GITLAB_OAUTH
 
 # Variables set via options.
 slug=$CF_ID
 addonid=$WOWI_ID
 addonid_test=$WOWI_ID_TEST
-github_slug=$GH_SLUG
-gitlab_slug=$GL_SLUG
+github_slug=$GITHUB_SLUG
+gitlab_slug=$GITLAB_SLUG
 topdir=
 releasedir=
 overwrite=
@@ -92,13 +92,13 @@ skip_gl_upload=
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-celzdLCWHGosui] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-b wowi-id-test] [-j github-slug] [-k gitlab-slug] [-g game-version]" >&2
+	echo "Usage: release.sh [-celzdLWHGosui] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-b wowi-id-test] [-j github-slug] [-k gitlab-slug] [-g game-version]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -z               Skip zip file creation." >&2
 	echo "  -d               Skip uploading." >&2
-	echo "  -C|L             Skip upload to CurseForge." >&2
+	echo "  -L               Skip upload to CurseForge." >&2
 	echo "  -W               Skip upload to WoWInterface." >&2
 	echo "  -H               Skip upload to GitHub." >&2
 	echo "  -G               Skip upload to GitLab." >&2
@@ -117,7 +117,7 @@ usage() {
 }
 
 OPTIND=1
-while getopts ":celzdLCWHGosuit:r:p:w:b:j:k:g:" opt; do
+while getopts ":celzdLWHGosuit:r:p:w:b:j:k:g:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -140,9 +140,6 @@ while getopts ":celzdLCWHGosuit:r:p:w:b:j:k:g:" opt; do
 		skip_upload=true
 		;;
 	L)
-		# This is just for legacy support
-		;&
-	C)
 		# Skip uploading to CurseForge.
 		skip_cf_upload=true
 		;;
@@ -1943,12 +1940,11 @@ archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 archive_version="$project_version"
 archive_name="$archive_package_name-$project_version.zip"
 archive="$releasedir/$archive_name"
+nolib_archive_version="$project_version-nolib"
+nolib_archive_name="$archive_package_name-$nolib_archive_version.zip"
+nolib_archive="$releasedir/$nolib_archive_name"
 
 if [ -z "$skip_zipfile" ]; then
-	nolib_archive_version="$project_version-nolib"
-	nolib_archive_name="$archive_package_name-$nolib_archive_version.zip"
-	nolib_archive="$releasedir/$nolib_archive_name"
-
 	if [ -n "$nolib" ]; then
 		archive_version="$nolib_archive_version"
 		archive_name="$nolib_archive_name"
@@ -2004,9 +2000,10 @@ fi
 if [ -z "$skip_upload" ]; then
 	if [ ! -f "$archive" ]; then
 		echo "Skipping upload because archive file is missing."
-		skip_gh_upload=true
 		skip_cf_upload=true
 		skip_wi_upload=true
+		skip_gh_upload=true
+		skip_gl_upload=true
 		exit_code=1
 	fi
 
@@ -2183,7 +2180,7 @@ if [ -z "$skip_upload" ]; then
 			changelog_githost="$_changelog_githost"
 
 			if [[ -n "$slug" || -n "$addonid" ]]; then
-				echo -en "\n\nGet from " >> "$changelog_githost"
+				echo -en "\n\nGet it from " >> "$changelog_githost"
 
 				if [ -n "$slug" ]; then
 					echo -n "[$project_site_name]($project_site/projects/$slug)" >> "$changelog_githost"
@@ -2277,7 +2274,7 @@ if [ -z "$skip_upload" ]; then
 			rm -f "$resultfile" 2>/dev/null
 		fi
 
-		# Create a GitHub Release for tags and upload the zipfile as an asset.
+		# Create a GitLab Release for tags and upload the zipfile as an asset.
 		if [ -n "$upload_gitlab" ]; then
 			urlencode() {
 				local length="${#1}"
@@ -2298,7 +2295,7 @@ if [ -z "$skip_upload" ]; then
 				_glf_file_path=$2
 				_glf_resultfile="$releasedir/gl_asset_result.json"
 				_glf_exit_code=0
-				echo -n "Uploading $_glf_file_name... "
+				echo -n "Uploading $_glf_file_name to GitLab... "
 				result=$( curl -sS --retry 3 --retry-delay 10 \
 						-w "%{http_code}" -o "$_glf_resultfile" \
 						-H "PRIVATE-TOKEN: $gitlab_token" \
@@ -2324,13 +2321,9 @@ if [ -z "$skip_upload" ]; then
 				return $_glf_exit_code
 			}
 
-			echo "Creating GitLab release: https://gitlab.com/$gitlab_slug/releases"
 
 			# Upload archives
-			upload_gitlab_asset "$archive_name" "$archive" && [ -f "$nolib_archive" ] && upload_gitlab_asset "$nolib_archive_name" "$nolib_archive"
-			if [ "$_glf_exit_code" -eq "1" ]; then
-				exit_code=1
-			else
+			if upload_gitlab_asset "$archive_name" "$archive" && { [[ ! -f "$nolib_archive" ]] || upload_gitlab_asset "$nolib_archive_name" "$nolib_archive"; } then
 				# delete existing release for the tag
 				curl -sS -X DELETE -H "PRIVATE-TOKEN: $gitlab_token" "https://gitlab.com/api/v4/projects/$gitlab_id/releases/$tag" > /dev/null
 
@@ -2344,6 +2337,7 @@ if [ -z "$skip_upload" ]; then
 				EOF
 				)
 
+				echo "Creating GitLab release: https://gitlab.com/$gitlab_slug/releases"
 				resultfile="$releasedir/gl_result.json"
 				result=$( curl -sS --retry 3 --retry-delay 10 \
 						-w "%{http_code}" -o "$resultfile" \
@@ -2367,6 +2361,8 @@ if [ -z "$skip_upload" ]; then
 				echo
 
 				rm -f "$resultfile" 2>/dev/null
+			else
+				exit_code=1
 			fi
 		fi
 
