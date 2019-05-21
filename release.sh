@@ -1999,9 +1999,15 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_wowinterface" ]; then
-		game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.interface == "'$toc_version'") | .id' 2>/dev/null )
-		if [ -z "$game_version" ]; then
-			game_version=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
+		if [ -n "$_wowi_versions" ]; then
+			game_version=$( echo $_wowi_versions | jq -r '.[] | select(.interface == "'$toc_version'" and .default == true) | .id' 2>/dev/null )
+			if [ -z "$game_version" ]; then
+				game_version=$( echo $_wowi_versions | jq -r 'map(select(.interface == "'$toc_version'"))[0] | .id // empty' 2>/dev/null )
+			fi
+			if [ -z "$game_version" ]; then
+				game_version=$( echo $_wowi_versions | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+			fi
 		fi
 		if [ -z "$game_version" ]; then
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
