@@ -11,6 +11,17 @@ __release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
 GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 [Usage](#usage) for more info.
 
+__release.sh__ uses the TOC file to determine the package name for the project.
+You can also set the CurseForge project id (`-p`) and the WoWInterface addon
+id (`-w`) by adding the following to the TOC file:
+
+    ## X-Curse-Project-ID: 1234
+    ## X-WoWI-ID: 5678
+
+Your CurseForge project id can be found on the addon's project page (https://wow.curseforge.com or
+https://www.wowace.com) under "About This Project". Your WoWInterface
+addon id is in the url for the addon, eg, the "5678" in https://wowinterface.com/downloads/info5678-MyAddon.
+
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
 [CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file) for more info.
 
@@ -66,9 +77,6 @@ copying the files from the checkout into the project directory. See the
   - *@file-timestamp@*
   - *@project-timestamp@*
   - *@project-version@*
-
-__release.sh__ reads the TOC file, if present, to determine the name of the
-project.
 
 __release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
 the version numbers for the project.  It will identify if the HEAD is tagged and
