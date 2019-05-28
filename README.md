@@ -18,65 +18,66 @@ id (`-w`) by adding the following to the TOC file:
     ## X-Curse-Project-ID: 1234
     ## X-WoWI-ID: 5678
 
-Your CurseForge project id can be found on the addon's project page (https://wow.curseforge.com or
-https://www.wowace.com) under "About This Project". Your WoWInterface
-addon id is in the url for the addon, eg, the "5678" in https://wowinterface.com/downloads/info5678-MyAddon.
+Your CurseForge project id can be found on the addon's project page (<https://wow.curseforge.com>
+or <https://www.wowace.com>) under "About This Project". Your WoWInterface addon
+id is in the url for the addon, eg, the "5678" in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file) for more info.
+[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file)for more info.
 
-  - *externals* (Git and SVN) Caveats: An external's .pkgmeta is only parsed for ignore and will not have localization keywords replaced.
-  - *ignore*
-  - *license-output* (creates an *All Rights Reserved* license)
-  - *manual-changelog*
-  - *move-folders*
-  - *package-as*
-  - *enable-nolib-creation* (defaults to no) Unlike using the Curse packager,
-    manually uploading nolib packages has no affect for client users that choose
-    to download libraries separately.
+- *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
+  parsed for ignore and will not have localization keywords replaced.
+- *ignore*
+- *license-output* (creates an *All Rights Reserved* license)
+- *manual-changelog*
+- *move-folders*
+- *package-as*
+- *enable-nolib-creation* (defaults to no) Unlike using the Curse packager,
+  manually uploading nolib packages has no affect for client users that choose
+  to download libraries separately.
 
 You can also use a few directives for WoWInterface uploading.
 
-  - *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous release.
-  - *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog using
+- *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous release.
+- *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog using
   BBCode that will be set when uploading. A manual changelog will always be used if set
   in the .pkgmeta. If you have [pandoc](http://pandoc.org/) installed, manual changelogs
-  in Markdown format will be converted to BBCode; otherwise, the manual changelog will be
-  used as-is.
+  in Markdown format will be converted to BBCode; otherwise, the manual changelog will
+  be used as-is.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
 [CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/532-repository-keyword-substitutions) for more info.
 
-  - *@alpha@*...*@end-alpha@*
-  - *@debug@*...*@end-debug@*
-  - *@do-not-package@*...*@end-do-not-package@*
-  - *@[localization](https://authors.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions)(locale="locale", format="format", ...)@*
-    - *escape-non-ascii*
-    - *handle-unlocalized*
-    - *handle-subnamespaces="concat"*
-    - *key*
-    - *namespace*
-    - *same-key-is-true*
-    - *table-name*
-  - *@no-lib-strip@*...*@end-no-lib-strip@*
-  - *@non-alpha@*...*@end-non-alpha@*
-  - *@non-debug@*...*@end-non-debug@*
-  - *@file-revision@*
-  - *@project-revision@*
-  - *@file-hash@*
-  - *@project-hash@*
-  - *@file-abbreviated-hash@*
-  - *@project-abbreviated-hash@*
-  - *@file-author@*
-  - *@project-author@*
-  - *@file-date-iso@*
-  - *@project-date-iso@*
-  - *@file-date-integer@*
-  - *@project-date-integer@*
-  - *@file-timestamp@*
-  - *@project-timestamp@*
-  - *@project-version@*
+- *@alpha@*...*@end-alpha@*
+- *@debug@*...*@end-debug@*
+- *@do-not-package@*...*@end-do-not-package@*
+- *@[localization](https://authors.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions)(locale="locale", format="format", ...)@*
+  - *escape-non-ascii*
+  - *handle-unlocalized*
+  - *handle-subnamespaces="concat"*
+  - *key*
+  - *namespace*
+  - *same-key-is-true*
+  - *table-name*
+- *@no-lib-strip@*...*@end-no-lib-strip@*
+- *@non-alpha@*...*@end-non-alpha@*
+- *@non-debug@*...*@end-non-debug@*
+- *@file-revision@*
+- *@project-revision@*
+- *@file-hash@*
+- *@project-hash@*
+- *@file-abbreviated-hash@*
+- *@project-abbreviated-hash@*
+- *@file-author@*
+- *@project-author@*
+- *@file-date-iso@*
+- *@project-date-iso@*
+- *@file-date-integer@*
+- *@project-date-integer@*
+- *@file-timestamp@*
+- *@project-timestamp@*
+- *@project-version@*
 
 __release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
 the version numbers for the project.  It will identify if the HEAD is tagged and
@@ -87,18 +88,18 @@ changelog containing the commits since that previous release tag.
 By default, __release.sh__ creates releases in the *.release* subdirectory of the
 top-level directory of the checkout.
 
-# Using release.sh
+## Using release.sh
 
 The recommended way to include __release.sh__ in a project is to:
 
-1.  Create a *.release* subdirectory in your top-level checkout.
-2.  Copy __release.sh__ into the *.release* directory.
-3.  Ignore the *.release* subdirectory in __.gitignore__.
-4.  Run __release.sh__.
+1. Create a *.release* subdirectory in your top-level checkout.
+2. Copy __release.sh__ into the *.release* directory.
+3. Ignore the *.release* subdirectory in __.gitignore__.
+4. Run __release.sh__.
 
-# Usage
+## Usage
 
-```
+```text
 Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]
   -c               Skip copying files into the package directory.
   -d               Skip uploading.
@@ -118,6 +119,6 @@ Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wow
 
 The following environment variables are necessary for uploading:
 
-  - `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), required for the CurseForge API to fetch localization and upload files.
-  - `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
-  - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
+- `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), required for the CurseForge API to fetch localization and upload files.
+- `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
+- `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
