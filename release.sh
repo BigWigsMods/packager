@@ -1909,21 +1909,25 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_curseforge" ]; then
-		if [ -n "$game_version" ]; then
-			game_version_id=$(
-				_v=
-				IFS=',' read -a V <<< "$game_version"
-				for i in "${V[@]}"; do
-					_v="$_v,\"$i\""
-				done
-				_v="[${_v#,}]"
-				# jq -c '["8.0.1","7.3.5"] as $v | map(select(.name as $x | $v | index($x)) | .id)'
-				curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c --argjson v $_v 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
-			)
-		fi
-		if [ -z "$game_version_id" ]; then
-			game_version_id=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -c 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | [.id]' 2>/dev/null )
-			game_version=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions | jq -r 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | .name' 2>/dev/null )
+		_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
+		if [ -n "$_cf_versions" ]; then
+			if [ -n "$game_version" ]; then
+				game_version_id=$(
+					_v=
+					IFS=',' read -a V <<< "$game_version"
+					for i in "${V[@]}"; do
+						_v="$_v,\"$i\""
+					done
+					_v="[${_v#,}]"
+					# jq -c '["8.0.1","7.3.5"] as $v | map(select(.name as $x | $v | index($x)) | .id)'
+					echo "$_cf_versions" | jq -c --argjson v $_v 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
+				)
+			fi
+			if [ -z "$game_version_id" ]; then
+				# 517 = retail, 67408 = classic
+				game_version_id=$( echo $_cf_versions | jq -c 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | [.id]' 2>/dev/null )
+				game_version=$( echo $_cf_versions | jq -r 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | .name' 2>/dev/null )
+			fi
 		fi
 		if [ -z "$game_version_id" ]; then
 			echo "Error fetching game version info from $project_site/api/game/versions"
