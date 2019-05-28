@@ -1427,10 +1427,14 @@ process_external() {
 			https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
 				_pe_path=${external_uri#*/wow/}
 				_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
-				# note: the svn repo trunk is used as the url with another field specifying a tag instead of using the tags dir directly
-				# not sure if by design or convention, but hopefully remains true
-				if [[ "$_pe_path" == "trunk"* ]]; then
+				# note: the svn repo trunk is usually used as the url with another field specifying a tag instead of using the tags dir directly
+				if [[ "$_pe_path" == "trunk"* || "$_pe_path" == "tags/"* ]]; then
 					external_type=svn
+					if [[ "$_pe_path" == "tags"* ]]; then
+						external_tag=${_pe_path#tags/}
+						external_tag=${external_tag%%/*}
+						external_uri="${external_uri%/tags*}/trunk${_pe_path#tags/$external_tag}"
+					fi
 				else
 					external_type=git
 				fi
