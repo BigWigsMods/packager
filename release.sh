@@ -1932,7 +1932,7 @@ if [ -z "$skip_zipfile" ]; then
 						_v=
 						V=($( echo $_cf_versions | jq -r --argjson v $game_version_id '.[] | select(.id as $x | $v | index($x)) | .name' 2>/dev/null ))
 						for i in "${V[@]}"; do
-							_v="$_v,$i"
+							_v="$_v,${i%%[[:cntrl:]]}"
 						done
 						echo "${_v#,}"
 					)
