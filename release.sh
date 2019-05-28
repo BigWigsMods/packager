@@ -1922,6 +1922,17 @@ if [ -z "$skip_zipfile" ]; then
 					# jq -c '["8.0.1","7.3.5"] as $v | map(select(.name as $x | $v | index($x)) | .id)'
 					echo "$_cf_versions" | jq -c --argjson v $_v 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
 				)
+				if [ -n "$game_version_id" ]; then
+					# and now the reverse, since an invalid version will just be dropped (jq newlines are crlf on windows /wrists)
+					game_version=$(
+						_v=
+						V=($( echo $_cf_versions | jq -r --argjson v $game_version_id '.[] | select(.id as $x | $v | index($x)) | .name' 2>/dev/null ))
+						for i in "${V[@]}"; do
+							_v="$_v,$i"
+						done
+						echo "${_v#,}"
+					)
+				fi
 			fi
 			if [ -z "$game_version_id" ]; then
 				# 517 = retail, 67408 = classic
