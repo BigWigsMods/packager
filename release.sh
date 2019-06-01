@@ -1005,6 +1005,51 @@ toc_filter() {
 	done
 }
 
+toc_filter2() {
+	_trf_token=$1
+	_trf_action=1
+	if [ "$2" = "true" ]; then
+		_trf_action=0
+	fi
+	shift 2
+	_trf_keep=1
+	_trf_uncomment=
+	_trf_eof=
+	while [ -z "$_trf_eof" ]; do
+		IFS='' read -r _trf_line || _trf_eof=true
+		# Strip any trailing CR character.
+		_trf_line=${_trf_line%$carriage_return}
+		case $_trf_line in
+		*"#@$_trf_token@"*)
+			# remove the tokens, keep the content
+			_trf_keep=$_trf_action
+			;;
+		*"#@non-$_trf_token@"*)
+			# remove the tokens, remove the content
+			_trf_keep=$(( 1-_trf_action ))
+			_trf_uncomment=true
+			;;
+		*"#@end-$_trf_token@"*|*"#@end-non-$_trf_token@"*)
+			# remove the tokens
+			_trf_keep=1
+			_trf_uncomment=
+			;;
+		*)
+			if (( _trf_keep )); then
+				if [ -n "$_trf_uncomment" ]; then
+					_trf_line="${_trf_line#\# }"
+				fi
+				if [ -n "$_trf_eof" ]; then
+					echo -n "$_trf_line"
+				else
+					echo "$_trf_line"
+				fi
+			fi
+			;;
+		esac
+	done
+}
+
 xml_filter() {
 	sed \
 		-e "s/<!--@$1@-->/<!--@$1/g" \
@@ -1183,38 +1228,30 @@ copy_directory_tree() {
 					if [ -n "$_cdt_localization" ]; then
 						_cdt_localization_filter=localization_filter
 					fi
-					# Set the alpha, debug, and nolib filters for replacement based on file extension.
+					# Set the filters for replacement based on file extension.
 					_cdt_alpha_filter=cat
-					if [ -n "$_cdt_alpha" ]; then
-						case $file in
-						*.lua)	_cdt_alpha_filter="lua_filter alpha" ;;
-						*.toc)	_cdt_alpha_filter="toc_filter alpha" ;;
-						*.xml)	_cdt_alpha_filter="xml_filter alpha" ;;
-						esac
-					fi
 					_cdt_debug_filter=cat
-					if [ -n "$_cdt_debug" ]; then
-						case $file in
-						*.lua)	_cdt_debug_filter="lua_filter debug" ;;
-						*.toc)	_cdt_debug_filter="toc_filter debug" ;;
-						*.xml)	_cdt_debug_filter="xml_filter debug" ;;
-						esac
-					fi
 					_cdt_nolib_filter=cat
-					if [ -n "$_cdt_nolib" ]; then
-						case $file in
-						*.toc)	_cdt_nolib_filter="toc_filter no-lib-strip" ;;
-						*.xml)	_cdt_nolib_filter="xml_filter no-lib-strip" ;;
-						esac
-					fi
 					_cdt_do_not_package_filter=cat
-					if [ -n "$_cdt_do_not_package" ]; then
-						case $file in
-						*.lua)	_cdt_do_not_package_filter="do_not_package_filter lua" ;;
-						*.toc)	_cdt_do_not_package_filter="do_not_package_filter toc" ;;
-						*.xml)	_cdt_do_not_package_filter="do_not_package_filter xml" ;;
-						esac
-					fi
+					case $file in
+					*.lua)
+						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="lua_filter alpha"
+						[ -n "$_cdt_debug" ] && _cdt_debug_filter="lua_filter debug"
+						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter lua"
+						;;
+					*.xml)
+						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="xml_filter alpha"
+						[ -n "$_cdt_debug" ] && _cdt_debug_filter="xml_filter debug"
+						[ -n "$_cdt_nolib" ] && _cdt_nolib_filter="xml_filter no-lib-strip"
+						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter xml"
+						;;
+					*.toc)
+						_cdt_alpha_filter="toc_filter2 alpha ${_cdt_alpha:-0}"
+						_cdt_debug_filter="toc_filter2 debug ${_cdt_debug:-0}"
+						_cdt_nolib_filter="toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
+						_cdt_do_not_package_filter="toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
+						;;
+					esac
 					# As a side-effect, files that don't end in a newline silently have one added.
 					# POSIX does imply that text files must end in a newline.
 					set_info_file "$_cdt_srcdir/$file"
