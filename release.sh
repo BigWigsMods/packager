@@ -56,6 +56,11 @@ exit_code=0
 game_version=
 game_version_id=
 toc_version=
+classic=
+
+# Classic version info for special handling
+CLASSIC_INTERFACE="11302"
+CLASSIC_VERSION="1.13.2"
 
 # Secrets for uploading
 cf_token=$CF_API_KEY
@@ -158,6 +163,9 @@ while getopts ":celLzusop:dw:r:t:g:" opt; do
 				echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
 				usage
 				exit 1
+			fi
+			if [ "$i" = "$CLASSIC_VERSION" ]; then
+				classic=true
 			fi
 		done
 		game_version="$OPTARG"
@@ -718,6 +726,10 @@ fi
 # Get the interface version for setting upload version.
 toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
 toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
+if [ "$toc_version" = "$CLASSIC_INTERFACE" ]; then
+	classic=true
+	game_version="$CLASSIC_VERSION"
+fi
 # Get the title of the project for using in the changelog.
 project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
@@ -730,11 +742,7 @@ fi
 unset toc_file
 
 echo
-if [ -z "$nolib" ]; then
-	echo "Packaging $package"
-else
-	echo "Packaging $package (nolib)"
-fi
+echo "Packaging $package${classic:+ (classic)}${nolib:+ (nolib)}"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
@@ -1152,8 +1160,9 @@ copy_directory_tree() {
 	_cdt_nolib=
 	_cdt_do_not_package=
 	_cdt_unchanged_patterns=
+	_cdt_classic=
 	OPTIND=1
-	while getopts :adi:lnpu: _cdt_opt "$@"; do
+	while getopts :adi:lnpu:c _cdt_opt "$@"; do
 		case $_cdt_opt in
 		a)	_cdt_alpha=true ;;
 		d)	_cdt_debug=true ;;
@@ -1164,6 +1173,7 @@ copy_directory_tree() {
 		n)	_cdt_nolib=true ;;
 		p)	_cdt_do_not_package=true ;;
 		u)	_cdt_unchanged_patterns=$OPTARG ;;
+		c)	_cdt_classic=true
 		esac
 	done
 	shift $((OPTIND - 1))
@@ -1233,23 +1243,27 @@ copy_directory_tree() {
 					_cdt_debug_filter=cat
 					_cdt_nolib_filter=cat
 					_cdt_do_not_package_filter=cat
+					_cdt_classic_filter=cat
 					case $file in
 					*.lua)
 						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="lua_filter alpha"
 						[ -n "$_cdt_debug" ] && _cdt_debug_filter="lua_filter debug"
 						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter lua"
+						[ -n "$_cdt_classic" ] && _cdt_classic_filter="lua_filter retail"
 						;;
 					*.xml)
 						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="xml_filter alpha"
 						[ -n "$_cdt_debug" ] && _cdt_debug_filter="xml_filter debug"
 						[ -n "$_cdt_nolib" ] && _cdt_nolib_filter="xml_filter no-lib-strip"
 						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter xml"
+						[ -n "$_cdt_classic" ] && _cdt_classic_filter="xml_filter retail"
 						;;
 					*.toc)
 						_cdt_alpha_filter="toc_filter2 alpha ${_cdt_alpha:-0}"
 						_cdt_debug_filter="toc_filter2 debug ${_cdt_debug:-0}"
 						_cdt_nolib_filter="toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
 						_cdt_do_not_package_filter="toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
+						_cdt_classic_filter="toc_filter2 retail ${_cdt_classic:-0}"
 						;;
 					esac
 					# As a side-effect, files that don't end in a newline silently have one added.
@@ -1262,6 +1276,7 @@ copy_directory_tree() {
 						| $_cdt_debug_filter \
 						| $_cdt_nolib_filter \
 						| $_cdt_do_not_package_filter \
+						| $_cdt_classic_filter \
 						| $_cdt_localization_filter \
 						| line_ending_filter \
 						> "$_cdt_destdir/$file"
@@ -1281,6 +1296,9 @@ if [ -z "$skip_copying" ]; then
 	fi
 	if [ -n "$nolib" ]; then
 		cdt_args="${cdt_args}n"
+	fi
+	if [ -n "$classic" ]; then
+		cdt_args="${cdt_args}c"
 	fi
 	if [ -n "$ignore" ]; then
 		cdt_args="$cdt_args -i \"$ignore\""
