@@ -716,16 +716,18 @@ if [ -z "$package" ]; then
 fi
 
 # Get the interface version for setting upload version.
-toc_version=$( awk '/## Interface:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
+toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
 # Get the title of the project for using in the changelog.
-project=$( awk '/## Title:/' < "$topdir/$tocfile" | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
-	slug=$( awk '/## X-Curse-Project-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
+	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF }' )
 fi
 if [ -z "$addonid" ]; then
-	addonid=$( awk '/## X-WoWI-ID:/ { print $NF }' < "$topdir/$tocfile" | sed $'s/\r//' )
+	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF }' )
 fi
+unset toc_file
 
 echo
 if [ -z "$nolib" ]; then
