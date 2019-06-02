@@ -2155,6 +2155,13 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_file_name=$2
 			_ghf_file_path=$3
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
+
+			# check if an asset exists and delete it (editing a release)
+			asset_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq '.[] | select(.name == "'$_ghf_file_name'") | .id' )
+			if [ -n "$asset_id" ]; then
+				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
+			fi
+
 			echo -n "Uploading $_ghf_file_name... "
 			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$_ghf_resultfile" \
@@ -2179,9 +2186,10 @@ if [ -z "$skip_zipfile" ]; then
 			rm -f "$_ghf_resultfile" 2>/dev/null
 		}
 
-		# check if a release exists and delete it
-		release_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id | select(. != null)' )
-		if [ -n "$release_id" ]; then
+		# check if a release exists and delete it unless it's a classic build
+		# TODO: Need to work out how to handle classic only addons, currently the assumption is the retail version is built first, followed by classic
+		release_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
+		if [ -n "$release_id" ] && [ -z "$classic" ]; then
 			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
 			release_id=
 		fi
@@ -2196,34 +2204,60 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 		)
-
-		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 		resultfile="$releasedir/gh_result.json"
-		result=$( curl -sS --retry 3 --retry-delay 10 \
-				-w "%{http_code}" -o "$resultfile" \
-				-H "Authorization: token $github_token" \
-				-d "$_gh_payload" \
-				"https://api.github.com/repos/$project_github_slug/releases" )
-		if [ $? -eq 0 ]; then
-			if [ "$result" = "201" ]; then
-				release_id=$( cat "$resultfile" | jq '.id' )
-				upload_github_asset "$release_id" "$archive_name" "$archive"
-				if [ -f "$nolib_archive" ]; then
-					upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
+
+		if [ -n "$release_id" ]; then
+			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
+			# result=$( curl -sS --retry 3 --retry-delay 10 \
+			# 		-w "%{http_code}" -o "$resultfile" \
+			# 		-H "Authorization: token $github_token" \
+			# 		-X PATCH \
+			# 		-d "$_gh_payload" \
+			# 		"https://api.github.com/repos/$project_github_slug/releases/$release_id" )
+			# if [ $? -eq 0 ]; then
+			# 	if [ "$result" = "201" ]; then
+					upload_github_asset "$release_id" "$archive_name" "$archive"
+					if [ -f "$nolib_archive" ]; then
+						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
+					fi
+			# 	else
+			# 		echo "Error! ($result)"
+			# 		if [ -s "$resultfile" ]; then
+			# 			echo "$(<"$resultfile")"
+			# 		fi
+			# 		exit_code=1
+			# 	fi
+			# else
+			# 	exit_code=1
+			# fi
+		else
+			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
+			result=$( curl -sS --retry 3 --retry-delay 10 \
+					-w "%{http_code}" -o "$resultfile" \
+					-H "Authorization: token $github_token" \
+					-d "$_gh_payload" \
+					"https://api.github.com/repos/$project_github_slug/releases" )
+			if [ $? -eq 0 ]; then
+				if [ "$result" = "201" ]; then
+					release_id=$( cat "$resultfile" | jq '.id' )
+					upload_github_asset "$release_id" "$archive_name" "$archive"
+					if [ -f "$nolib_archive" ]; then
+						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
+					fi
+				else
+					echo "Error! ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+					exit_code=1
 				fi
 			else
-				echo "Error! ($result)"
-				if [ -s "$resultfile" ]; then
-					echo "$(<"$resultfile")"
-				fi
 				exit_code=1
 			fi
-		else
-			exit_code=1
 		fi
-		echo
 
 		rm -f "$resultfile" 2>/dev/null
+		echo
 	fi
 fi
 
