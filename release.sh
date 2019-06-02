@@ -2045,8 +2045,8 @@ if [ -z "$skip_zipfile" ]; then
 				-H "x-api-token: $cf_token" \
 				-F "metadata=$_cf_payload" \
 				-F "file=@$archive" \
-				"$project_site/api/projects/$slug/upload-file" )
-		if [ $? -eq 0 ]; then
+				"$project_site/api/projects/$slug/upload-file" ) &&
+		{
 			case $result in
 				200) echo "Success!" ;;
 				302)
@@ -2066,9 +2066,9 @@ if [ -z "$skip_zipfile" ]; then
 					exit_code=1
 					;;
 			esac
-		else
+		} || {
 			exit_code=1
-		fi
+		}
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
@@ -2117,8 +2117,8 @@ if [ -z "$skip_zipfile" ]; then
 			  -F "compatible=$game_version" \
 			  "${_wowi_args[@]}" \
 			  -F "updatefile=@$archive" \
-			  "https://api.wowinterface.com/addons/update" )
-		if [ $? -eq 0 ]; then
+			  "https://api.wowinterface.com/addons/update" ) &&
+		{
 			case $result in
 				202)
 					echo "Success!"
@@ -2140,9 +2140,9 @@ if [ -z "$skip_zipfile" ]; then
 					exit_code=1
 					;;
 			esac
-		else
+		} || {
 			exit_code=1
-		fi
+		}
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
@@ -2168,9 +2168,9 @@ if [ -z "$skip_zipfile" ]; then
 					-H "Authorization: token $github_token" \
 					-H "Content-Type: application/zip" \
 					--data-binary "@$_ghf_file_path" \
-					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name" )
-			if [ $? -eq 0 ]; then
-				if [ "$result" -eq "201" ]; then
+					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name" ) &&
+			{
+				if [ "$result" = "201" ]; then
 					echo "Success!"
 				else
 					echo "Error ($result)"
@@ -2179,11 +2179,12 @@ if [ -z "$skip_zipfile" ]; then
 					fi
 					exit_code=1
 				fi
-			else
+			} || {
 				exit_code=1
-			fi
+			}
 
 			rm -f "$_ghf_resultfile" 2>/dev/null
+			return 0
 		}
 
 		# check if a release exists and delete it unless it's a classic build
@@ -2213,8 +2214,8 @@ if [ -z "$skip_zipfile" ]; then
 			# 		-H "Authorization: token $github_token" \
 			# 		-X PATCH \
 			# 		-d "$_gh_payload" \
-			# 		"https://api.github.com/repos/$project_github_slug/releases/$release_id" )
-			# if [ $? -eq 0 ]; then
+			# 		"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
+			# {
 			# 	if [ "$result" = "201" ]; then
 					upload_github_asset "$release_id" "$archive_name" "$archive"
 					if [ -f "$nolib_archive" ]; then
@@ -2227,17 +2228,17 @@ if [ -z "$skip_zipfile" ]; then
 			# 		fi
 			# 		exit_code=1
 			# 	fi
-			# else
+			# } || {
 			# 	exit_code=1
-			# fi
+			# }
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$resultfile" \
 					-H "Authorization: token $github_token" \
 					-d "$_gh_payload" \
-					"https://api.github.com/repos/$project_github_slug/releases" )
-			if [ $? -eq 0 ]; then
+					"https://api.github.com/repos/$project_github_slug/releases" ) &&
+			{
 				if [ "$result" = "201" ]; then
 					release_id=$( cat "$resultfile" | jq '.id' )
 					upload_github_asset "$release_id" "$archive_name" "$archive"
@@ -2251,9 +2252,9 @@ if [ -z "$skip_zipfile" ]; then
 					fi
 					exit_code=1
 				fi
-			else
+			} || {
 				exit_code=1
-			fi
+			}
 		fi
 
 		rm -f "$resultfile" 2>/dev/null
