@@ -1898,11 +1898,11 @@ if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
 	archive_version="$project_version"
-	archive_name="$archive_package_name-$project_version.zip"
+	archive_name="$archive_package_name-$project_version${classic:+-classic}.zip"
 	archive="$releasedir/$archive_name"
 
 	nolib_archive_version="$project_version-nolib"
-	nolib_archive_name="$archive_package_name-$nolib_archive_version.zip"
+	nolib_archive_name="$archive_package_name-$nolib_archive_version${classic:+-classic}.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
 	if [ -n "$nolib" ]; then
@@ -1931,7 +1931,7 @@ if [ -z "$skip_zipfile" ]; then
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read file; do
 			case $file in
-			*.toc)	_filter="toc_filter no-lib-strip" ;;
+			*.toc)	_filter="toc_filter2 no-lib-strip" ;;
 			*.xml)	_filter="xml_filter no-lib-strip" ;;
 			esac
 			$_filter < "$file" > "$file.tmp" && mv "$file.tmp" "$file"
