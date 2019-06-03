@@ -1463,7 +1463,7 @@ process_external() {
 		# this could be condensed quite a bit.. a task for another day
 		case $external_uri in
 		git:*|http://git*|https://git*)
-			external_type=git
+			[[ -z $external_type ]] && external_type="git"
 			if [[ "$external_uri" == "git://git.curseforge.com"* || "$external_uri" == "git://git.wowace.com"* ]]; then
 				# git://git.(curseforge|wowace).com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
 				external_uri=${external_uri%/mainline.git}
@@ -1471,7 +1471,7 @@ process_external() {
 			fi
 			;;
 		svn:*|http://svn*|https://svn*)
-			external_type=svn
+			[[ -z $external_type ]] && external_type="svn"
 			if [[ "$external_uri" == "svn://svn.curseforge.com"* || "$external_uri" == "svn://svn.wowace.com"* ]]; then
 				# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
 				external_uri=${external_uri/\/mainline/}
@@ -1480,7 +1480,7 @@ process_external() {
 			;;
 		http://hg*|https://hg*)
 			if [[ "$external_uri" == *"://hg.curseforge.com"* || "$external_uri" == *"://hg.wowace.com"* ]]; then
-				external_type=hq
+				external_type="hg"
 				# https?://hg.(curseforge|wowace).com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
 				external_uri=${external_uri%/mainline}
 				external_uri=${external_uri/#http:/https:}
@@ -1492,14 +1492,14 @@ process_external() {
 			_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
 			# note: the svn repo trunk is usually used as the url with another field specifying a tag instead of using the tags dir directly
 			if [[ "$_pe_path" == "trunk"* || "$_pe_path" == "tags/"* ]]; then
-				external_type=svn
+				external_type="svn"
 				if [[ "$_pe_path" == "tags"* ]]; then
 					external_tag=${_pe_path#tags/}
 					external_tag=${external_tag%%/*}
 					external_uri="${external_uri%/tags*}/trunk${_pe_path#tags/$external_tag}"
 				fi
-			else
-				external_type=git
+			elif [[ -z $external_type ]]; then
+				external_type="git"
 			fi
 			;;
 		esac
@@ -1565,6 +1565,7 @@ if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
 					case $yaml_key in
 					url) external_uri=$yaml_value ;;
 					tag) external_tag=$yaml_value ;;
+					type) external_type=$yaml_value ;;
 					curse-slug) external_slug=$yaml_value ;;
 					*)
 						# Started a new external, so checkout any queued externals.
