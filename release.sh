@@ -2025,17 +2025,23 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
-		# If the tag contains only dots and digits and optionally starts with
-		# the letter v (such as "v1.2.3" or "v1.23" or "3.2") or contains the
-		# word "release", then it is considered a release tag. If the above
-		# conditions don't match, it is considered a beta tag. Untagged commits
-		# are considered alphas.
-		file_type=alpha
+		# When packaging is triggered on your repository, the generated file’s release type will
+		# automatically be set based on two factors:
+		#   1) If configured to package all commits, the latest untagged commit will be packaged
+		#      and will be marked as an alpha.
+		#   2) Otherwise, when a tagged commit is pushed, it will be flagged as either alpha, beta,
+		#      or release depending on the tag itself:
+		#        - If the tag contains the word "alpha", it will be marked as an alpha file.
+		#        - If instead the tag contains the word "beta", it will be marked as a beta file.
+		# https://authors.curseforge.com/docs/packaging
+		file_type="alpha"
 		if [ -n "$tag" ]; then
-			if [[ "$tag" =~ ^v?[0-9][0-9.]*$ || "${tag,,}" == *"release"* ]]; then
-				file_type=release
+			if [[ "${tag,,}" == *"alpha"* ]]; then
+				file_type="alpha"
+			elif [[ "${tag,,}" == *"beta"* ]]; then
+				file_type="beta"
 			else
-				file_type=beta
+				file_type="release"
 			fi
 		fi
 
