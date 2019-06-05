@@ -1508,7 +1508,7 @@ process_external() {
 			external_slug=${external_uri#*/wow/}
 			external_slug=${external_slug%%/*}
 		fi
-		if [[ -n $external_slug && $external_slug != "libstub" && $external_slug != "callbackhandler" ]]; then
+		if [[ -n $external_slug ]]; then
 			relations["$external_slug"]="embeddedLibrary"
 		fi
 
