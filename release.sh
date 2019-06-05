@@ -2056,14 +2056,14 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		EOF
 		)
-		# _cf_payload_relations=
-		# for i in "${!relations[@]}"; do
-		# 	_cf_payload_relations="$_cf_payload_relations{\"slug\":\"$i\",\"type\":\"${relations[$i]}\"},"
-		# done
-		# if [[ -n $_cf_payload_relations ]]; then
-		# 	_cf_payload_relations="{\"relations\":{\"projects\":[${_cf_payload_relations%,}]}}"
-		# 	_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
-		# fi
+		_cf_payload_relations=
+		for i in "${!relations[@]}"; do
+			_cf_payload_relations="$_cf_payload_relations{\"slug\":\"$i\",\"type\":\"${relations[$i]}\"},"
+		done
+		if [[ -n $_cf_payload_relations ]]; then
+			_cf_payload_relations="{\"relations\":{\"projects\":[${_cf_payload_relations%,}]}}"
+			_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
+		fi
 
 		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
