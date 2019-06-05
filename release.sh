@@ -646,6 +646,9 @@ if [ -f "$topdir/.pkgmeta" ]; then
 				optional-dependencies)
 					relations["$yaml_item"]="optionalDependency"
 					;;
+				embedded-libraries)
+					relations["$yaml_item"]="embeddedLibrary"
+					;;
 				esac
 				;;
 			*:*)
