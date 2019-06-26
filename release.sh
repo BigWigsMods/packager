@@ -487,9 +487,6 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 	project_github_slug=${project_github_url#https://github.com/}
 fi
 project_site=
-if [[ "$slug" =~ ^[0-9]+$ ]]; then
-	project_site="https://wow.curseforge.com"
-fi
 
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
@@ -765,7 +762,8 @@ fi
 if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
-if [[ -n "$project_site" ]]; then
+if [[ "$slug" =~ ^[0-9]+$ ]]; then
+	project_site="https://wow.curseforge.com"
 	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
 fi
 if [ -n "$addonid" ]; then
