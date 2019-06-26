@@ -487,6 +487,9 @@ if [[ "$si_repo_url" == "https://github.com"* ]]; then
 	project_github_slug=${project_github_url#https://github.com/}
 fi
 project_site=
+if [[ "$slug" =~ ^[0-9]+$ ]]; then
+	project_site="https://wow.curseforge.com"
+fi
 
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
@@ -762,20 +765,8 @@ fi
 if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
-if [[ "$slug" =~ ^[0-9]+$ ]]; then
-	# Set the Curse project site
-	# There is no good way of differentiating between sites short of using different TOC fields for CF and WowAce
-	# Curse does redirect to the proper site when using the project id, so we'll use that to get the API url
-	_ul_test_url="https://wow.curseforge.com/projects/$slug"
-	_ul_test_url_result=$( curl -s -L -w "%{url_effective}" --retry 3 --retry-delay 1 -o /dev/null $_ul_test_url )
-	if [ "$_ul_test_url" != "$_ul_test_url_result" ]; then
-		project_site=${_ul_test_url_result%%/project*}
-	fi
-	if [ "$project_site" == "https://www.wowace.com" ]; then
-		echo "WowAce ID: $slug${cf_token:+ [token set]}"
-	else
-		echo "CurseForge ID: $slug${cf_token:+ [token set]}"
-	fi
+if [[ -n "$project_site" ]]; then
+	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
 fi
 if [ -n "$addonid" ]; then
 	echo "WoWInterface ID: $addonid${wowi_token:+ [token set]}"
@@ -1438,9 +1429,7 @@ checkout_external() {
 		# the only way to convert slug->id would be to scrape the project page :\
 		slug= #$_external_slug
 		project_site=
-		if [[ "$_external_uri" == *"wowace.com"* ]]; then
-			project_site="https://www.wowace.com"
-		elif [[ "$_external_uri" == *"curseforge.com"* ]]; then
+		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
 			project_site="https://wow.curseforge.com"
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
