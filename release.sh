@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # release.sh generates a zippable addon directory from a Git or SVN checkout.
 #
