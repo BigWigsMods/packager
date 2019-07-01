@@ -81,6 +81,7 @@ skip_localization=
 skip_zipfile=
 skip_upload=
 skip_cf_upload=
+pkgmeta_file=
 
 # Process command-line options
 usage() {
@@ -99,10 +100,11 @@ usage() {
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading." >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading." >&2
 	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
+	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
 }
 
 OPTIND=1
-while getopts ":celLzusop:dw:r:t:g:" opt; do
+while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -169,6 +171,14 @@ while getopts ":celLzusop:dw:r:t:g:" opt; do
 			fi
 		done
 		game_version="$OPTARG"
+		;;
+	m)
+		pkgmeta_file=$( realpath "$OPTARG" )
+		if [ ! -f "$pkgmeta_file" ]; then
+			echo "Invalid argument for option \"-m\" - File \"$pkgmeta_file\" does not exist."
+			usage
+			exit 1
+		fi
 		;;
 	:)
 		echo "Option \"-$OPTARG\" requires an argument." >&2
@@ -525,6 +535,10 @@ yaml_listitem() {
 ### Process .pkgmeta to set variables used later in the script.
 ###
 
+if [ -z "$pkgmeta_file" ]; then
+	pkgmeta_file="$topdir/.pkgmeta"
+fi
+
 # Variables set via .pkgmeta.
 package=
 manual_changelog=
@@ -578,7 +592,7 @@ parse_ignore() {
 	done < "$pkgmeta"
 }
 
-if [ -f "$topdir/.pkgmeta" ]; then
+if [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
@@ -671,7 +685,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		esac
-	done < "$topdir/.pkgmeta"
+	done < "$pkgmeta_file"
 fi
 
 # Add untracked/ignored files to the ignore list
@@ -1314,7 +1328,7 @@ fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
 ignore=
-parse_ignore "$topdir/.pkgmeta"
+parse_ignore "$pkgmeta_file"
 
 ###
 ### Create a default license if not present and .pkgmeta requests one.
@@ -1527,7 +1541,7 @@ kill_externals() {
 }
 trap kill_externals INT
 
-if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
+if [ -z "$skip_externals" -a -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
@@ -1576,7 +1590,7 @@ if [ -z "$skip_externals" -a -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		esac
-	done < "$topdir/.pkgmeta"
+	done < "$pkgmeta_file"
 	# Reached end of file, so checkout any remaining queued externals.
 	process_external
 
@@ -1833,7 +1847,7 @@ fi
 ### Process .pkgmeta to perform move-folders actions.
 ###
 
-if [ -f "$topdir/.pkgmeta" ]; then
+if [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
@@ -1887,7 +1901,7 @@ if [ -f "$topdir/.pkgmeta" ]; then
 			esac
 			;;
 		esac
-	done < "$topdir/.pkgmeta"
+	done < "$pkgmeta_file"
 	if [ -n "$srcdir" ]; then
 		echo
 	fi

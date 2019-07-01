@@ -115,6 +115,7 @@ Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wow
   -p curse-id      Set the project id used on CurseForge for localization and uploading.
   -w wowi-id       Set the addon id used on WoWInterface for uploading.
   -g game-version  Set the game version to use for CurseForge uploading.
+  -m pkgmeta.yaml  Set the pkgmeta file to use.
 ```
 
 The following environment variables are necessary for uploading:
