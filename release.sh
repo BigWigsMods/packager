@@ -54,9 +54,9 @@ strtotime() {
 	value="$1" # datetime string
 	format="$2" # strptime string
 	if date --version &>/dev/null; then # gnu
-		date -d "$value" +%s
+		date -d "$value" +%s 2>/dev/null
 	else # bsd
-		date -j -f "$format" "$value" "+%s"
+		date -j -f "$format" "$value" "+%s" 2>/dev/null
 	fi
 }
 
@@ -397,8 +397,8 @@ set_info_svn() {
 		si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
 		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
 		si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T %z" )
-		si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$_si_timestamp" )
-		si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$_si_timestamp" )
+		si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
+		si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
 		# SVN repositories have no project hash.
 		si_project_hash=
 		si_project_abbreviated_hash=
