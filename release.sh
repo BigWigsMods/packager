@@ -184,12 +184,13 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		game_version="$OPTARG"
 		;;
 	m)
-		pkgmeta_file=$( realpath "$OPTARG" )
-		if [ ! -f "$pkgmeta_file" ]; then
-			echo "Invalid argument for option \"-m\" - File \"$pkgmeta_file\" does not exist."
+		# Set the pkgmeta file.
+		if [ ! -f "$OPTARG" ]; then
+			echo "Invalid argument for option \"-m\" - File \"$OPTARG\" does not exist."
 			usage
 			exit 1
 		fi
+		pkgmeta_file="$OPTARG"
 		;;
 	:)
 		echo "Option \"-$OPTARG\" requires an argument." >&2
