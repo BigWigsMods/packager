@@ -1926,11 +1926,11 @@ fi
 if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
-	archive_version="$project_version"
+	archive_version="$project_version${classic:+-classic}"
 	archive_name="$archive_package_name-$project_version${classic:+-classic}.zip"
 	archive="$releasedir/$archive_name"
 
-	nolib_archive_version="$project_version-nolib"
+	nolib_archive_version="$project_version-nolib${classic:+-classic}"
 	nolib_archive_name="$archive_package_name-$nolib_archive_version${classic:+-classic}.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
