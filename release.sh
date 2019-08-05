@@ -2200,7 +2200,7 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
 
 			# check if an asset exists and delete it (editing a release)
-			asset_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq '.[] | select(.name? == "'$_ghf_file_name'") | .id' )
+			asset_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq '.[] | select(.name? == "'$_ghf_file_name'") | .id' )
 			if [ -n "$asset_id" ]; then
 				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
 			fi
@@ -2232,11 +2232,10 @@ if [ -z "$skip_zipfile" ]; then
 
 		# check if a release exists and delete it unless it's a classic build
 		# TODO: Need to work out how to handle classic only addons, currently the assumption is the retail version is built first, followed by classic
-		release_id=$( curl -sS "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
+		release_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
 		if [ -n "$release_id" ] && [ -z "$classic" ]; then
 			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
 			release_id=
-			sleep 1
 		fi
 
 		_gh_payload=$( cat <<-EOF
