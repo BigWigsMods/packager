@@ -179,6 +179,7 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 			fi
 			if [ "$i" = "$CLASSIC_VERSION" ]; then
 				classic=true
+				toc_version="$CLASSIC_INTERFACE"
 			fi
 		done
 		game_version="$OPTARG"
@@ -759,15 +760,17 @@ if [[ -n "$package" && "$package" != "$toc_name" ]]; then
 	exit 1
 fi
 if [ -z "$package" ]; then
-	package=$toc_name
+	package="$toc_name"
 fi
 
 # Get the interface version for setting upload version.
 toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
-toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
-if [ "$toc_version" = "$CLASSIC_INTERFACE" ]; then
-	classic=true
-	game_version="$CLASSIC_VERSION"
+if [ -z "$toc_version" ]; then
+	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
+	if [ "$toc_version" = "$CLASSIC_INTERFACE" ]; then
+		classic=true
+		game_version="$CLASSIC_VERSION"
+	fi
 fi
 # Get the title of the project for using in the changelog.
 project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
