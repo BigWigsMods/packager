@@ -34,16 +34,16 @@ if [ -n "$TRAVIS" ]; then
 		echo "Not packaging pull request."
 		exit 0
 	fi
-	# only want to package master and tags
-	if [ "$TRAVIS_BRANCH" != "master" -a -z "$TRAVIS_TAG" ]; then
-		echo "Not packaging \"${TRAVIS_BRANCH}\"."
-		exit 0
-	fi
-	# don't need to run the packager if there is a tag pending
 	if [ -z "$TRAVIS_TAG" ]; then
+		# don't need to run the packager if there is a tag pending
 		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at )
 		if [ -n "$TRAVIS_TAG" ]; then
 			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
+			exit 0
+		fi
+		# only want to package master, classic, or a tag
+		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ]; then
+			echo "Not packaging \"${TRAVIS_BRANCH}\"."
 			exit 0
 		fi
 	fi
