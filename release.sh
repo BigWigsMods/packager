@@ -1929,12 +1929,18 @@ fi
 if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
+	classic_tag=
+	if [ -n "$classic" ] && [[ "${project_version,,}" != *"classic"* ]]; then
+		# if it's a classic build, and classic isn't in the name, append it for clarity
+		classic_tag="-classic"
+	fi
+
 	archive_version="$project_version"
-	archive_name="$archive_package_name-$project_version${classic:+-classic}.zip"
+	archive_name="$archive_package_name-$project_version$classic_tag.zip"
 	archive="$releasedir/$archive_name"
 
 	nolib_archive_version="$project_version-nolib"
-	nolib_archive_name="$archive_package_name-$nolib_archive_version${classic:+-classic}.zip"
+	nolib_archive_name="$archive_package_name-$nolib_archive_version$classic_tag.zip"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
 	if [ -n "$nolib" ]; then
@@ -2067,7 +2073,7 @@ if [ -z "$skip_zipfile" ]; then
 
 		_cf_payload=$( cat <<-EOF
 		{
-		  "displayName": "$project_version${classic:+-classic}",
+		  "displayName": "$project_version$classic_tag",
 		  "gameVersions": $game_version_id,
 		  "releaseType": "$file_type",
 		  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
