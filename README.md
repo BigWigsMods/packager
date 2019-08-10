@@ -47,12 +47,12 @@ You can also use a few directives for WoWInterface uploading.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/532-repository-keyword-substitutions) for more info.
+[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/532-repository-keyword-substitutions) for more info.
 
 - *@alpha@*...*@end-alpha@*
 - *@debug@*...*@end-debug@*
 - *@do-not-package@*...*@end-do-not-package@*
-- *@[localization](https://authors.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions)(locale="locale", format="format", ...)@*
+- *@[localization](https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions)(locale="locale", format="format", ...)@*
   - *escape-non-ascii*
   - *handle-unlocalized*
   - *handle-subnamespaces="concat"*
