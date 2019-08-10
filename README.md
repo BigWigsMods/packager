@@ -7,9 +7,18 @@ repositories within the project directory, then copying files from the checkout
 into the project directory.  The project directory is then zipped to create a
 distributable addon zip file.
 
+By default, __release.sh__ creates the new project directory in the *.release*
+subdirectory of the top-level directory of the checkout.
+
 __release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
 GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 [Usage](#usage) for more info.
+
+__release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
+the version numbers for the project.  It will identify if the HEAD is tagged and
+use that as the current version number.  It will search back through parent
+commits for the previous tag that is a release version number and generate a
+changelog containing the commits since that previous release tag.
 
 __release.sh__ uses the TOC file to determine the package name for the project.
 You can also set the CurseForge project id (`-p`) and the WoWInterface addon
@@ -49,9 +58,6 @@ __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
 [CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/532-repository-keyword-substitutions) for more info.
 
-- *@alpha@*...*@end-alpha@*
-- *@debug@*...*@end-debug@*
-- *@do-not-package@*...*@end-do-not-package@*
 - *@[localization](https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions)(locale="locale", format="format", ...)@*
   - *escape-non-ascii*
   - *handle-unlocalized*
@@ -60,9 +66,11 @@ copying the files from the checkout into the project directory. See the
   - *namespace*
   - *same-key-is-true*
   - *table-name*
+- *@alpha@*...*@end-alpha@* / *@non-alpha@*...*@end-non-alpha@*
+- *@debug@*...*@end-debug@* / *@non-debug@*...*@end-non-debug@*
+- *@do-not-package@*...*@end-do-not-package@*
 - *@no-lib-strip@*...*@end-no-lib-strip@*
-- *@non-alpha@*...*@end-non-alpha@*
-- *@non-debug@*...*@end-non-debug@*
+- *@retail@*...*@end-retail@* / *@non-retail@*...*@end-non-retail@*
 - *@file-revision@*
 - *@project-revision@*
 - *@file-hash@*
@@ -79,14 +87,40 @@ copying the files from the checkout into the project directory. See the
 - *@project-timestamp@*
 - *@project-version@*
 
-__release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
-the version numbers for the project.  It will identify if the HEAD is tagged and
-use that as the current version number.  It will search back through parent
-commits for the previous tag that is a release version number and generate a
-changelog containing the commits since that previous release tag.
+## Build type replacement keywords
 
-By default, __release.sh__ creates releases in the *.release* subdirectory of the
-top-level directory of the checkout.
+*alpha*, *debug*, *@do-not-package@*, *no-lib-strip*, and *retail* are build type
+replacement keywords and are used to conditionally run a block of code based on the
+build type with the use of comments.
+
+Everything between `@do-not-package@` and `@end-do-not-package@`, including the tags
+themselves, will be removed from the file. This may cause line numbers of subsequent
+lines to change. The typical usage is at the end of Lua files surrounding debugging
+functions and other code that end users should never see or execute.
+
+### In Lua
+
+`--@keyword@` and `--@end-keyword@`  
+turn into `--[===[@keyword` and `--@end-keyword]===]`.
+
+`--[===[@non-keyword@` and `--@end-non-debug@]===]`  
+turn into `--@non-debug@` and `--@end-non-debug@`.
+
+### In XML
+
+`<!--@keyword@-->` and `<!--@end-keyword@-->`  
+turn into `<!--@keyword` and `@end-keyword@-->`.
+
+`<!--@non-keyword@ and @end-non-keyword@-->`  
+turn into `<!--@non-keyword@-->` and `<!--@end-non-keyword@-->`.
+
+### In the TOC file
+
+The lines with `#@keyword@` and `#@end-keyword@` get removed, as well as every
+line in-between.
+
+The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
+removing a `# ` at the beginning of each line in-between.
 
 ## Using release.sh
 
@@ -97,10 +131,30 @@ The recommended way to include __release.sh__ in a project is to:
 3. Ignore the *.release* subdirectory in __.gitignore__.
 4. Run __release.sh__.
 
+## Using release.sh to build a Classic release
+
+To make use of the *@retail@* and *@non-retail@* replacement keywords, __release.sh__
+needs to know what version of World of Warcraft the package is targeting.  This is
+automatically detected using the `## Interface:` line of the addon's TOC file.
+
+If your addon supports both retail and classic in the same branch, you can use
+replacement keywords in your TOC file to include the appropriate `## Interface:` line
+in the package.
+
+    #@retail@
+    ## Interface: 80200
+    #@end-retail@
+    #@non-retail@
+    # ## Interface: 11302
+    #@end-non-retail@
+
+By default, __release.sh__ will target retail. You can change this by passing a different
+game version as an argument.  To target classic this would be `release.sh -g 1.13.2`.
+
 ## Usage
 
 ```text
-Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version]
+Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml]
   -c               Skip copying files into the package directory.
   -d               Skip uploading.
   -e               Skip checkout of external repositories.
