@@ -87,15 +87,15 @@ copying the files from the checkout into the project directory. See the
 - *@project-timestamp@*
 - *@project-version@*
 
-## Build type replacement keywords
+## Build type keywords
 
-*alpha*, *debug*, *@do-not-package@*, *no-lib-strip*, and *retail* are build type
-replacement keywords and are used to conditionally run a block of code based on the
-build type with the use of comments.
+*alpha*, *debug*, *do-not-package*, *no-lib-strip*, and *retail* are build type
+keywords and are used to conditionally run a block of code based on the build type with
+the use of comments.
 
 Everything between `@do-not-package@` and `@end-do-not-package@`, including the tags
-themselves, will be removed from the file. This may cause line numbers of subsequent
-lines to change. The typical usage is at the end of Lua files surrounding debugging
+themselves, will be removed from the file.  This may cause line numbers of subsequent
+lines to change.  The typical usage is at the end of Lua files surrounding debugging
 functions and other code that end users should never see or execute.
 
 ### In Lua
@@ -133,13 +133,13 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Using release.sh to build a Classic release
 
-To make use of the *@retail@* and *@non-retail@* replacement keywords, __release.sh__
-needs to know what version of World of Warcraft the package is targeting.  This is
-automatically detected using the `## Interface:` line of the addon's TOC file.
+To make use of the *@retail@* and *@non-retail@* keywords, __release.sh__ needs to know
+what version of World of Warcraft the package is targeting.  This is automatically
+detected using the `## Interface:` line of the addon's TOC file.
 
 If your addon supports both retail and classic in the same branch, you can use
-replacement keywords in your TOC file to include the appropriate `## Interface:` line
-in the package.
+keywords in your TOC file to include the appropriate `## Interface:` line in the
+package.
 
     #@retail@
     ## Interface: 80200
@@ -148,8 +148,8 @@ in the package.
     # ## Interface: 11302
     #@end-non-retail@
 
-By default, __release.sh__ will target retail. You can change this by passing a different
-game version as an argument.  To target classic this would be `release.sh -g 1.13.2`.
+By default, __release.sh__ will target retail.  You can change this by passing a
+different game version as an argument.  To target classic this would be `release.sh -g 1.13.2`.
 
 ## Usage
 
