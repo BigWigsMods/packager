@@ -2217,6 +2217,7 @@ if [ -z "$skip_zipfile" ]; then
 			echo -n "Uploading $_ghf_file_name... "
 			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$_ghf_resultfile" \
+					-H "Cache-Control: no-cache" \
 					-H "Authorization: token $github_token" \
 					-H "Content-Type: application/zip" \
 					--data-binary "@$_ghf_file_path" \
@@ -2239,14 +2240,6 @@ if [ -z "$skip_zipfile" ]; then
 			return 0
 		}
 
-		# check if a release exists and delete it unless it's a classic build
-		# TODO: Need to work out how to handle classic only addons, currently the assumption is the retail version is built first, followed by classic
-		release_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
-		if [ -n "$release_id" ] && [ -z "$classic" ]; then
-			curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/$release_id" &>/dev/null
-			release_id=
-		fi
-
 		_gh_payload=$( cat <<-EOF
 		{
 		  "tag_name": "$tag",
@@ -2259,34 +2252,37 @@ if [ -z "$skip_zipfile" ]; then
 		)
 		resultfile="$releasedir/gh_result.json"
 
+		release_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			# result=$( curl -sS --retry 3 --retry-delay 10 \
-			# 		-w "%{http_code}" -o "$resultfile" \
-			# 		-H "Authorization: token $github_token" \
-			# 		-X PATCH \
-			# 		-d "$_gh_payload" \
-			# 		"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
-			# {
-			# 	if [ "$result" = "201" ]; then
+			result=$( curl -sS --retry 3 --retry-delay 10 \
+					-w "%{http_code}" -o "$resultfile" \
+					-H "Cache-Control: no-cache" \
+					-H "Authorization: token $github_token" \
+					-X PATCH \
+					-d "$_gh_payload" \
+					"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
+			{
+				if [ "$result" = "201" ]; then
 					upload_github_asset "$release_id" "$archive_name" "$archive"
 					if [ -f "$nolib_archive" ]; then
 						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
 					fi
-			# 	else
-			# 		echo "Error! ($result)"
-			# 		if [ -s "$resultfile" ]; then
-			# 			echo "$(<"$resultfile")"
-			# 		fi
-			# 		exit_code=1
-			# 	fi
-			# } || {
-			# 	exit_code=1
-			# }
+				else
+					echo "Error! ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+					exit_code=1
+				fi
+			} || {
+				exit_code=1
+			}
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$resultfile" \
+					-H "Cache-Control: no-cache" \
 					-H "Authorization: token $github_token" \
 					-d "$_gh_payload" \
 					"https://api.github.com/repos/$project_github_slug/releases" ) &&
