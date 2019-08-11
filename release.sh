@@ -2263,7 +2263,7 @@ if [ -z "$skip_zipfile" ]; then
 					-d "$_gh_payload" \
 					"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
 			{
-				if [ "$result" = "201" ]; then
+				if [ "$result" = "200" ]; then
 					upload_github_asset "$release_id" "$archive_name" "$archive"
 					if [ -f "$nolib_archive" ]; then
 						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
