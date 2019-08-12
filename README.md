@@ -27,12 +27,13 @@ id (`-w`) by adding the following to the TOC file:
     ## X-Curse-Project-ID: 1234
     ## X-WoWI-ID: 5678
 
-Your CurseForge project id can be found on the addon's project page (<https://wow.curseforge.com>
-or <https://www.wowace.com>) under "About This Project". Your WoWInterface addon
-id is in the url for the addon, eg, the "5678" in <https://wowinterface.com/downloads/info5678-MyAddon>.
+Your CurseForge project id can be found on the addon page in the "About Project"
+side box. Your WoWInterface addon id is in the url for the addon, eg, the "5678"
+in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file)for more info.
+[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file)
+for more info.
 
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
   parsed for ignore and will not have localization keywords replaced.
@@ -47,16 +48,18 @@ __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
 
 You can also use a few directives for WoWInterface uploading.
 
-- *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous release.
-- *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog using
-  BBCode that will be set when uploading. A manual changelog will always be used if set
-  in the .pkgmeta. If you have [pandoc](http://pandoc.org/) installed, manual changelogs
-  in Markdown format will be converted to BBCode; otherwise, the manual changelog will
-  be used as-is.
+- *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous
+  release.
+- *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog
+  using BBCode that will be set when uploading. A manual changelog will always
+  be used if set in the .pkgmeta. If you have [pandoc](http://pandoc.org/)
+  installed, manual changelogs in Markdown format will be converted to BBCode;
+  otherwise, the manual changelog will be used as-is.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/532-repository-keyword-substitutions) for more info.
+[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/532-repository-keyword-substitutions)
+for more info.
 
 - *@[localization](https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions)(locale="locale", format="format", ...)@*
   - *escape-non-ascii*
@@ -90,23 +93,24 @@ copying the files from the checkout into the project directory. See the
 ## Build type keywords
 
 *alpha*, *debug*, *do-not-package*, *no-lib-strip*, and *retail* are build type
-keywords and are used to conditionally run a block of code based on the build type with
-the use of comments.
+keywords and are used to conditionally run a block of code based on the build
+type with the use of comments.
 
-Everything between `@do-not-package@` and `@end-do-not-package@`, including the tags
-themselves, will be removed from the file.  This may cause line numbers of subsequent
-lines to change.  The typical usage is at the end of Lua files surrounding debugging
-functions and other code that end users should never see or execute.
+Everything between `@do-not-package@` and `@end-do-not-package@`, including the
+tags themselves, will be removed from the file.  This may cause line numbers of
+subsequent lines to change.  The typical usage is at the end of Lua files
+surrounding debugging functions and other code that end users should never see
+or execute.
 
-### In Lua
+### In Lua files
 
 `--@keyword@` and `--@end-keyword@`  
 turn into `--[===[@keyword` and `--@end-keyword]===]`.
 
-`--[===[@non-keyword@` and `--@end-non-debug@]===]`  
-turn into `--@non-debug@` and `--@end-non-debug@`.
+`--[===[@non-keyword@` and `--@end-non-keyword@]===]`  
+turn into `--@non-keyword@` and `--@end-non-keyword@`.
 
-### In XML
+### In XML files
 
 `<!--@keyword@-->` and `<!--@end-keyword@-->`  
 turn into `<!--@keyword` and `@end-keyword@-->`.
@@ -114,13 +118,13 @@ turn into `<!--@keyword` and `@end-keyword@-->`.
 `<!--@non-keyword@ and @end-non-keyword@-->`  
 turn into `<!--@non-keyword@-->` and `<!--@end-non-keyword@-->`.
 
-### In the TOC file
+### In TOC files
 
-The lines with `#@keyword@` and `#@end-keyword@` get removed, as well as every
+The line with `#@keyword@` and `#@end-keyword@` get removed, as well as every
 line in-between.
 
-The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
-removing a `# ` at the beginning of each line in-between.
+The line with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
+removing a '# ' at the beginning of each line in-between.
 
 ## Using release.sh
 
@@ -133,9 +137,9 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Using release.sh to build a Classic release
 
-To make use of the *@retail@* and *@non-retail@* keywords, __release.sh__ needs to know
-what version of World of Warcraft the package is targeting.  This is automatically
-detected using the `## Interface:` line of the addon's TOC file.
+To make use of the *@retail@* and *@non-retail@* keywords, __release.sh__ needs
+to know what version of World of Warcraft the package is targeting.  This is
+automatically detected using the `## Interface:` line of the addon's TOC file.
 
 If your addon supports both retail and classic in the same branch, you can use
 keywords in your TOC file to include the appropriate `## Interface:` line in the
@@ -149,31 +153,33 @@ package.
     #@end-non-retail@
 
 By default, __release.sh__ will target retail.  You can change this by passing a
-different game version as an argument.  To target classic this would be `release.sh -g 1.13.2`.
+different game version as an argument.  To target classic this would be
+`release.sh -g 1.13.2`.
 
 ## Usage
 
-```text
-Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml]
-  -c               Skip copying files into the package directory.
-  -d               Skip uploading.
-  -e               Skip checkout of external repositories.
-  -l               Skip @localization@ keyword replacement.
-  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
-  -o               Keep existing package directory, overwriting its contents.
-  -s               Create a stripped-down "nolib" package.
-  -u               Use Unix line-endings.
-  -z               Skip zip file creation.
-  -t topdir        Set top-level directory of checkout.
-  -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
-  -p curse-id      Set the project id used on CurseForge for localization and uploading.
-  -w wowi-id       Set the addon id used on WoWInterface for uploading.
-  -g game-version  Set the game version to use for CurseForge uploading.
-  -m pkgmeta.yaml  Set the pkgmeta file to use.
-```
+    Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml]
+      -c               Skip copying files into the package directory.
+      -d               Skip uploading.
+      -e               Skip checkout of external repositories.
+      -l               Skip @localization@ keyword replacement.
+      -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
+      -o               Keep existing package directory, overwriting its contents.
+      -s               Create a stripped-down "nolib" package.
+      -u               Use Unix line-endings.
+      -z               Skip zip file creation.
+      -t topdir        Set top-level directory of checkout.
+      -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
+      -p curse-id      Set the project id used on CurseForge for localization and uploading.
+      -w wowi-id       Set the addon id used on WoWInterface for uploading.
+      -g game-version  Set the game version to use for CurseForge uploading.
+      -m pkgmeta.yaml  Set the pkgmeta file to use.
 
 The following environment variables are necessary for uploading:
 
-- `CF_API_KEY` - your [CurseForge API token](https://wow.curseforge.com/account/api-tokens), required for the CurseForge API to fetch localization and upload files.
-- `WOWI_API_TOKEN` - your [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens), required for uploading to WoWInterface.
-- `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens), required for uploading to Github.
+- `CF_API_KEY` - a [CurseForge API token](https://wow.curseforge.com/account/api-tokens),
+  required for the CurseForge API to fetch localization and upload files.
+- `WOWI_API_TOKEN` - a [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens),
+  required for uploading to WoWInterface.
+- `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens),
+  required for uploading to GitHub.
