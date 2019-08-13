@@ -1918,7 +1918,7 @@ if [ -f "$pkgmeta_file" ]; then
 						fi
 						# Check to see if the base source directory is empty
 						_mf_basedir=${srcdir%$(basename "$yaml_key")}
-						if [ ! "$(ls -A $_mf_basedir )" ]; then
+						if [ ! "$( ls -A "$_mf_basedir" )" ]; then
 							echo "Removing empty directory ${_mf_basedir#$releasedir/}"
 							rm -fr "$_mf_basedir"
 						fi
