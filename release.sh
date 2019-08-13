@@ -49,36 +49,14 @@ if [ -n "$TRAVIS" ]; then
 	fi
 fi
 
-# svn date helper function
-strtotime() {
-	value="$1" # datetime string
-	format="$2" # strptime string
-	if date --version &>/dev/null; then # gnu
-		date -d "$value" +%s 2>/dev/null
-	else # bsd
-		date -j -f "$format" "$value" "+%s" 2>/dev/null
-	fi
-}
-
-# Script return code
-exit_code=0
-
-# Game versions for uploading
-game_version=
-game_version_id=
-toc_version=
-classic=
-
-# Classic version info for special handling
-CLASSIC_INTERFACE="11302"
-CLASSIC_VERSION="1.13.2"
+## USER OPTIONS
 
 # Secrets for uploading
 cf_token=
 github_token=
 wowi_token=
 
-# Variables set via options.
+# Variables set via command-line options
 slug=
 addonid=
 topdir=
@@ -93,6 +71,22 @@ skip_zipfile=
 skip_upload=
 skip_cf_upload=
 pkgmeta_file=
+
+# Game versions for uploading
+game_version=
+game_version_id=
+toc_version=
+classic=
+
+## END USER OPTIONS
+
+
+# Script return code
+exit_code=0
+
+# Classic version info for special handling
+CLASSIC_INTERFACE="11302"
+CLASSIC_VERSION="1.13.2"
 
 # Process command-line options
 usage() {
@@ -313,6 +307,17 @@ si_file_author= # Turns into the last author of the file. e.g. ckknight
 si_file_date_iso= # Turns into the last changed date (by UTC) of the file in ISO 8601. e.g. 2008-05-01T12:34:56Z
 si_file_date_integer= # Turns into the last changed date (by UTC) of the file in a readable integer fashion. e.g. 20080501123456
 si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
+
+# SVN date helper function
+strtotime() {
+	value="$1" # datetime string
+	format="$2" # strptime string
+	if date --version &>/dev/null; then # gnu
+		date -d "$value" +%s 2>/dev/null
+	else # bsd
+		date -j -f "$format" "$value" "+%s" 2>/dev/null
+	fi
+}
 
 set_info_git() {
 	si_repo_dir="$1"
