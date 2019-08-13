@@ -183,3 +183,9 @@ The following environment variables are necessary for uploading:
   required for uploading to WoWInterface.
 - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens),
   required for uploading to GitHub.
+
+__release.sh__ will attempt to load environment variables from a `.env` file in
+the topdir or current working directory.  You can also edit __release.sh__ and
+enter the tokens near the top of the file.  Note that if you use either of these
+methods of setting the environment variables, you will not be able to override
+them on the command line.

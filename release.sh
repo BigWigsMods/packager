@@ -74,9 +74,9 @@ CLASSIC_INTERFACE="11302"
 CLASSIC_VERSION="1.13.2"
 
 # Secrets for uploading
-cf_token=$CF_API_KEY
-github_token=$GITHUB_OAUTH
-wowi_token=$WOWI_API_TOKEN
+cf_token=
+github_token=
+wowi_token=
 
 # Variables set via options.
 slug=
@@ -230,6 +230,16 @@ if [ -z "$topdir" ]; then
 		fi
 	fi
 fi
+
+# Load secrets
+if [ -f "$topdir/.env" ]; then
+	. "$topdir/.env"
+elif [ -f ".env" ]; then
+	. ".env"
+fi
+[ -z "$cf_token" ] && cf_token=$CF_API_KEY
+[ -z "$github_token" ] && github_token=$GITHUB_OAUTH
+[ -z "$wowi_token" ] && wowi_token=$WOWI_API_TOKEN
 
 # Set $releasedir to the directory which will contain the generated addon zipfile.
 if [ -z "$releasedir" ]; then
