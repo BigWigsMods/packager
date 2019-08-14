@@ -2107,16 +2107,12 @@ if [ -z "$skip_zipfile" ]; then
 			_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
 		fi
 
-		# Put payload into a file to avoid "curl: Argument list too long"
-		_cf_payload_file="$releasedir/.${RANDOM}.cfmetapayload"
-		echo $_cf_payload > "$_cf_payload_file"
-		
 		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
-		result=$( curl -sS --retry 3 --retry-delay 10 \
+		result=$( echo "$_cf_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "x-api-token: $cf_token" \
-				-F "metadata=<$_cf_payload_file" \
+				-F "metadata=<-" \
 				-F "file=@$archive" \
 				"$project_site/api/projects/$slug/upload-file" ) &&
 		{
@@ -2144,7 +2140,6 @@ if [ -z "$skip_zipfile" ]; then
 		}
 		echo
 
-		rm -f "$_cf_payload_file" 2>/dev/null
 		rm -f "$resultfile" 2>/dev/null
 	fi
 
