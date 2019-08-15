@@ -32,11 +32,11 @@ side box. Your WoWInterface addon id is in the url for the addon, eg, the "5678"
 in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/world-of-warcraft/527-preparing-the-packagemeta-file)
+[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/527-preparing-the-packagemeta-file)
 for more info.
 
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
-  parsed for ignore and will not have localization keywords replaced.
+  parsed for ignore and externals will not have localization keywords replaced.
 - *ignore*
 - *license-output* (creates an *All Rights Reserved* license)
 - *manual-changelog*
@@ -45,6 +45,11 @@ for more info.
 - *enable-nolib-creation* (defaults to no) Unlike using the Curse packager,
   manually uploading nolib packages has no affect for client users that choose
   to download libraries separately.
+- *tools-used*
+- *required-dependencies*
+- *optional-dependencies*
+- *embedded-libraries* Note: All externals will be marked as embedded, overriding
+  any manually set relations in the pkgmeta.
 
 You can also use a few directives for WoWInterface uploading.
 
