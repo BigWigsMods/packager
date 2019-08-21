@@ -2272,12 +2272,12 @@ if [ -z "$skip_zipfile" ]; then
 		release_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			result=$( curl -sS --retry 3 --retry-delay 10 \
+			result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$resultfile" \
 					-H "Cache-Control: no-cache" \
 					-H "Authorization: token $github_token" \
 					-X PATCH \
-					-d "$_gh_payload" \
+					-d @- \
 					"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
 			{
 				if [ "$result" = "200" ]; then
@@ -2297,11 +2297,11 @@ if [ -z "$skip_zipfile" ]; then
 			}
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			result=$( curl -sS --retry 3 --retry-delay 10 \
+			result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$resultfile" \
 					-H "Cache-Control: no-cache" \
 					-H "Authorization: token $github_token" \
-					-d "$_gh_payload" \
+					-d @- \
 					"https://api.github.com/repos/$project_github_slug/releases" ) &&
 			{
 				if [ "$result" = "201" ]; then
