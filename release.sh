@@ -871,7 +871,7 @@ set_localization_url() {
 }
 
 # Filter to handle @localization@ repository keyword replacement.
-# https://authors.curseforge.com/knowledge-base/world-of-warcraft/531-localization-substitutions
+# https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions/
 declare -A unlocalized_values=( ["english"]="ShowPrimary" ["comment"]="ShowPrimaryAsComment" ["blank"]="ShowBlankAsComment" ["ignore"]="Ignore" )
 localization_filter() {
 	_ul_eof=
@@ -903,7 +903,8 @@ localization_filter() {
 			else
 				echo "    Warning! No locale set, using enUS." >&2
 			fi
-			# Generate a URL parameter string from the localization parameters. https://authors.curseforge.com/docs/api
+			# Generate a URL parameter string from the localization parameters.
+			# https://authors.curseforge.com/knowledge-base/projects/529-api
 			_ul_url_params=""
 			set -- ${_ul_params}
 			for _ul_param; do
@@ -2076,7 +2077,7 @@ if [ -z "$skip_zipfile" ]; then
 		#      or release depending on the tag itself:
 		#        - If the tag contains the word "alpha", it will be marked as an alpha file.
 		#        - If instead the tag contains the word "beta", it will be marked as a beta file.
-		# https://authors.curseforge.com/docs/packaging
+		# https://authors.curseforge.com/knowledge-base/projects/3451-automatic-packaging
 		file_type="alpha"
 		if [ -n "$tag" ]; then
 			if [[ "${tag,,}" == *"alpha"* ]]; then
