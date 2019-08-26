@@ -800,13 +800,19 @@ fi
 unset toc_file
 
 echo
-echo "Packaging $package${classic:+ (classic)}${nolib:+ (nolib)}"
+echo "Packaging $package"
 if [ -n "$project_version" ]; then
 	echo "Current version: $project_version"
 fi
 if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
+(
+	[ -n "$classic" ] && retail="non-retail" || retail="retail"
+	[ -n "$tag" ] && alpha="non-alpha" || alpha="alpha"
+	echo "Build type: ${retail} ${alpha} non-debug${nolib:+ nolib}"
+	echo
+)
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
 	project_site="https://wow.curseforge.com"
 	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
