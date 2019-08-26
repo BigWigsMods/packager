@@ -1671,7 +1671,7 @@ if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
 		# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 		# Requires pandoc (http://pandoc.org/)
 		_html_changelog=
-		if which pandoc &>/dev/null; then
+		if pandoc --version &>/dev/null; then
 			_html_changelog=$( pandoc -t html "$topdir/$changelog" )
 		fi
 		if [ -n "$_html_changelog" ]; then
@@ -2017,7 +2017,7 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
 	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
-	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! which jq &>/dev/null; then
+	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! jq --version &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		upload_curseforge=
