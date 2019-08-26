@@ -164,7 +164,7 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		;;
 	g)
 		# Set version (x.y.z)
-		IFS=',' read -a V <<< "$OPTARG"
+		IFS=',' read -ra V <<< "$OPTARG"
 		for i in "${V[@]}"; do
 			if [[ ! "$i" =~ ^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$ ]]; then
 				echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
@@ -1244,7 +1244,7 @@ copy_directory_tree() {
 	esac
 	# Print the filename, but suppress the current directory ".".
 	_cdt_find_cmd="$_cdt_find_cmd -o \! -name \".\" -print"
-	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read file; do
+	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
 		file=${file#./}
 		if [ -f "$_cdt_srcdir/$file" ]; then
 			# Check if the file should be ignored.
@@ -1985,7 +1985,7 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Creating no-lib archive: $nolib_archive_name"
 
 		# run the nolib_filter
-		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read file; do
+		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
 			case $file in
 			*.toc)	_filter="toc_filter2 no-lib-strip" ;;
 			*.xml)	_filter="xml_filter no-lib-strip" ;;
@@ -2031,7 +2031,7 @@ if [ -z "$skip_zipfile" ]; then
 			if [ -n "$game_version" ]; then
 				game_version_id=$(
 					_v=
-					IFS=',' read -a V <<< "$game_version"
+					IFS=',' read -ra V <<< "$game_version"
 					for i in "${V[@]}"; do
 						_v="$_v,\"$i\""
 					done
