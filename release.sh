@@ -193,7 +193,7 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		exit 1
 		;;
 	\?)
-		if [ "$OPTARG" != "?" -a "$OPTARG" != "h" ]; then
+		if [ "$OPTARG" != "?" ] && [ "$OPTARG" != "h" ]; then
 			echo "Unknown option \"-$OPTARG\"." >&2
 		fi
 		usage
@@ -206,19 +206,19 @@ shift $((OPTIND - 1))
 # Set $topdir to top-level directory of the checkout.
 if [ -z "$topdir" ]; then
 	dir=$( pwd )
-	if [ -d "$dir/.git" -o -d "$dir/.svn" -o -d "$dir/.hg" ]; then
+	if [ -d "$dir/.git" ] || [ -d "$dir/.svn" ] || [ -d "$dir/.hg" ]; then
 		topdir=.
 	else
 		dir=${dir%/*}
 		topdir=..
 		while [ -n "$dir" ]; do
-			if [ -d "$topdir/.git" -o -d "$topdir/.svn" -o -d "$topdir/.hg" ]; then
+			if [ -d "$topdir/.git" ] || [ -d "$topdir/.svn" ] || [ -d "$topdir/.hg" ]; then
 				break
 			fi
 			dir=${dir%/*}
 			topdir="$topdir/.."
 		done
-		if [ ! -d "$topdir/.git" -a ! -d "$topdir/.svn" -a ! -d "$topdir/.hg" ]; then
+		if [ ! -d "$topdir/.git" ] && [ ! -d "$topdir/.svn" ] && [ ! -d "$topdir/.hg" ]; then
 			echo "No Git, SVN, or Hg checkout found." >&2
 			exit 1
 		fi
@@ -824,7 +824,7 @@ echo
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 pkgdir="$releasedir/$package"
-if [ -d "$pkgdir" -a -z "$overwrite" ]; then
+if [ -d "$pkgdir" ] && [ -z "$overwrite" ]; then
 	#echo "Removing previous package directory: $pkgdir"
 	rm -fr "$pkgdir"
 fi
@@ -862,7 +862,7 @@ simple_filter() {
 # Find URL of localization api.
 set_localization_url() {
 	localization_url=
-	if [ -n "$slug" -a -n "$cf_token" -a -n "$project_site" ]; then
+	if [ -n "$slug" ] && [ -n "$cf_token" ] && [ -n "$project_site" ]; then
 		localization_url="${project_site}/api/projects/$slug/localization/export"
 	fi
 	if [ -z "$localization_url" ]; then
@@ -926,7 +926,7 @@ localization_filter() {
 						fi
 						;;
 					handle-unlocalized)
-						if [ "$_ul_value" != "english" -a -n "${unlocalized_values[$_ul_value]}" ]; then
+						if [ "$_ul_value" != "english" ] && [ -n "${unlocalized_values[$_ul_value]}" ]; then
 							_ul_url_params="${_ul_url_params}&unlocalized=${unlocalized_values[$_ul_value]}"
 						fi
 						;;
@@ -977,7 +977,7 @@ localization_filter() {
 				esac
 			done
 
-			if [ -z "$_cdt_localization" -o -z "$localization_url" ]; then
+			if [ -z "$_cdt_localization" ] || [ -z "$localization_url" ]; then
 				echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&2
 
 				# If the line isn't a TOC entry, print anything before the keyword.
@@ -1006,7 +1006,7 @@ localization_filter() {
 				else
 					# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
 					_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
-					if [ -n "$_ul_value" -a "$_ul_value" != "$_ul_singlekey" ]; then
+					if [ -n "$_ul_value" ] && [ "$_ul_value" != "$_ul_singlekey" ]; then
 						# The result is different from the base value so print out the line.
 						echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
 					fi
@@ -1133,7 +1133,7 @@ do_not_package_filter() {
 		_dnpf_end_token="<!--@end-$_dnpf_string@-->"
 		;;
 	esac
-	if [ -z "$_dnpf_start_token" -o -z "$_dnpf_end_token" ]; then
+	if [ -z "$_dnpf_start_token" ] || [ -z "$_dnpf_end_token" ]; then
 		cat
 	else
 		# Replace all content between the start and end tokens, inclusive, with a newline to match CF packager.
@@ -1277,7 +1277,7 @@ copy_directory_tree() {
 				if match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					skip_filter=
 				fi
-				if [ -n "$skip_filter" -o -n "$unchanged" ]; then
+				if [ -n "$skip_filter" ] || [ -n "$unchanged" ]; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
@@ -1365,7 +1365,7 @@ parse_ignore "$pkgmeta_file"
 ### Create a default license if not present and .pkgmeta requests one.
 ###
 
-if [ -n "$license" -a ! -f "$topdir/$license" ]; then
+if [ -n "$license" ] && [ ! -f "$topdir/$license" ]; then
 	echo "Generating license into $license."
 	echo "All Rights Reserved." | line_ending_filter > "$pkgdir/$license"
 	echo
@@ -1572,7 +1572,7 @@ kill_externals() {
 }
 trap kill_externals INT
 
-if [ -z "$skip_externals" -a -f "$pkgmeta_file" ]; then
+if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof=true
@@ -1659,7 +1659,7 @@ if [ -z "$changelog" ]; then
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 fi
-if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
+if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	echo "Using manual changelog at $changelog"
 	echo
 	head -n7 "$topdir/$changelog"
@@ -1708,7 +1708,7 @@ if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
 		fi
 	fi
 fi
-if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/CHANGELOG.md" ]; then
+if [ ! -f "$topdir/$changelog" ] && [ ! -f "$topdir/CHANGELOG.txt" ] && [ ! -f "$topdir/CHANGELOG.md" ]; then
 	if [ -n "$manual_changelog" ]; then
 		echo "Warning! Could not find a manual changelog at $topdir/$changelog"
 		manual_changelog=
@@ -1723,28 +1723,28 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 		changelog_url_wowi=
 		changelog_version_wowi=
 		_changelog_range=
-		if [ -z "$previous_version" -a -z "$tag" ]; then
+		if [ -z "$previous_version" ] && [ -z "$tag" ]; then
 			# no range, show all commits up to ours
 			changelog_url="[Full Changelog](${project_github_url}/commits/${project_hash})"
 			changelog_version="[${project_version}](${project_github_url}/tree/${project_hash})"
 			changelog_url_wowi="[url=${project_github_url}/commits/${project_hash}]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/${project_hash}]${project_version}[/url]"
 			_changelog_range="$project_hash"
-		elif [ -z "$previous_version" -a -n "$tag" ]; then
+		elif [ -z "$previous_version" ] && [ -n "$tag" ]; then
 			# first tag, show all commits upto it
 			changelog_url="[Full Changelog](${project_github_url}/commits/${tag})"
 			changelog_version="[${project_version}](${project_github_url}/tree/${tag})"
 			changelog_url_wowi="[url=${project_github_url}/commits/${tag}]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/${tag}]${project_version}[/url]"
 			_changelog_range="$tag"
-		elif [ -n "$previous_version" -a -z "$tag" ]; then
+		elif [ -n "$previous_version" ] && [ -z "$tag" ]; then
 			# compare between last tag and our commit
 			changelog_url="[Full Changelog](${project_github_url}/compare/${previous_version}...${project_hash})"
 			changelog_version="[$project_version](${project_github_url}/tree/${project_hash})"
 			changelog_url_wowi="[url=${project_github_url}/compare/${previous_version}...${project_hash}]Full Changelog[/url]"
 			changelog_version_wowi="[url=${project_github_url}/tree/${project_hash}]${project_version}[/url]"
 			_changelog_range="$previous_version..$project_hash"
-		elif [ -n "$previous_version" -a -n "$tag" ]; then
+		elif [ -n "$previous_version" ] && [ -n "$tag" ]; then
 			# compare between last tag and our tag
 			changelog_url="[Full Changelog](${project_github_url}/compare/${previous_version}...${tag})"
 			changelog_version="[$project_version](${project_github_url}/tree/${tag})"
@@ -1778,9 +1778,9 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
 			changelog_previous_wowi=
-			if [ -n "$project_github_url" -a -n "$github_token" ]; then
+			if [ -n "$project_github_url" ] && [ -n "$github_token" ]; then
 				changelog_previous_wowi="[url=${project_github_url}/releases]Previous releases[/url]"
 			fi
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
@@ -1823,7 +1823,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
@@ -1858,7 +1858,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" -a -n "$tag" -a -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
@@ -1905,7 +1905,7 @@ if [ -f "$pkgmeta_file" ]; then
 				move-folders)
 					srcdir="$releasedir/$yaml_key"
 					destdir="$releasedir/$yaml_value"
-					if [[ -d "$destdir" && -z "$overwrite" && "$srcdir" != "$destdir/"*  ]]; then
+					if [[ -d "$destdir" && -z "$overwrite" && "$srcdir" != "$destdir/"* ]]; then
 						rm -fr "$destdir"
 					fi
 					if [ -d "$srcdir" ]; then
@@ -1916,7 +1916,7 @@ if [ -f "$pkgmeta_file" ]; then
 						mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
 						contents="$contents $yaml_value"
 						# Copy the license into $destdir if one doesn't already exist.
-						if [ -n "$license" -a -f "$pkgdir/$license" -a ! -f "$destdir/$license" ]; then
+						if [ -n "$license" ] && [ -f "$pkgdir/$license" ] && [ ! -f "$destdir/$license" ]; then
 							cp -f "$pkgdir/$license" "$destdir/$license"
 						fi
 						# Check to see if the base source directory is empty
@@ -1948,7 +1948,7 @@ if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
 	classic_tag=
-	if [ -n "$classic" ] && [[ "${project_version,,}" != *"classic"* ]]; then
+	if [[ -n "$classic" && "${project_version,,}" != *"classic"* ]]; then
 		# if it's a classic build, and classic isn't in the name, append it for clarity
 		classic_tag="-classic"
 	fi
@@ -1981,7 +1981,7 @@ if [ -z "$skip_zipfile" ]; then
 	echo
 
 	# Create nolib version of the zipfile
-	if [ -n "$enable_nolib_creation" -a -z "$nolib" -a -n "$nolib_exclude" ]; then
+	if [ -n "$enable_nolib_creation" ] && [ -z "$nolib" ] && [ -n "$nolib_exclude" ]; then
 		echo "Creating no-lib archive: $nolib_archive_name"
 
 		# run the nolib_filter
@@ -2016,7 +2016,7 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
 	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
-	if [ -n "$upload_curseforge" -o -n "$upload_wowinterface" -o -n "$upload_github" ] && ! jq --version &>/dev/null; then
+	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! jq --version &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		upload_curseforge=
