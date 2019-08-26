@@ -309,10 +309,11 @@ si_file_date_integer= # Turns into the last changed date (by UTC) of the file in
 si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
 
 # SVN date helper function
+isgnudate=$( date --version &>/dev/null && echo "true" )
 strtotime() {
 	value="$1" # datetime string
 	format="$2" # strptime string
-	if date --version &>/dev/null; then # gnu
+	if [ -n "$isgnudate" ]; then # gnu
 		date -d "$value" +%s 2>/dev/null
 	else # bsd
 		date -j -f "$format" "$value" "+%s" 2>/dev/null
