@@ -1318,8 +1318,7 @@ copy_directory_tree() {
 					# POSIX does imply that text files must end in a newline.
 					set_info_file "$_cdt_srcdir/$file"
 					echo "  Copying: $file"
-					cat "$_cdt_srcdir/$file" \
-						| simple_filter \
+					simple_filter < "$_cdt_srcdir/$file" \
 						| $_cdt_alpha_filter \
 						| $_cdt_debug_filter \
 						| $_cdt_nolib_filter \
@@ -1873,7 +1872,7 @@ if [ ! -f "$topdir/$changelog" -a ! -f "$topdir/CHANGELOG.txt" -a ! -f "$topdir/
 	fi
 
 	echo
-	cat "$pkgdir/$changelog"
+	echo "$(<"$pkgdir/$changelog")"
 	echo
 fi
 
@@ -2095,7 +2094,7 @@ if [ -z "$skip_zipfile" ]; then
 		  "displayName": "$project_version$classic_tag",
 		  "gameVersions": $game_version_id,
 		  "releaseType": "$file_type",
-		  "changelog": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
 		  "changelogType": "markdown"
 		}
 		EOF
@@ -2263,7 +2262,7 @@ if [ -z "$skip_zipfile" ]; then
 		{
 		  "tag_name": "$tag",
 		  "name": "$tag",
-		  "body": $( cat "$pkgdir/$changelog" | jq --slurp --raw-input '.' ),
+		  "body": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
 		  "draft": false,
 		  "prerelease": $( [[ "${tag,,}" == *"beta"* ]] && echo true || echo false )
 		}
@@ -2307,7 +2306,7 @@ if [ -z "$skip_zipfile" ]; then
 					"https://api.github.com/repos/$project_github_slug/releases" ) &&
 			{
 				if [ "$result" = "201" ]; then
-					release_id=$( cat "$resultfile" | jq '.id' )
+					release_id=$( jq '.id' < "$resultfile" )
 					upload_github_asset "$release_id" "$archive_name" "$archive"
 					if [ -f "$nolib_archive" ]; then
 						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
