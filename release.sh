@@ -799,6 +799,10 @@ if [ -z "$addonid" ]; then
 fi
 unset toc_file
 
+# unset project ids if they are set to 0
+[ "$slug" = "0" ] && slug=
+[ "$addonid" = "0" ] && addonid=
+
 echo
 echo "Packaging $package"
 if [ -n "$project_version" ]; then
@@ -823,7 +827,9 @@ fi
 if [ -n "$project_github_slug" ]; then
 	echo "GitHub: $project_github_slug${github_token:+ [token set]}"
 fi
-echo
+if [ -n "$project_site" ] || [ -n "$addonid" ] || [ -n "$project_github_slug" ]; then
+	echo
+fi
 echo "Checkout directory: $topdir"
 echo "Release directory: $releasedir"
 echo
