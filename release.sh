@@ -2241,7 +2241,7 @@ if [ -z "$skip_zipfile" ]; then
 			# check if an asset exists and delete it (editing a release)
 			asset_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq '.[] | select(.name? == "'"$_ghf_file_name"'") | .id' )
 			if [ -n "$asset_id" ]; then
-				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
+				curl -s -H "Cache-Control: no-cache" -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
 			fi
 
 			echo -n "Uploading $_ghf_file_name... "
@@ -2285,55 +2285,36 @@ if [ -z "$skip_zipfile" ]; then
 		release_id=$( curl -sS -H "Cache-Control: no-cache" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
-					-w "%{http_code}" -o "$resultfile" \
-					-H "Cache-Control: no-cache" \
-					-H "Authorization: token $github_token" \
-					-X PATCH \
-					-d @- \
-					"https://api.github.com/repos/$project_github_slug/releases/$release_id" ) &&
-			{
-				if [ "$result" = "200" ]; then
-					upload_github_asset "$release_id" "$archive_name" "$archive"
-					if [ -f "$nolib_archive" ]; then
-						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
-					fi
-				else
-					echo "Error! ($result)"
-					if [ -s "$resultfile" ]; then
-						echo "$(<"$resultfile")"
-					fi
-					exit_code=1
-				fi
-			} || {
-				exit_code=1
-			}
+			_gh_release_url="-X PATCH https://api.github.com/repos/$project_github_slug/releases/$release_id"
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-			result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
-					-w "%{http_code}" -o "$resultfile" \
-					-H "Cache-Control: no-cache" \
-					-H "Authorization: token $github_token" \
-					-d @- \
-					"https://api.github.com/repos/$project_github_slug/releases" ) &&
-			{
-				if [ "$result" = "201" ]; then
-					release_id=$( jq '.id' < "$resultfile" )
-					upload_github_asset "$release_id" "$archive_name" "$archive"
-					if [ -f "$nolib_archive" ]; then
-						upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
-					fi
-				else
-					echo "Error! ($result)"
-					if [ -s "$resultfile" ]; then
-						echo "$(<"$resultfile")"
-					fi
-					exit_code=1
-				fi
-			} || {
-				exit_code=1
-			}
+			_gh_release_url="https://api.github.com/repos/$project_github_slug/releases"
 		fi
+		result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
+				-w "%{http_code}" -o "$resultfile" \
+				-H "Cache-Control: no-cache" \
+				-H "Authorization: token $github_token" \
+				-d @- \
+				$_gh_release_url ) &&
+		{
+			if [ "$result" = "200" ] || [ "$result" = "201" ]; then # edited || created
+				if [ -z "$release_id" ]; then
+					release_id=$( jq '.id' < "$resultfile" )
+				fi
+				upload_github_asset "$release_id" "$archive_name" "$archive"
+				if [ -f "$nolib_archive" ]; then
+					upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
+				fi
+			else
+				echo "Error! ($result)"
+				if [ -s "$resultfile" ]; then
+					echo "$(<"$resultfile")"
+				fi
+				exit_code=1
+			fi
+		} || {
+			exit_code=1
+		}
 
 		rm -f "$resultfile" 2>/dev/null
 		echo
