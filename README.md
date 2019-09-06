@@ -175,8 +175,8 @@ different game version as an argument.  To target classic this would be
       -z               Skip zip file creation.
       -t topdir        Set top-level directory of checkout.
       -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
-      -p curse-id      Set the project id used on CurseForge for localization and uploading.
-      -w wowi-id       Set the addon id used on WoWInterface for uploading.
+      -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
+      -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
       -g game-version  Set the game version to use for CurseForge uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
 
@@ -191,6 +191,4 @@ The following environment variables are necessary for uploading:
 
 __release.sh__ will attempt to load environment variables from a `.env` file in
 the topdir or current working directory.  You can also edit __release.sh__ and
-enter the tokens near the top of the file.  Note that if you use either of these
-methods of setting the environment variables, you will not be able to override
-them on the command line.
+enter the tokens near the top of the file.
