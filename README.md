@@ -7,8 +7,8 @@ repositories within the project directory, then copying files from the checkout
 into the project directory.  The project directory is then zipped to create a
 distributable addon zip file.
 
-By default, __release.sh__ creates the new project directory in the *.release*
-subdirectory of the top-level directory of the checkout.
+__release.sh__ creates the new project directory in the *.release* subdirectory
+of the top-level directory of the checkout.
 
 __release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
 GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
@@ -17,8 +17,8 @@ GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
 __release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
 the version numbers for the project.  It will identify if the HEAD is tagged and
 use that as the current version number.  It will search back through parent
-commits for the previous tag that is a release version number and generate a
-changelog containing the commits since that previous release tag.
+commits for the previous tag and generate a changelog containing the commits
+since that tag.
 
 __release.sh__ uses the TOC file to determine the package name for the project.
 You can also set the CurseForge project id (`-p`) and the WoWInterface addon
@@ -101,11 +101,12 @@ for more info.
 keywords and are used to conditionally run a block of code based on the build
 type with the use of comments.
 
-Everything between `@do-not-package@` and `@end-do-not-package@`, including the
-tags themselves, will be removed from the file.  This may cause line numbers of
-subsequent lines to change.  The typical usage is at the end of Lua files
-surrounding debugging functions and other code that end users should never see
-or execute.
+`@do-not-package@` and `@end-do-not-package@` are a bit special. Everything
+between the tags, including the tags themselves, will be removed from the file.
+This will cause the line numbers of subsequent lines to change, which can result
+in bug report line numbers not matching the source code.  The typical usage is
+at the end of Lua files surrounding debugging functions and other code that end
+users should never see or execute.
 
 ### In Lua files
 
@@ -125,10 +126,10 @@ turn into `<!--@non-keyword@-->` and `<!--@end-non-keyword@-->`.
 
 ### In TOC files
 
-The line with `#@keyword@` and `#@end-keyword@` get removed, as well as every
+The lines with `#@keyword@` and `#@end-keyword@` get removed, as well as every
 line in-between.
 
-The line with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
+The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
 removing a '# ' at the beginning of each line in-between.
 
 ## Using release.sh
@@ -142,7 +143,7 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Using release.sh to build a Classic release
 
-To make use of the *@retail@* and *@non-retail@* keywords, __release.sh__ needs
+To make use of the `@retail@` and `@non-retail@` keywords, __release.sh__ needs
 to know what version of World of Warcraft the package is targeting.  This is
 automatically detected using the `## Interface:` line of the addon's TOC file.
 
