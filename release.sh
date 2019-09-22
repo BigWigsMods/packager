@@ -1417,20 +1417,18 @@ checkout_external() {
 		set_info_git "$_cqe_checkout_dir"
 		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
 	elif [ "$_external_type" = "svn" ]; then
+		if [[ $external_uri == *"/trunk" ]]; then
+			_cqe_svn_trunk_url=$_external_uri
+			_cqe_svn_subdir=
+		else
+			_cqe_svn_trunk_url="${_external_uri%/trunk/*}/trunk"
+			_cqe_svn_subdir=${_external_uri#${_cqe_svn_trunk_url}/}
+		fi
+
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
 			svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else
-			case $_external_uri in
-			*/trunk)
-				_cqe_svn_trunk_url=$_external_uri
-				_cqe_svn_subdir=
-				;;
-			*)
-				_cqe_svn_trunk_url="${_external_uri%/trunk/*}/trunk"
-				_cqe_svn_subdir=${_external_uri#${_cqe_svn_trunk_url}/}
-				;;
-			esac
 			_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
 			if [ "$_external_tag" = "latest" ]; then
 				_external_tag=$( svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | awk '/^   A \/tags\// { print $2; exit }' | awk -F/ '{ print $3 }' )
@@ -1505,57 +1503,58 @@ external_tag=
 external_type=
 external_slug=
 process_external() {
-	if [[ -n "$external_dir" && -n "$external_uri" && -z "$skip_externals" ]]; then
-		# convert old curse repo urls and detect the type of new ones
-		# this could be condensed quite a bit.. a task for another day
+	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
+		# convert old curse repo urls
 		case $external_uri in
-		git:*|http://git*|https://git*)
-			[[ -z $external_type ]] && external_type="git"
-			if [[ "$external_uri" == "git://git.curseforge.com"* || "$external_uri" == "git://git.wowace.com"* ]]; then
-				# git://git.(curseforge|wowace).com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
-				external_uri=${external_uri%/mainline.git}
-				external_uri=${external_uri/#git:\/\/git/https://repos}
-			fi
-			;;
-		svn:*|http://svn*|https://svn*)
-			[[ -z $external_type ]] && external_type="svn"
-			if [[ "$external_uri" == "svn://svn.curseforge.com"* || "$external_uri" == "svn://svn.wowace.com"* ]]; then
-				# svn://svn.(curseforge|wowace).com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
-				external_uri=${external_uri/\/mainline/}
-				external_uri=${external_uri/#svn:\/\/svn/https://repos}
-			fi
-			;;
-		http://hg*|https://hg*)
-			if [[ "$external_uri" == *"://hg.curseforge.com"* || "$external_uri" == *"://hg.wowace.com"* ]]; then
-				external_type="hg"
-				# https?://hg.(curseforge|wowace).com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
-				external_uri=${external_uri%/mainline}
-				external_uri=${external_uri/#http:/https:}
-				external_uri=${external_uri/#https:\/\/hg/https://repos}
-			fi
-			;;
-		https://repos.curseforge.com/wow/*|https://repos.wowace.com/wow/*)
-			_pe_path=${external_uri#*/wow/}
-			_pe_path=${_pe_path#*/} # remove the slug, leaving nothing for git or the svn path
-			# note: the svn repo trunk is usually used as the url with another field specifying a tag instead of using the tags dir directly
-			if [[ "$_pe_path" == "trunk"* || "$_pe_path" == "tags/"* ]]; then
-				external_type="svn"
-				if [[ "$_pe_path" == "tags"* ]]; then
-					external_tag=${_pe_path#tags/}
-					external_tag=${external_tag%%/*}
-					external_uri="${external_uri%/tags*}/trunk${_pe_path#tags/$external_tag}"
-				fi
-			elif [[ -z $external_type ]]; then
+			*git.curseforge.com*|*git.wowace.com*)
 				external_type="git"
-			fi
-			;;
+				# git://git.curseforge.com/wow/$slug/mainline.git -> https://repos.curseforge.com/wow/$slug
+				external_uri=${external_uri%/mainline.git}
+				external_uri="https://repos${external_uri#*://git}"
+				;;
+			*svn.curseforge.com*|*svn.wowace.com*)
+				external_type="svn"
+				# svn://svn.curseforge.com/wow/$slug/mainline/trunk -> https://repos.curseforge.com/wow/$slug/trunk
+				external_uri=${external_uri/\/mainline/}
+				external_uri="https://repos${external_uri#*://svn}"
+				;;
+			*hg.curseforge.com*|*hg.wowace.com*)
+				external_type="hg"
+				# http://hg.curseforge.com/wow/$slug/mainline -> https://repos.curseforge.com/wow/$slug
+				external_uri=${external_uri%/mainline}
+				external_uri="https://repos${external_uri#*://hg}"
+				;;
+			svn:*)
+				# just in case
+				external_type="svn"
+				;;
+			*)
+				if [ -z "$external_type" ]; then
+					external_type="git"
+				fi
+				;;
 		esac
 
-		if [[ -z $external_slug ]] && [[ $external_uri == "https://repos.curseforge.com/wow/"* || $external_uri == "https://repos.wowace.com/wow/"* ]]; then
-			external_slug=${external_uri#*/wow/}
-			external_slug=${external_slug%%/*}
+		if [[ $external_uri == "https://repos.curseforge.com/wow/"* || $external_uri == "https://repos.wowace.com/wow/"* ]]; then
+			if [ -z "$external_slug" ]; then
+				external_slug=${external_uri#*/wow/}
+				external_slug=${external_slug%%/*}
+			fi
+
+			# check if the repo is svn
+			_svn_path=${external_uri#*/wow/$external_slug/}
+			if [[ "$_svn_path" == "trunk"* ]]; then
+				external_type="svn"
+			elif [[ "$_svn_path" == "tags/"* ]]; then
+				external_type="svn"
+				# change the tag path into the trunk path and use the tag var so it gets logged as a tag
+				external_tag=${_svn_path#tags/}
+				external_tag=${external_tag%%/*}
+				external_uri="${external_uri%/tags*}/trunk${_svn_path#tags/$external_tag}"
+			fi
 		fi
-		if [[ -n $external_slug ]]; then
+
+		if [ -n "$external_slug" ]; then
 			relations["$external_slug"]="embeddedLibrary"
 		fi
 
