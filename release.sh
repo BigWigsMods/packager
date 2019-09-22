@@ -572,7 +572,7 @@ fi
 package=
 manual_changelog=
 changelog=
-changelog_markup=plain
+changelog_markup=text
 enable_nolib_creation=
 ignore=
 license=
@@ -1672,7 +1672,7 @@ if [ -z "$changelog" ]; then
 	changelog_markup="markdown"
 fi
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	echo "Using manual changelog at $changelog"
+	echo "Using manual changelog at $changelog (type $changelog_markup)"
 	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
@@ -2107,7 +2107,7 @@ if [ -z "$skip_zipfile" ]; then
 		  "gameVersions": $game_version_id,
 		  "releaseType": "$file_type",
 		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
-		  "changelogType": "markdown"
+		  "changelogType": "$changelog_markup"
 		}
 		EOF
 		)
