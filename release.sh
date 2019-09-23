@@ -572,7 +572,7 @@ fi
 package=
 manual_changelog=
 changelog=
-changelog_markup=text
+changelog_markup="text"
 enable_nolib_creation=
 ignore=
 license=
