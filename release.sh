@@ -1672,7 +1672,7 @@ if [ -z "$changelog" ]; then
 	changelog_markup="markdown"
 fi
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	echo "Using manual changelog at $changelog (type $changelog_markup)"
+	echo "Using manual changelog at $changelog ($changelog_markup)"
 	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
