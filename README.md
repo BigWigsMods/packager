@@ -64,6 +64,7 @@ for more info.
   parsed for ignore and externals will not have localization keywords replaced.
 - *ignore*
 - *plain-copy*
+- *license-output*
 - *changelog-title*
 - *manual-changelog*
 - *move-folders*

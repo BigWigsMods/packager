@@ -810,6 +810,7 @@ changelog=
 changelog_markup="text"
 enable_nolib_creation=
 ignore=
+license=
 unchanged=
 zip_root_dirs=()
 nolib_exclude=
@@ -914,6 +915,9 @@ if [ -f "$pkgmeta_file" ]; then
 						if [ "$yaml_value" = "yes" ]; then
 							split="true"
 						fi
+						;;
+					license-output)
+						license=$yaml_value
 						;;
 					manual-changelog)
 						changelog=$yaml_value
@@ -2356,6 +2360,24 @@ else
 fi
 
 ###
+### Create a license if not present and .pkgmeta requests one.
+###
+
+if [[ -n "$license" && ! -f "$topdir/$license" && -n "$slug" ]]; then
+	start_group "Saving license as $license" "license"
+	# curseforge.com is protected by cloudflare, but wowace.com isn't? >.>
+	if license_text=$( curl -sf --retry 3 --retry-delay 10 "https://www.wowace.com/project/$slug/license" 2>/dev/null ); then
+		# text is wrapped with \n\n<div class="module">\n\t<p>\n\t\t ... \n\t</p>\n</div>\n
+		echo "$license_text" | sed -e '1,4d' -e '5s/^\s*//' -e '$d' | sed '$d' > "$pkgdir/$license"
+		head -n10 "$pkgdir/$license"
+		[[ "$( wc -l < "$pkgdir/$license" )" -gt 10 ]] && echo "..."
+	else
+		echo "There was an error saving the license. ($?)"
+	fi
+	end_group "license"
+fi
+
+###
 ### Process .pkgmeta to perform move-folders actions.
 ###
 
@@ -2399,6 +2421,10 @@ if [ -f "$pkgmeta_file" ]; then
 									echo "Moving $yaml_key to $yaml_value"
 									mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
 									zip_root_dirs+=("$yaml_value")
+									# Copy the license into $destdir if one doesn't already exist.
+									if [[ -n "$license" && -f "$pkgdir/$license" && ! -f "$destdir/$license" ]]; then
+										cp -f "$pkgdir/$license" "$destdir/$license"
+									fi
 									# Check to see if the base source directory is empty
 									_mf_basedir="/${yaml_key%/*}"
 									while [[ -n "$_mf_basedir" && -z "$( ls -A "${releasedir}${_mf_basedir}" )" ]]; do
