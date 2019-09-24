@@ -576,7 +576,6 @@ changelog=
 changelog_markup="text"
 enable_nolib_creation=
 ignore=
-license=
 contents=
 nolib_exclude=
 wowi_gen_changelog="true"
@@ -640,9 +639,6 @@ if [ -f "$pkgmeta_file" ]; then
 				if [ "$yaml_value" = "yes" ]; then
 					enable_nolib_creation="true"
 				fi
-				;;
-			license-output)
-				license=$yaml_value
 				;;
 			manual-changelog)
 				changelog=$yaml_value
@@ -1379,16 +1375,6 @@ ignore=
 parse_ignore "$pkgmeta_file"
 
 ###
-### Create a default license if not present and .pkgmeta requests one.
-###
-
-if [ -n "$license" ] && [ ! -f "$topdir/$license" ]; then
-	echo "Generating license into $license."
-	echo "All Rights Reserved." | line_ending_filter > "$pkgdir/$license"
-	echo
-fi
-
-###
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
@@ -1927,10 +1913,6 @@ if [ -f "$pkgmeta_file" ]; then
 						echo "Moving $yaml_key to $yaml_value"
 						mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
 						contents="$contents $yaml_value"
-						# Copy the license into $destdir if one doesn't already exist.
-						if [ -n "$license" ] && [ -f "$pkgdir/$license" ] && [ ! -f "$destdir/$license" ]; then
-							cp -f "$pkgdir/$license" "$destdir/$license"
-						fi
 						# Check to see if the base source directory is empty
 						_mf_basedir=${srcdir%$(basename "$yaml_key")}
 						if [ ! "$( ls -A "$_mf_basedir" )" ]; then

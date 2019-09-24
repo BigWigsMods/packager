@@ -38,7 +38,6 @@ for more info.
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
   parsed for ignore and externals will not have localization keywords replaced.
 - *ignore*
-- *license-output* (creates an *All Rights Reserved* license)
 - *manual-changelog*
 - *move-folders*
 - *package-as*
