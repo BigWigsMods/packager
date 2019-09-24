@@ -720,14 +720,20 @@ fi
 
 # Add untracked/ignored files to the ignore list
 if [ "$repository_type" = "git" ]; then
-	_vcs_ignore=$( git -C "$topdir" ls-files --others | sed -e ':a' -e 'N' -e 's/\n/:/' -e 'ta' )
-	if [ -n "$_vcs_ignore" ]; then
+	OLDIFS=$IFS
+	IFS=$'\n'
+	 for _vcs_ignore in $(git -C "$topdir" ls-files --others --directory); do
+		if [ -d "$topdir/$_vcs_ignore" ]; then
+			_vcs_ignore="$_vcs_ignore*"
+		fi
+
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
 		else
 			ignore="$ignore:$_vcs_ignore"
 		fi
-	fi
+	done
+	IFS=$OLDIFS
 elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
