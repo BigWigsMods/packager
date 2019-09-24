@@ -114,6 +114,7 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 	c)
 		# Skip copying files into the package directory.
 		skip_copying="true"
+		skip_upload="true"
 		;;
 	e)
 		# Skip checkout of external repositories.
@@ -1670,10 +1671,6 @@ fi
 
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
-if [ -z "$changelog" ]; then
-	changelog="CHANGELOG.md"
-	changelog_markup="markdown"
-fi
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	echo "Using manual changelog at $changelog"
 	echo
@@ -1722,14 +1719,14 @@ if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 				# -e 's/^[ \t]*//g' \
 		fi
 	fi
-fi
-if [ ! -f "$topdir/$changelog" ] && [ ! -f "$topdir/CHANGELOG.txt" ] && [ ! -f "$topdir/CHANGELOG.md" ]; then
+else
 	if [ -n "$manual_changelog" ]; then
 		echo "Warning! Could not find a manual changelog at $topdir/$changelog"
 		manual_changelog=
-		changelog="CHANGELOG.md"
-		changelog_markup="markdown"
 	fi
+	changelog="CHANGELOG.md"
+	changelog_markup="markdown"
+
 	echo "Generating changelog of commits into $changelog"
 
 	if [ "$repository_type" = "git" ]; then
