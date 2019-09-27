@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# release.sh generates a zippable addon directory from a Git or SVN checkout.
+# release.sh generates an addon zip file from a Git, SVN, or Mercurial checkout.
 #
 # This is free and unencumbered software released into the public domain.
 #

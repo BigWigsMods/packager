@@ -1,6 +1,7 @@
 # release.sh
 
-__release.sh__ generates an addon zip file from a Git or SVN checkout.
+__release.sh__ generates an addon zip file from a Git, SVN, or Mercurial
+checkout.
 
 __release.sh__ works by creating a new project directory, checking out external
 repositories within the project directory, then copying files from the checkout
@@ -157,7 +158,7 @@ package.
     # ## Interface: 11302
     #@end-non-retail@
 
-By default, __release.sh__ will target retail.  You can change this by passing a
+__release.sh__ will target retail by default.  You can change this by passing a
 different game version as an argument.  To target classic this would be
 `release.sh -g 1.13.2`.
 
