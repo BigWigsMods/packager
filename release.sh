@@ -187,7 +187,7 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 	m)
 		# Set the pkgmeta file.
 		if [ ! -f "$OPTARG" ]; then
-			echo "Invalid argument for option \"-m\" - File \"$OPTARG\" does not exist."
+			echo "Invalid argument for option \"-m\" - File \"$OPTARG\" does not exist." >&2
 			usage
 			exit 1
 		fi
@@ -780,14 +780,14 @@ tocfile=$(
 	echo "$filename"
 )
 if [[ -z "$tocfile" || ! -f "$topdir/$tocfile" ]]; then
-	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta"
+	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
 	exit 1
 fi
 
 # Set the package name from the TOC filename.
 toc_name=$( basename "$tocfile" | sed 's/\.toc$//' )
 if [[ -n "$package" && "$package" != "$toc_name" ]]; then
-	echo "Addon package name does not match TOC file name."
+	echo "Addon package name does not match TOC file name." >&2
 	exit 1
 fi
 if [ -z "$package" ]; then
@@ -1651,7 +1651,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		done
 		if [ -n "$_external_error" ]; then
 			echo
-			echo "There was an error fetching externals :("
+			echo "There was an error fetching externals :(" >&2
 			exit 1
 		fi
 		echo
