@@ -153,6 +153,11 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		;;
 	t)
 		# Set the top-level directory of the checkout to a non-default value.
+		if [ ! -d "$OPTARG" ]; then
+			echo "Invalid argument for option \"-t\" - Directory \"$OPTARG\" does not exist." >&2
+			usage
+			exit 1
+		fi
 		topdir="$OPTARG"
 		;;
 	u)
@@ -276,7 +281,10 @@ $topdir/*)	;;
 esac
 
 # Create the staging directory.
-mkdir -p "$releasedir"
+mkdir -p "$releasedir" 2>/dev/null || {
+	echo "Unable to create the release directory \"$releasedir\"." >&2
+	exit 1
+}
 
 # Expand $topdir and $releasedir to their absolute paths for string comparisons later.
 topdir=$( cd "$topdir" && pwd )
