@@ -8,13 +8,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Build and tag image
-        run: |
-          docker build . \
-            -t docker.pkg.github.com/bigwigsmods/packager/packager:${GITHUB_SHA::7} \
-            -t docker.pkg.github.com/bigwigsmods/packager/packager:latest
-      - name: Push image
+      - name: Authenticate with registry and build image
         run: |
           echo "${{ secrets.DOCKER_PASS }}" | docker login docker.pkg.github.com -u "nebularg" --password-stdin
-          docker push docker.pkg.github.com/bigwigsmods/packager/packager:${GITHUB_SHA::7}
+          docker build -t packager .
+
+      - name: Tag and push latest image
+        run: |
+          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:latest
           docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
+      
+      - name: Tag and push nightly image
+        run: |
+          TAG="$(date -u +%Y%m%d%H%M%S)"
+          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
