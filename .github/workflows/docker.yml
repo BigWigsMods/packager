@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: Authenticate with registry and build image
         run: |
-          echo "${{ secrets.DOCKER_PASS }}" | docker login docker.pkg.github.com -u "nebularg" --password-stdin
+          docker login docker.pkg.github.com -u "nebularg" -p "${{ secrets.DOCKER_PASS }}"
           docker build -t packager .
 
       - name: Tag and push latest image
