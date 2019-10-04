@@ -11,10 +11,10 @@ jobs:
       - name: Build and tag image
         run: |
           docker build . \
-            -t docker.pkg.github.com/BigWigsMods/packager/packager:${GITHUB_SHA::7} \
-            -t docker.pkg.github.com/BigWigsMods/packager/packager:latest
+            -t docker.pkg.github.com/bigwigsmods/packager/packager:${GITHUB_SHA::7} \
+            -t docker.pkg.github.com/bigwigsmods/packager/packager:latest
       - name: Push image
         run: |
           echo "${{ secrets.DOCKER_PASS }}" | docker login docker.pkg.github.com -u "nebularg" --password-stdin
-          docker push docker.pkg.github.com/BigWigsMods/packager/packager:${GITHUB_SHA::7}
-          docker push docker.pkg.github.com/BigWigsMods/packager/packager:latest
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:${GITHUB_SHA::7}
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
