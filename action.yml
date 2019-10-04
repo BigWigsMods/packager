@@ -1,0 +1,10 @@
+name: WoW Release
+description: Builds and publishes World of Warcraft AddOns
+branding:
+  icon: package
+  color: yellow
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - release.sh
