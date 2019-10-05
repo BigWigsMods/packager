@@ -6,4 +6,3 @@ branding:
 runs:
   using: docker
   image: Dockerfile
-  entrypoint: release.sh
