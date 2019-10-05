@@ -10,4 +10,4 @@ inputs:
 runs:
   using: docker
   image: Dockerfile
-  args: ['release.sh', '${{ inputs.options }}']
+  args: release.sh ${{ inputs.options }}
