@@ -3,9 +3,13 @@ description: Builds and publishes World of Warcraft AddOns
 branding:
   icon: package
   color: yellow
+inputs:
+  options:
+    description: Arguments passed to release.sh
+    required: false
 runs:
   using: docker
   image: Dockerfile
   args:
     - release.sh
-    - $INPUT_ARGS
+    - ${{ inputs.options }}
