@@ -11,5 +11,4 @@ runs:
   using: docker
   image: Dockerfile
   args:
-    - release.sh
-    - ${{ inputs.options }}
+    - release.sh ${{ inputs.options }}
