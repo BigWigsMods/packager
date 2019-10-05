@@ -8,3 +8,4 @@ runs:
   image: Dockerfile
   args:
     - release.sh
+    - $INPUT_ARGS
