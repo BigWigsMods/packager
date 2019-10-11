@@ -33,7 +33,7 @@ side box. Your WoWInterface addon id is in the url for the addon, eg, the "5678"
 in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
 __release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/527-preparing-the-packagemeta-file)
+[wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
 for more info.
 
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
@@ -63,10 +63,10 @@ You can also use a few directives for WoWInterface uploading.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
-[CurseForge Knowledge Base page](https://authors.curseforge.com/knowledge-base/projects/532-repository-keyword-substitutions)
+[wiki page](https://github.com/BigWigsMods/packager/wiki/Repository-Keyword-Substitutions)
 for more info.
 
-- *@[localization](https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions)(locale="locale", format="format", ...)@*
+- *@[localization](https://github.com/BigWigsMods/packager/wiki/Localization-Substitution)(locale="locale", format="format", ...)@*
   - *escape-non-ascii*
   - *handle-unlocalized*
   - *handle-subnamespaces="concat"*
