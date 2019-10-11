@@ -11,18 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Authenticate with registry and build image
-        run: |
-          docker login docker.pkg.github.com -u "BigWigsMods" -p "${{ secrets.DOCKER_PASS }}"
-          docker build -t packager .
 
-      - name: Tag and push latest image
-        run: |
-          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:latest
-          docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
-      
-      - name: Tag and push nightly image
+      - name: Authenticate with registry
+        run: docker login docker.pkg.github.com -u "BigWigsMods" -p "${{ secrets.DOCKER_PASS }}"
+
+      - name: Build and push image
         run: |
           TAG="$(date -u +%Y%m%d%H%M%S)"
-          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
+          docker build . \
+            -t docker.pkg.github.com/bigwigsmods/packager/packager:$TAG \
+            -t docker.pkg.github.com/bigwigsmods/packager/packager:latest
           docker push docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
