@@ -27,27 +27,6 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
-# add some travis checks so we don't need to do it in the yaml file
-if [ -n "$TRAVIS" ]; then
-	# don't need to run the packager for pull requests
-	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-		echo "Not packaging pull request."
-		exit 0
-	fi
-	if [ -z "$TRAVIS_TAG" ]; then
-		# don't need to run the packager if there is a tag pending
-		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at )
-		if [ -n "$TRAVIS_TAG" ]; then
-			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
-			exit 0
-		fi
-		# only want to package master, classic, or a tag
-		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ]; then
-			echo "Not packaging \"${TRAVIS_BRANCH}\"."
-			exit 0
-		fi
-	fi
-fi
 # actions check to prevent duplicate builds
 if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" =~ "refs/heads"* ]]; then
 	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at )
@@ -75,6 +54,7 @@ line_ending="dos"
 skip_copying=
 skip_externals=
 skip_localization=
+skip_travischecks=
 skip_zipfile=
 skip_upload=
 skip_cf_upload=
@@ -105,6 +85,7 @@ usage() {
 	echo "  -l               Skip @localization@ keyword replacement." >&2
 	echo "  -L               Only do @localization@ keyword replacement (skip upload to CurseForge)." >&2
 	echo "  -o               Keep existing package directory, overwriting its contents." >&2
+	echo "  -t               Skip TravisCI branch checks." >&2
 	echo "  -s               Create a stripped-down \"nolib\" package." >&2
 	echo "  -u               Use Unix line-endings." >&2
 	echo "  -z               Skip zip file creation." >&2
@@ -146,6 +127,9 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		;;
 	p)
 		slug="$OPTARG"
+		;;
+	t)
+		skip_travischecks="true"
 		;;
 	w)
 		addonid="$OPTARG"
@@ -216,6 +200,28 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 	esac
 done
 shift $((OPTIND - 1))
+
+# add some travis checks so we don't need to do it in the yaml file
+if [ -n "$TRAVIS" ] && [ -z "$skip_travischecks" ]; then
+	# don't need to run the packager for pull requests
+	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+		echo "Not packaging pull request."
+		exit 0
+	fi
+	if [ -z "$TRAVIS_TAG" ]; then
+		# don't need to run the packager if there is a tag pending
+		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at )
+		if [ -n "$TRAVIS_TAG" ]; then
+			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
+			exit 0
+		fi
+		# only want to package master, classic, or a tag
+		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ]; then
+			echo "Not packaging \"${TRAVIS_BRANCH}\"."
+			exit 0
+		fi
+	fi
+fi
 
 # Set $topdir to top-level directory of the checkout.
 if [ -z "$topdir" ]; then
