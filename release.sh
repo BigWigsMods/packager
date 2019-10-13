@@ -877,6 +877,7 @@ contents="$package"
 # Filter for simple repository keyword replacement.
 simple_filter() {
 	sed \
+		-e "s/@travis-build-number@/$TRAVIS_BUILD_NUMBER/g" \
 		-e "s/@project-revision@/$si_project_revision/g" \
 		-e "s/@project-hash@/$si_project_hash/g" \
 		-e "s/@project-abbreviated-hash@/$si_project_abbreviated_hash/g" \
