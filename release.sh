@@ -42,7 +42,7 @@ if [ -n "$TRAVIS" ]; then
 			exit 0
 		fi
 		# only want to package master, classic, or a tag
-		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ]; then
+		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
 			echo "Not packaging \"${TRAVIS_BRANCH}\"."
 			exit 0
 		fi
