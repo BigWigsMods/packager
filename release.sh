@@ -738,11 +738,10 @@ fi
 if [ "$repository_type" = "git" ]; then
 	OLDIFS=$IFS
 	IFS=$'\n'
-	 for _vcs_ignore in $(git -C "$topdir" ls-files --others --directory); do
+	for _vcs_ignore in $(git -C "$topdir" ls-files --others --directory); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore*"
 		fi
-
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
 		else
@@ -1427,6 +1426,10 @@ checkout_external() {
 				echo "Fetching latest version of external $_external_uri"
 			fi
 		fi
+
+		# git clone --recursive-submodules --shallow-submodules is relatively new, so just do it here
+		git -C "$_cqe_checkout_dir" submodule -q update --init --depth 1 --recursive || return 1
+
 		set_info_git "$_cqe_checkout_dir"
 		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
 	elif [ "$_external_type" = "svn" ]; then
