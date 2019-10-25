@@ -1413,12 +1413,12 @@ checkout_external() {
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
+			git clone -q --recursive --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
 			echo "Fetching tag \"$_external_tag\" from external $_external_uri"
-			git clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
+			git clone -q --recursive --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else # [ "$_external_tag" = "latest" ]; then
-			git clone -q --depth 50 "$_external_uri" "$_cqe_checkout_dir" || return 1
+			git clone -q --recursive --depth 50 "$_external_uri" "$_cqe_checkout_dir" || return 1
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-creatordate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
 				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
