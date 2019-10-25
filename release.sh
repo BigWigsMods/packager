@@ -1406,6 +1406,8 @@ checkout_external() {
 	_external_tag=$3
 	_external_type=$4
 	_external_slug=$5
+	_external_extra_type=$6
+
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
 	echo
@@ -1414,14 +1416,19 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching tag \"$_external_tag\" from external $_external_uri"
-			git clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
+			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
+			if [ "$_external_extra_type" = "commit" ]; then
+				git clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag" || return 1
+			else
+				git -c advice.detachedHead=false clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
+			fi
 		else # [ "$_external_tag" = "latest" ]; then
 			git clone -q --depth 50 "$_external_uri" "$_cqe_checkout_dir" || return 1
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-creatordate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
 				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
-				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag"
+				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag" || return 1
 			else
 				echo "Fetching latest version of external $_external_uri"
 			fi
@@ -1472,7 +1479,7 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching tag \"$_external_tag\" from external $_external_uri"
+			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
 			hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else # [ "$_external_tag" = "latest" ]; then
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
@@ -1518,6 +1525,7 @@ external_uri=
 external_tag=
 external_type=
 external_slug=
+external_extra_type=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
 		# convert old curse repo urls
@@ -1577,7 +1585,7 @@ process_external() {
 		echo "Fetching external: $external_dir"
 		(
 			output_file="$releasedir/.${RANDOM}.externalout"
-			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" &> "$output_file"
+			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
 			status=$?
 			echo "$(<"$output_file")"
 			rm -f "$output_file" 2>/dev/null
@@ -1590,6 +1598,7 @@ process_external() {
 	external_tag=
 	external_type=
 	external_slug=
+	external_extra_type=
 }
 
 # Don't leave extra files around if exited early
@@ -1626,7 +1635,18 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 				externals)
 					case $yaml_key in
 					url) external_uri=$yaml_value ;;
-					tag) external_tag=$yaml_value ;;
+					tag)
+						external_tag=$yaml_value
+						external_extra_type=$yaml_key
+						;;
+					branch)
+						external_tag=$yaml_value
+						external_extra_type=$yaml_key
+						;;
+					commit)
+						external_tag=$yaml_value
+						external_extra_type=$yaml_key
+						;;
 					type) external_type=$yaml_value ;;
 					curse-slug) external_slug=$yaml_value ;;
 					*)
