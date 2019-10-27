@@ -16,7 +16,15 @@ jobs:
         run: docker login docker.pkg.github.com -u "BigWigsMods" -p "${{ secrets.DOCKER_PASS }}"
 
       - name: Build the image
-        run: docker build . -t docker.pkg.github.com/bigwigsmods/packager/packager:latest
+        run: docker build . -t packager
 
-      - name: Push the image
-        run: docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
+      - name: Push the latest tag
+        run: |
+          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:latest
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:latest
+
+      - name: Push the nightly tag
+        run: |
+          TAG="$(date -u +%Y%m%d%H%M%S)"
+          docker tag packager docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
+          docker push docker.pkg.github.com/bigwigsmods/packager/packager:$TAG
