@@ -1434,8 +1434,8 @@ checkout_external() {
 			fi
 		fi
 
-		# git clone --recursive-submodules --shallow-submodules is relatively new, so just do it here
-		git -C "$_cqe_checkout_dir" submodule -q update --init --depth 1 --recursive || return 1
+		# pull submodules
+		git -C "$_cqe_checkout_dir" submodule -q update --init --recursive || return 1
 
 		set_info_git "$_cqe_checkout_dir"
 		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
