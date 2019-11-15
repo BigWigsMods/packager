@@ -599,8 +599,15 @@ wowi_archive="true"
 declare -A relations=()
 
 parse_ignore() {
-	pkgmeta=$1
+	pkgmeta="$1"
 	[ -f "$pkgmeta" ] || return 1
+
+	checkpath="$topdir" # paths are relative to the topdir
+	copypath=""
+	if [ "$2" != "" ]; then
+		checkpath=$( dirname "$pkgmeta" )
+		copypath="$2/"
+	fi
 
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
@@ -620,11 +627,11 @@ parse_ignore() {
 			yaml_listitem "$yaml_line"
 			if [ "$pkgmeta_phase" = "ignore" ]; then
 				pattern=$yaml_item
-				if [ -d "$topdir/$pattern" ]; then
-					pattern="$pattern/*"
-				elif [ ! -f "$topdir/$pattern" ]; then
+				if [ -d "$checkpath/$pattern" ]; then
+					pattern="$copypath$pattern/*"
+				elif [ ! -f "$checkpath/$pattern" ]; then
 					# doesn't exist so match both a file and a path
-					pattern="$pattern:$pattern/*"
+					pattern="$copypath$pattern:$copypath$pattern/*"
 				fi
 				if [ -z "$ignore" ]; then
 					ignore="$pattern"
@@ -686,6 +693,9 @@ if [ -f "$pkgmeta_file" ]; then
 					pattern=$yaml_item
 					if [ -d "$topdir/$pattern" ]; then
 						pattern="$pattern/*"
+					elif [ ! -f "$topdir/$pattern" ]; then
+						# doesn't exist so match both a file and a path
+						pattern="$pattern:$pattern/*"
 					fi
 					if [ -z "$ignore" ]; then
 						ignore="$pattern"
@@ -1509,7 +1519,7 @@ checkout_external() {
 			project_site="https://wow.curseforge.com"
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
-		parse_ignore "$_cqe_checkout_dir/.pkgmeta"
+		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir"
 		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
