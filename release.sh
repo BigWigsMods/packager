@@ -93,8 +93,9 @@ classic=
 exit_code=0
 
 # Classic version info for special handling
-CLASSIC_INTERFACE="11302"
-CLASSIC_VERSION="1.13.2"
+declare -A CLASSIC_VERSIONS
+CLASSIC_VERSIONS["1.13.2"]="11302"
+CLASSIC_VERSIONS["1.13.3"]="11303"
 
 # Process command-line options
 usage() {
@@ -185,9 +186,9 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 				usage
 				exit 1
 			fi
-			if [ "$i" = "$CLASSIC_VERSION" ]; then
+			if [ -n "${CLASSIC_VERSIONS[$i]}" ]; then
 				classic="true"
-				toc_version="$CLASSIC_INTERFACE"
+				toc_version="${CLASSIC_VERSIONS[$i]}"
 			fi
 		done
 		game_version="$OPTARG"
@@ -815,11 +816,15 @@ fi
 toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
 if [ -z "$toc_version" ]; then
 	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
-	if [ "$toc_version" = "$CLASSIC_INTERFACE" ]; then
-		classic="true"
-		game_version="$CLASSIC_VERSION"
-	fi
+	for v in "${!CLASSIC_VERSIONS[@]}"; do
+		if [ "$toc_version" = "${CLASSIC_VERSIONS[$v]}" ]; then
+			classic="true"
+			game_version="$v"
+			break
+		fi
+	done
 fi
+
 # Get the title of the project for using in the changelog.
 project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
@@ -2196,6 +2201,10 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_wowinterface" ]; then
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
+			# FIXME WoWI hasn't updated yet
+			if [ "$toc_version" = "11303" ]; then
+				toc_version="11302"
+			fi
 			game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
 			if [ -z "$game_version" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
