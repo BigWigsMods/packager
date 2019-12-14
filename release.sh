@@ -2201,10 +2201,6 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_wowinterface" ]; then
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			# FIXME WoWI hasn't updated yet
-			if [ "$toc_version" = "11303" ]; then
-				toc_version="11302"
-			fi
 			game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
 			if [ -z "$game_version" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
