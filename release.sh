@@ -914,7 +914,7 @@ set_localization_url() {
 	if [ -n "$slug" ] && [ -n "$cf_token" ] && [ -n "$project_site" ]; then
 		localization_url="${project_site}/api/projects/$slug/localization/export"
 	fi
-	if [ -z "$localization_url" ] && grep -rq --include="*.lua" "@localization"; then
+	if [ -z "$localization_url" ] && grep -rq --include="*.lua" "@localization" .; then
 		echo "Skipping localization! Missing CurseForge API token and/or project id is invalid."
 		echo
 	fi
