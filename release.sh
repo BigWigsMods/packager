@@ -96,6 +96,7 @@ exit_code=0
 declare -A CLASSIC_VERSIONS
 CLASSIC_VERSIONS["1.13.2"]="11302"
 CLASSIC_VERSIONS["1.13.3"]="11303"
+CLASSIC_VERSIONS["1.13.4"]="11304"
 
 # Process command-line options
 usage() {
