@@ -2206,6 +2206,10 @@ if [ -z "$skip_zipfile" ]; then
 			if [ -z "$game_version" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
 			fi
+			# handle delayed support from WoWI
+			if [ -z "$game_version" ] && [ -n "$classic" ]; then
+				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
+			fi
 			if [ -z "$game_version" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
 			fi
