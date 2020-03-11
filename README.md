@@ -155,12 +155,12 @@ package.
     ## Interface: 80200
     #@end-retail@
     #@non-retail@
-    # ## Interface: 11303
+    # ## Interface: 11304
     #@end-non-retail@
 
 __release.sh__ will target retail by default.  You can change this by passing a
 different game version as an argument.  To target classic this would be
-`release.sh -g 1.13.3`.
+`release.sh -g 1.13.4`.
 
 ## Usage
 
