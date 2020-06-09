@@ -84,6 +84,7 @@ pkgmeta_file=
 game_version=
 game_version_id=
 toc_version=
+alpha=
 classic=
 
 ## END USER OPTIONS
@@ -371,11 +372,12 @@ set_info_git() {
 		si_previous_tag=
 		si_tag=
 	elif [ "$_si_tag" != "$si_tag" ]; then
-		si_project_version=$_si_tag
-		si_previous_tag=$si_tag
+		# not on a tag
+		si_project_version=$( git -C "$si_repo_dir" describe --tags --exclude="*alpha*" 2>/dev/null )
+		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" 2>/dev/null )
 		si_tag=
 	else # we're on a tag, just jump back one commit
-		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 HEAD~ 2>/dev/null )
+		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" HEAD~ 2>/dev/null )
 	fi
 }
 
@@ -532,6 +534,7 @@ hg) 	set_info_hg  "$topdir" ;;
 esac
 
 tag=$si_tag
+[[ -z "$tag" || "${tag,,}" == *"alpha"* ]] && alpha="true"
 project_version=$si_project_version
 previous_version=$si_previous_tag
 project_hash=$si_project_hash
@@ -851,7 +854,7 @@ if [ -n "$previous_version" ]; then
 fi
 (
 	[ -n "$classic" ] && retail="non-retail" || retail="retail"
-	[ -n "$tag" ] && alpha="non-alpha" || alpha="alpha"
+	[ -z "$alpha" ] && alpha="non-alpha" || alpha="alpha"
 	echo "Build type: ${retail} ${alpha} non-debug${nolib:+ nolib}"
 	echo
 )
@@ -1385,7 +1388,7 @@ copy_directory_tree() {
 
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
-	if [ -n "$tag" ]; then
+	if [ -z "$alpha" ]; then
 		cdt_args="${cdt_args}a"
 	fi
 	if [ -z "$skip_localization" ]; then
@@ -2326,7 +2329,7 @@ if [ -z "$skip_zipfile" ]; then
 		  "name": "$tag",
 		  "body": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
 		  "draft": false,
-		  "prerelease": $( [[ "${tag,,}" == *"beta"* ]] && echo true || echo false )
+		  "prerelease": $( [[ "${tag,,}" == *"beta"* || "${tag,,}" == *"alpha"* ]] && echo true || echo false )
 		}
 		EOF
 		)
