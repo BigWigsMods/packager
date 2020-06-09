@@ -1779,8 +1779,10 @@ else
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
 		changelog_version=
+		changelog_previous="[Previous Releases](${project_github_url}/releases)"
 		changelog_url_wowi=
 		changelog_version_wowi=
+		changelog_previous_wowi="[url=${project_github_url}/releases]Previous Releases[/url]"
 		_changelog_range=
 		if [ -z "$previous_version" ] && [ -z "$tag" ]; then
 			# no range, show all commits up to ours
@@ -1815,8 +1817,14 @@ else
 		if [ -z "$project_github_url" ]; then
 			changelog_url=
 			changelog_version=$project_version
+			changelog_previous=
 			changelog_url_wowi=
 			changelog_version_wowi="[color=orange]${project_version}[/color]"
+			changelog_previous_wowi=
+		elif [ -z "$github_token" ]; then
+			# not creating releases :(
+			changelog_previous=
+			changelog_previous_wowi=
 		fi
 		changelog_date=$( TZ= printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
@@ -1824,7 +1832,7 @@ else
 		# $project
 
 		## $changelog_version ($changelog_date)
-		$changelog_url
+		$changelog_url $changelog_previous
 
 		EOF
 		git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
@@ -1838,10 +1846,6 @@ else
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
 		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
-			changelog_previous_wowi=
-			if [ -n "$project_github_url" ] && [ -n "$github_token" ]; then
-				changelog_previous_wowi="[url=${project_github_url}/releases]Previous releases[/url]"
-			fi
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
