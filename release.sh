@@ -377,7 +377,12 @@ set_info_git() {
 		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" 2>/dev/null )
 		si_tag=
 	else # we're on a tag, just jump back one commit
-		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" HEAD~ 2>/dev/null )
+		if [[ $si_tag != *"beta"* && $si_tag != *"alpha"* ]]; then
+			# full release, ignore beta tags
+			si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" --exclude="*beta*" HEAD~ 2>/dev/null )
+		else
+			si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" HEAD~ 2>/dev/null )
+		fi
 	fi
 }
 
