@@ -152,15 +152,15 @@ keywords in your TOC file to include the appropriate `## Interface:` line in the
 package.
 
     #@retail@
-    ## Interface: 80200
+    ## Interface: 80300
     #@end-retail@
     #@non-retail@
-    # ## Interface: 11304
+    # ## Interface: 11305
     #@end-non-retail@
 
 __release.sh__ will target retail by default.  You can change this by passing a
 different game version as an argument.  To target classic this would be
-`release.sh -g 1.13.4`.
+`release.sh -g 1.13.5`.
 
 ## Usage
 
