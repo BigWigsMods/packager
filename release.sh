@@ -2120,9 +2120,13 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 			fi
 			if [ -z "$game_version_id" ]; then
-				# 517 = retail, 67408 = classic
-				game_version_id=$( echo "$_cf_versions" | jq -c 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | [.id]' 2>/dev/null )
-				game_version=$( echo "$_cf_versions" | jq -r 'map(select(.gameVersionTypeID == 517)) | max_by(.id) | .name' 2>/dev/null )
+				if [ -n "$classic" ]; then
+					game_version_type_id=67408
+				else
+					game_version_type_id=517
+				fi
+				game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
+				game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
 			fi
 		fi
 		if [ -z "$game_version_id" ]; then
