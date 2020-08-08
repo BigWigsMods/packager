@@ -1,11 +1,11 @@
-FROM debian:9
+FROM alpine:latest
 
 # install dependencies
-RUN apt-get update && \
-	apt-get install -y curl zip jq pandoc git subversion mercurial
+RUN apk add --no-cache bash curl grep zip jq git subversion mercurial
+RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ pandoc
 
 # copy release.sh
-ADD release.sh /usr/local/bin/
+ADD ./release.sh /usr/local/bin/
 
 # make release.sh executable
 RUN chmod +x /usr/local/bin/release.sh
