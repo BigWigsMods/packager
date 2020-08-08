@@ -36,7 +36,7 @@ if [ -n "$TRAVIS" ]; then
 	fi
 	if [ -z "$TRAVIS_TAG" ]; then
 		# don't need to run the packager if there is a tag pending
-		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at )
+		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at HEAD )
 		if [ -n "$TRAVIS_TAG" ]; then
 			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
 			exit 0
@@ -50,7 +50,7 @@ if [ -n "$TRAVIS" ]; then
 fi
 # actions check to prevent duplicate builds
 if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" == "refs/heads"* ]]; then
-	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at )
+	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
 	if [ -n "$GITHUB_TAG" ]; then
 		echo "Found future tag \"${GITHUB_TAG}\", not packaging."
 		exit 0
