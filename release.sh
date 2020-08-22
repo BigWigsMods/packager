@@ -49,7 +49,7 @@ if [ -n "$TRAVIS" ]; then
 	fi
 fi
 # actions check to prevent duplicate builds
-if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" == "refs/heads"* ]]; then
+if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
 	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
 	if [ -n "$GITHUB_TAG" ]; then
 		echo "Found future tag \"${GITHUB_TAG}\", not packaging."
