@@ -1,10 +1,17 @@
 name: WoW Packager
-description: Builds and publishes World of Warcraft AddOns
+description: Build and publish World of Warcraft AddOns
 branding:
   icon: package
   color: yellow
+inputs:
+  args:
+    description: 'Command-line arguments. See https://github.com/BigWigsMods/packager#usage'
+    required: false
 runs:
-  using: docker
-  image: Dockerfile
-  entrypoint: release.sh
-
+  using: composite
+  steps:
+    # install pandoc if appropriate
+    - run: test -n "$WOWI_API_TOKEN" && sudo apt-get install -yq pandoc &>/dev/null || true
+      shell: bash
+    - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
+      shell: bash
