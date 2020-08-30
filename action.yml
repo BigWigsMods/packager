@@ -5,7 +5,8 @@ branding:
   color: yellow
 inputs:
   args:
-    description: Command-line arguments. See https://github.com/BigWigsMods/packager#usage
+    description: 'Command-line arguments. See https://github.com/BigWigsMods/packager#usage'
+    required: false
 runs:
   using: composite
   steps:
