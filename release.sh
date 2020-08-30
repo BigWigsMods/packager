@@ -781,8 +781,9 @@ elif [ "$repository_type" = "svn" ]; then
 	done
 	IFS=$OLDIFS
 elif [ "$repository_type" = "hg" ]; then
-	_vcs_ignore=$( hg --cwd "$topdir" status --ignored --unknown --no-status | sed -e ':a' -e 'N' -e 's/\n/:/' -e 'ta' )
+	_vcs_ignore=$( hg --cwd "$topdir" status --ignored --unknown --no-status --print0 | tr '\0' ':' )
 	if [ -n "$_vcs_ignore" ]; then
+		_vcs_ignore=${_vcs_ignore:0:-1}
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
 		else
