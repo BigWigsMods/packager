@@ -325,14 +325,13 @@ si_file_date_integer= # Turns into the last changed date (by UTC) of the file in
 si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
 
 # SVN date helper function
-isgnudate=$( date --version &>/dev/null && echo "true" )
 strtotime() {
 	value="$1" # datetime string
 	format="$2" # strptime string
-	if [ -n "$isgnudate" ]; then # gnu
-		date -d "$value" +%s 2>/dev/null
-	else # bsd
+	if [[ "${OSTYPE,,}" == *"darwin"* ]]; then # bsd
 		date -j -f "$format" "$value" "+%s" 2>/dev/null
+	else # gnu
+		date -d "$value" +%s 2>/dev/null
 	fi
 }
 
@@ -435,8 +434,8 @@ set_info_svn() {
 
 		# Populate filter vars.
 		si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
-		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_si_svninfo" )
-		si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T %z" )
+		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5; exit }' < "$_si_svninfo" )
+		si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T" )
 		si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
 		si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
 		# SVN repositories have no project hash.
