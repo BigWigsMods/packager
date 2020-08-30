@@ -346,7 +346,7 @@ set_info_git() {
 
 	# Populate filter vars.
 	si_project_hash=$( git -C "$si_repo_dir" show --no-patch --format="%H" 2>/dev/null )
-	si_project_abbreviated_hash=$( git -C "$si_repo_dir" show --no-patch --format="%h" 2>/dev/null )
+	si_project_abbreviated_hash=$( git -C "$si_repo_dir" show --no-patch --abbrev=7 --format="%h" 2>/dev/null )
 	si_project_author=$( git -C "$si_repo_dir" show --no-patch --format="%an" 2>/dev/null )
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
@@ -357,7 +357,7 @@ set_info_git() {
 	# Get the tag for the HEAD.
 	si_previous_tag=
 	si_previous_revision=
-	_si_tag=$( git -C "$si_repo_dir" describe --tags --always 2>/dev/null )
+	_si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=7 2>/dev/null )
 	si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
 	si_project_version=$si_tag
@@ -369,7 +369,7 @@ set_info_git() {
 		si_tag=
 	elif [ "$_si_tag" != "$si_tag" ]; then
 		# not on a tag
-		si_project_version=$( git -C "$si_repo_dir" describe --tags --exclude="*alpha*" 2>/dev/null )
+		si_project_version=$( git -C "$si_repo_dir" describe --tags --abbrev=7 --exclude="*alpha*" 2>/dev/null )
 		si_previous_tag=$( git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*alpha*" 2>/dev/null )
 		si_tag=
 	else # we're on a tag, just jump back one commit
@@ -489,7 +489,7 @@ set_info_file() {
 		_si_file=${1#si_repo_dir} # need the path relative to the checkout
 		# Populate filter vars from the last commit the file was included in.
 		si_file_hash=$( git -C "$si_repo_dir" log --max-count=1 --format="%H" "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1  --format="%h"  "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1 --abbrev=7 --format="%h" "$_si_file" 2>/dev/null )
 		si_file_author=$( git -C "$si_repo_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
@@ -1458,7 +1458,7 @@ checkout_external() {
 		git -C "$_cqe_checkout_dir" submodule -q update --init --recursive || return 1
 
 		set_info_git "$_cqe_checkout_dir"
-		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --long )" #$si_project_abbreviated_hash
+		echo "Checked out $( git -C "$_cqe_checkout_dir" describe --always --tags --abbrev=7 --long )" #$si_project_abbreviated_hash
 	elif [ "$_external_type" = "svn" ]; then
 		if [[ $external_uri == *"/trunk" ]]; then
 			_cqe_svn_trunk_url=$_external_uri
