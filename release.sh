@@ -27,36 +27,6 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
-# add some travis checks so we don't need to do it in the yaml file
-if [ -n "$TRAVIS" ]; then
-	# don't need to run the packager for pull requests
-	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-		echo "Not packaging pull request."
-		exit 0
-	fi
-	if [ -z "$TRAVIS_TAG" ]; then
-		# don't need to run the packager if there is a tag pending
-		TRAVIS_TAG=$( git -C "$TRAVIS_BUILD_DIR" tag --points-at HEAD )
-		if [ -n "$TRAVIS_TAG" ]; then
-			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
-			exit 0
-		fi
-		# only want to package master, classic, or a tag
-		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
-			echo "Not packaging \"${TRAVIS_BRANCH}\"."
-			exit 0
-		fi
-	fi
-fi
-# actions check to prevent duplicate builds
-if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
-	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
-	if [ -n "$GITHUB_TAG" ]; then
-		echo "Found future tag \"${GITHUB_TAG}\", not packaging."
-		exit 0
-	fi
-fi
-
 ## USER OPTIONS
 
 # Secrets for uploading
@@ -237,6 +207,39 @@ if [ -z "$topdir" ]; then
 		fi
 	fi
 fi
+
+# add some travis checks so we don't need to do it in the yaml file
+if [ -n "$TRAVIS" ]; then
+	# don't need to run the packager for pull requests
+	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+		echo "Not packaging pull request."
+		exit 0
+	fi
+	if [ -z "$TRAVIS_TAG" ]; then
+		# don't need to run the packager if there is a tag pending
+		check_tag=$( git -C "$topdir" tag --points-at HEAD )
+		if [ -n "$_tag" ]; then
+			echo "Found future tag \"${check_tag}\", not packaging."
+			exit 0
+		fi
+		# only want to package master, classic, or a tag
+		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
+			echo "Not packaging \"${TRAVIS_BRANCH}\"."
+			exit 0
+		fi
+	fi
+fi
+# actions check to prevent duplicate builds
+if [ -n "$GITHUB_ACTIONS" ]; then
+	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
+		check_tag=$( git -C "$topdir" tag --points-at HEAD )
+		if [ -n "$_tag" ]; then
+			echo "Found future tag \"${check_tag}\", not packaging."
+			exit 0
+		fi
+	fi
+fi
+unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
