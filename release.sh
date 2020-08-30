@@ -218,7 +218,7 @@ if [ -n "$TRAVIS" ]; then
 	if [ -z "$TRAVIS_TAG" ]; then
 		# don't need to run the packager if there is a tag pending
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
-		if [ -n "$_tag" ]; then
+		if [ -n "$check_tag" ]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
@@ -233,7 +233,7 @@ fi
 if [ -n "$GITHUB_ACTIONS" ]; then
 	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
-		if [ -n "$_tag" ]; then
+		if [ -n "$check_tag" ]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
