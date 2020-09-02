@@ -42,14 +42,15 @@ for more info.
 - *manual-changelog*
 - *move-folders*
 - *package-as*
-- *enable-nolib-creation* (defaults to no) Unlike using the Curse packager,
+- *enable-nolib-creation* (defaults to no) Caveats: nolib packages will only be
+  uploaded to GitHub and attached to a release. Unlike using the Curse packager,
   manually uploading nolib packages has no affect for client users that choose
   to download libraries separately.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
-- *embedded-libraries* Note: All externals will be marked as embedded, overriding
-  any manually set relations in the pkgmeta.
+- *embedded-libraries* Note: All externals will be marked as embedded,
+  overriding any manually set relations in the pkgmeta.
 
 You can also use a few directives for WoWInterface uploading.
 
@@ -97,7 +98,7 @@ for more info.
 
 ## Build type keywords
 
-*alpha*, *debug*, *do-not-package*, *no-lib-strip*, and *retail* are build type
+*alpha*, *debug*, *retail*, *no-lib-strip*, and *do-not-package* are build type
 keywords and are used to conditionally run a block of code based on the build
 type with the use of comments.
 
@@ -117,6 +118,9 @@ turn into `--[===[@keyword` and `--@end-keyword]===]`.
 turn into `--@non-keyword@` and `--@end-non-keyword@`.
 
 ### In XML files
+
+**Note:** XML doesn't allow nested comments so make sure not to nest keywords. If
+you need nested keywords, you can do so in the TOC instead.
 
 `<!--@keyword@-->` and `<!--@end-keyword@-->`  
 turn into `<!--@keyword` and `@end-keyword@-->`.
