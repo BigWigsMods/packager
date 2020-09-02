@@ -640,6 +640,8 @@ parse_ignore() {
 				elif [ ! -f "$checkpath/$pattern" ]; then
 					# doesn't exist so match both a file and a path
 					pattern="$copypath$pattern:$copypath$pattern/*"
+				else
+					pattern="$copypath$pattern"
 				fi
 				if [ -z "$ignore" ]; then
 					ignore="$pattern"
