@@ -1734,46 +1734,33 @@ if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
 	echo
 
-	if [ "$changelog_markup" = "markdown" ]; then
-		# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
-		# Requires pandoc (http://pandoc.org/)
-		_html_changelog=
-		if pandoc --version &>/dev/null; then
-			_html_changelog=$( pandoc -t html "$topdir/$changelog" )
-		fi
-		if [ -n "$_html_changelog" ]; then
-			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-			echo "$_html_changelog" | sed \
-				-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
-				-e 's/<\(\/\)\?em>/[\1i]/g' \
-				-e 's/<\(\/\)\?strong>/[\1b]/g' \
-				-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
-				-e 's/<\/[ou]l>/[\/list]\n/g' \
-				-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
-				-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
-				-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
-				-e 's/<\/h[1-6]>/[\/size]\n/g' \
-				-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
-				-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
-				-e 's/<\(\/\)\?blockquote>/[\1quote]\n/g' \
-				-e 's/<pre><code>/[code]\n/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
-				-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
-				-e 's/<\/p>/\n/g' \
-				-e 's/<[^>]\+>//g' \
-				-e 's/&quot;/"/g' \
-				-e 's/&amp;/&/g' \
-				-e 's/&lt;/</g' \
-				-e 's/&gt;/>/g' \
-				-e "s/&#39;/'/g" \
-				| line_ending_filter > "$wowi_changelog"
-
-				# extra conversion for discount markdown
-				# -e 's/&\(ld\|rd\)quo;/"/g' \
-				# -e "s/&\(ls\|rs\)quo;/'/g" \
-				# -e 's/&ndash;/--/g' \
-				# -e 's/&hellip;/.../g' \
-				# -e 's/^[ \t]*//g' \
-		fi
+	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
+	# Requires pandoc (http://pandoc.org/)
+	if [ "$changelog_markup" = "markdown" ] && hash pandoc &>/dev/null; then
+		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+		pandoc -t html "$topdir/$changelog" | sed \
+			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
+			-e 's/<\(\/\)\?em>/[\1i]/g' \
+			-e 's/<\(\/\)\?strong>/[\1b]/g' \
+			-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
+			-e 's/<\/[ou]l>/[\/list]\n/g' \
+			-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
+			-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
+			-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
+			-e 's/<\/h[1-6]>/[\/size]\n/g' \
+			-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
+			-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
+			-e 's/<\(\/\)\?blockquote>/[\1quote]\n/g' \
+			-e 's/<pre><code>/[code]\n/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
+			-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
+			-e 's/<\/p>/\n/g' \
+			-e 's/<[^>]\+>//g' \
+			-e 's/&quot;/"/g' \
+			-e 's/&amp;/&/g' \
+			-e 's/&lt;/</g' \
+			-e 's/&gt;/>/g' \
+			-e "s/&#39;/'/g" \
+			| line_ending_filter > "$wowi_changelog"
 	fi
 else
 	if [ -n "$manual_changelog" ]; then
