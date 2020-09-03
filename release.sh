@@ -604,6 +604,7 @@ contents=
 nolib_exclude=
 wowi_gen_changelog="true"
 wowi_archive="true"
+wowi_convert_changelog="true"
 declare -A relations=()
 
 parse_ignore() {
@@ -683,6 +684,11 @@ if [ -f "$pkgmeta_file" ]; then
 			wowi-create-changelog)
 				if [ "$yaml_value" = "no" ]; then
 					wowi_gen_changelog=
+				fi
+				;;
+			wowi-convert-changelog)
+				if [ "$yaml_value" = "no" ]; then
+					wowi_convert_changelog=
 				fi
 				;;
 			wowi-archive-previous)
@@ -1736,7 +1742,7 @@ if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
-	if [ "$changelog_markup" = "markdown" ] && hash pandoc &>/dev/null; then
+	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 		pandoc -t html "$topdir/$changelog" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \

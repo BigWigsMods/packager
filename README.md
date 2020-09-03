@@ -56,11 +56,13 @@ You can also use a few directives for WoWInterface uploading.
 
 - *wowi-archive-previous* : `yes|no` (defaults to yes) Archive the previous
   release.
-- *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a Git changelog
+- *wowi-create-changelog* : `yes|no` (defaults to yes) Generate a changelog
   using BBCode that will be set when uploading. A manual changelog will always
-  be used if set in the .pkgmeta. If you have [pandoc](http://pandoc.org/)
-  installed, manual changelogs in Markdown format will be converted to BBCode;
-  otherwise, the manual changelog will be used as-is.
+  be used instead if set in the .pkgmeta.
+- *wowi-convert-changelog* : `yes|no` (defaults to yes) Convert a manual
+  changelog in Markdown format to BBCode if you have [pandoc](http://pandoc.org/)
+  installed or use the GitHub Action; otherwise, the manual changelog will be
+  used as-is.
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
