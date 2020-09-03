@@ -329,8 +329,8 @@ si_file_timestamp= # Turns into the last changed date (by UTC) of the file in PO
 
 # SVN date helper function
 strtotime() {
-	value="$1" # datetime string
-	format="$2" # strptime string
+	local value="$1" # datetime string
+	local format="$2" # strptime string
 	if [[ "${OSTYPE,,}" == *"darwin"* ]]; then # bsd
 		date -j -f "$format" "$value" "+%s" 2>/dev/null
 	else # gnu
