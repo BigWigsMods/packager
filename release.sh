@@ -2084,7 +2084,7 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
 	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
-	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! jq --version &>/dev/null; then
+	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! hash jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		upload_curseforge=
