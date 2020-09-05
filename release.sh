@@ -1744,23 +1744,26 @@ if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	# Requires pandoc (http://pandoc.org/)
 	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-		pandoc -t html "$topdir/$changelog" | sed \
+		pandoc -f commonmark -t html "$topdir/$changelog" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
 			-e 's/<\(\/\)\?em>/[\1i]/g' \
 			-e 's/<\(\/\)\?strong>/[\1b]/g' \
 			-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
 			-e 's/<\/[ou]l>/[\/list]\n/g' \
-			-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
+			-e 's/<li><p>/[*]/g' -e 's/<li>/[*]/g' -e 's/<\/p><\/li>//g' -e 's/<\/li>//g' \
+			-e 's/\[\*\]\[ \] /[*]☐ /g' -e 's/\[\*\]\[[xX]\] /[*]☒ /g' \
 			-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
 			-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
 			-e 's/<\/h[1-6]>/[\/size]\n/g' \
+			-e 's/<blockquote>/[quote]/g' -e 's/<\/blockquote>/[\/quote]\n/g' \
+			-e 's/<div class="sourceCode"[^>]*><pre class="sourceCode lua"><code class="sourceCode lua">/[highlight="lua"]/g' -e 's/<\/code><\/pre><\/div>/[\/highlight]\n/g' \
+			-e 's/<pre><code>/[code]/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
+			-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
 			-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
 			-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
-			-e 's/<\(\/\)\?blockquote>/[\1quote]\n/g' \
-			-e 's/<pre><code>/[code]\n/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
-			-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
+			-e 's/<hr \/>/_____________________________________________________________________________\n/g' \
 			-e 's/<\/p>/\n/g' \
-			-e 's/<[^>]\+>//g' \
+			-e '/^<[^>]\+>$/d' -e 's/<[^>]\+>//g' \
 			-e 's/&quot;/"/g' \
 			-e 's/&amp;/&/g' \
 			-e 's/&lt;/</g' \
