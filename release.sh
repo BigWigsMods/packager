@@ -907,7 +907,7 @@ contents="$package"
 ###
 
 # Filter for simple repository keyword replacement.
-simple_filter() {
+vcs_filter() {
 	sed \
 		-e "s/@project-revision@/$si_project_revision/g" \
 		-e "s/@project-hash@/$si_project_hash/g" \
@@ -1303,15 +1303,15 @@ copy_directory_tree() {
 	# Create a "find" command to list all of the files in the current directory, minus any ones we need to prune.
 	_cdt_find_cmd="find ."
 	# Prune everything that begins with a dot except for the current directory ".".
-	_cdt_find_cmd="$_cdt_find_cmd \( -name \".*\" -a \! -name \".\" \) -prune"
+	_cdt_find_cmd+=" \( -name \".*\" -a \! -name \".\" \) -prune"
 	# Prune the destination directory if it is a subdirectory of the source directory.
 	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
 	case $_cdt_dest_subdir in
-	/*)	;;
-	*)	_cdt_find_cmd="$_cdt_find_cmd -o -path \"./$_cdt_dest_subdir\" -prune" ;;
+		/*)	;;
+		*)	_cdt_find_cmd+=" -o -path \"./$_cdt_dest_subdir\" -prune" ;;
 	esac
 	# Print the filename, but suppress the current directory ".".
-	_cdt_find_cmd="$_cdt_find_cmd -o \! -name \".\" -print"
+	_cdt_find_cmd+=" -o \! -name \".\" -print"
 	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
 		file=${file#./}
 		if [ -f "$_cdt_srcdir/$file" ]; then
@@ -1341,61 +1341,45 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				skip_filter="true"
-				if match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
-					skip_filter=
-				fi
-				# shellcheck disable=2209 # _var=cat
-				if [ -n "$skip_filter" ] || [ -n "$unchanged" ]; then
+				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
-					# Set the filter for @localization@ replacement.
-					_cdt_localization_filter=cat
-					if [ -n "$_cdt_localization" ]; then
-						_cdt_localization_filter=localization_filter
-					fi
 					# Set the filters for replacement based on file extension.
-					_cdt_alpha_filter=cat
-					_cdt_debug_filter=cat
-					_cdt_nolib_filter=cat
-					_cdt_do_not_package_filter=cat
-					_cdt_classic_filter=cat
+					_cdt_filters="vcs_filter"
 					case $file in
-					*.lua)
-						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="lua_filter alpha"
-						[ -n "$_cdt_debug" ] && _cdt_debug_filter="lua_filter debug"
-						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter lua"
-						[ -n "$_cdt_classic" ] && _cdt_classic_filter="lua_filter retail"
-						;;
-					*.xml)
-						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="xml_filter alpha"
-						[ -n "$_cdt_debug" ] && _cdt_debug_filter="xml_filter debug"
-						[ -n "$_cdt_nolib" ] && _cdt_nolib_filter="xml_filter no-lib-strip"
-						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter xml"
-						[ -n "$_cdt_classic" ] && _cdt_classic_filter="xml_filter retail"
-						;;
-					*.toc)
-						_cdt_alpha_filter="toc_filter2 alpha ${_cdt_alpha:-0}"
-						_cdt_debug_filter="toc_filter2 debug ${_cdt_debug:-0}"
-						_cdt_nolib_filter="toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
-						_cdt_do_not_package_filter="toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
-						_cdt_classic_filter="toc_filter2 retail ${_cdt_classic:-0}"
-						;;
+						*.lua)
+							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
+							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
+							[ -n "$_cdt_classic" ] && _cdt_filters+="|lua_filter retail"
+							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+							;;
+						*.xml)
+							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
+							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
+							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
+							[ -n "$_cdt_classic" ] && _cdt_filters+="|xml_filter retail"
+							;;
+						*.toc)
+							_cdt_filters+="|toc_filter2 alpha ${_cdt_alpha:-0}"
+							_cdt_filters+="|toc_filter2 debug ${_cdt_debug:-0}"
+							_cdt_filters+="|toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
+							_cdt_filters+="|toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
+							_cdt_filters+="|toc_filter2 retail ${_cdt_classic:-0}"
+							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+							;;
 					esac
-					# As a side-effect, files that don't end in a newline silently have one added.
-					# POSIX does imply that text files must end in a newline.
+
+					# Set the filter for normalizing line endings.
+					_cdt_filters+="|line_ending_filter"
+
+					# Set version control values for the file.
 					set_info_file "$_cdt_srcdir/$file"
+
 					echo "  Copying: $file"
-					simple_filter < "$_cdt_srcdir/$file" \
-						| $_cdt_alpha_filter \
-						| $_cdt_debug_filter \
-						| $_cdt_nolib_filter \
-						| $_cdt_do_not_package_filter \
-						| $_cdt_classic_filter \
-						| $_cdt_localization_filter \
-						| line_ending_filter \
-						> "$_cdt_destdir/$file"
+					eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$file"
 				fi
 			fi
 		fi
@@ -1404,24 +1388,12 @@ copy_directory_tree() {
 
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
-	if [ -z "$alpha" ]; then
-		cdt_args="${cdt_args}a"
-	fi
-	if [ -z "$skip_localization" ]; then
-		cdt_args="${cdt_args}l"
-	fi
-	if [ -n "$nolib" ]; then
-		cdt_args="${cdt_args}n"
-	fi
-	if [ -n "$classic" ]; then
-		cdt_args="${cdt_args}c"
-	fi
-	if [ -n "$ignore" ]; then
-		cdt_args="$cdt_args -i \"$ignore\""
-	fi
-	if [ -n "$changelog" ]; then
-		cdt_args="$cdt_args -u \"$changelog\""
-	fi
+	[ -z "$alpha" ] && cdt_args+="a"
+	[ -z "$skip_localization" ] && cdt_args+="l"
+	[ -n "$nolib" ] && cdt_args+="n"
+	[ -n "$classic" ] && cdt_args+="c"
+	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
+	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
 	echo
 fi
