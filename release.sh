@@ -208,29 +208,49 @@ if [ -z "$topdir" ]; then
 	fi
 fi
 
-# add some travis checks so we don't need to do it in the yaml file
+# Handle folding sections in CI logs
+start_group() { echo "$1"; }
+end_group() { echo; }
+
+# Check for Travis CI
 if [ -n "$TRAVIS" ]; then
-	# don't need to run the packager for pull requests
+	# Don't run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
 		exit 0
 	fi
 	if [ -z "$TRAVIS_TAG" ]; then
-		# don't need to run the packager if there is a tag pending
+		# Don't run the packager if there is a tag pending
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
 		if [ -n "$check_tag" ]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
-		# only want to package master, classic, or a tag
+		# Only package master, classic, or develop
 		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
 			echo "Not packaging \"${TRAVIS_BRANCH}\"."
 			exit 0
 		fi
 	fi
+	# https://github.com/travis-ci/travis-build/tree/master/lib/travis/build/bash
+	start_group() {
+		echo -en "travis_fold:start:$2\\r\033[0K"
+		# release_timer_id="$(printf %08x $((RANDOM * RANDOM)))"
+		# release_timer_start_time="$(date -u +%s%N)"
+		# echo -en "travis_time:start:${release_timer_id}\\r\033[0K"
+		echo "$1"
+	}
+	end_group() {
+		# local release_timer_end_time="$(date -u +%s%N)"
+		# local duration=$((release_timer_end_time - release_timer_start_time))
+		# echo -en "\\ntravis_time:end:${release_timer_id}:start=${release_timer_start_time},finish=${release_timer_end_time},duration=${duration}\\r\033[0K"
+		echo -en "travis_fold:end:$1\\r\033[0K"
+	}
 fi
-# actions check to prevent duplicate builds
+
+# Check for GitHub Actions
 if [ -n "$GITHUB_ACTIONS" ]; then
+	# Prevent duplicate builds
 	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
 		if [ -n "$check_tag" ]; then
@@ -238,6 +258,8 @@ if [ -n "$GITHUB_ACTIONS" ]; then
 			exit 0
 		fi
 	fi
+	start_group() { echo "##[group]$1"; }
+	end_group() { echo "##[endgroup]"; }
 fi
 unset check_tag
 
@@ -417,7 +439,7 @@ set_info_svn() {
 				si_project_revision=$( svn info "$_si_root/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
 			else
 				# Set $si_project_revision to the highest revision of the project at the checkout path
-				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -1 )
+				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
 			fi
 			;;
 		esac
@@ -1296,7 +1318,11 @@ copy_directory_tree() {
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	echo "Copying files into ${_cdt_destdir#$topdir/}:"
+	if [ -z "$_external_dir" ]; then
+		start_group "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
+	else # don't nest groups
+		echo "Copying files into ${_cdt_destdir#$topdir/}:"
+	fi
 	if [ ! -d "$_cdt_destdir" ]; then
 		mkdir -p "$_cdt_destdir"
 	fi
@@ -1384,6 +1410,9 @@ copy_directory_tree() {
 			fi
 		fi
 	done
+	if [ -z "$_external_dir" ]; then
+		end_group "copy"
+	fi
 }
 
 if [ -z "$skip_copying" ]; then
@@ -1395,7 +1424,6 @@ if [ -z "$skip_copying" ]; then
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
-	echo
 fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
@@ -1418,7 +1446,6 @@ checkout_external() {
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
-	echo
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
@@ -1676,6 +1703,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 	if [ ${#external_pids[*]} -gt 0 ]; then
 		echo
 		echo "Waiting for externals to finish..."
+		echo
 
 		while [ ${#external_pids[*]} -gt 0 ]; do
 			wait -n
@@ -1687,8 +1715,11 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 						_external_error=1
 						# wrap each line with a bright red color code
 						awk '{ printf "\033[01;31m%s\033[0m\n", $0 }' "$_external_output"
+						echo
 					else
-						echo "$(<"$_external_output")"
+						start_group "$( head -n1 "$_external_output" )" "external.$pid"
+						tail -n+2 "$_external_output"
+						end_group "external.$pid"
 					fi
 					rm -f "$_external_output" 2>/dev/null
 					unset 'external_pids[i]'
@@ -1701,7 +1732,6 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 			echo "There was an error fetching externals :(" >&2
 			exit 1
 		fi
-		echo
 	fi
 fi
 
@@ -1719,11 +1749,10 @@ fi
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	echo "Using manual changelog at $changelog"
-	echo
+	start_group "Using manual changelog at $changelog" "changelog"
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
-	echo
+	end_group "changelog"
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
@@ -1764,7 +1793,7 @@ else
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 
-	echo "Generating changelog of commits into $changelog"
+	start_group "Generating changelog of commits into $changelog" "changelog"
 
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
@@ -1926,7 +1955,7 @@ else
 
 	echo
 	echo "$(<"$pkgdir/$changelog")"
-	echo
+	end_group "changelog"
 fi
 
 ###
@@ -2017,8 +2046,7 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive=
 	fi
 
-	echo "Creating archive: $archive_name"
-
+	start_group "Creating archive: $archive_name" "archive"
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
@@ -2027,12 +2055,10 @@ if [ -z "$skip_zipfile" ]; then
 	if [ ! -f "$archive" ]; then
 		exit 1
 	fi
-	echo
+	end_group "archive"
 
 	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" ] && [ -z "$nolib" ] && [ -n "$nolib_exclude" ]; then
-		echo "Creating no-lib archive: $nolib_archive_name"
-
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
 			case $file in
@@ -2045,6 +2071,7 @@ if [ -z "$skip_zipfile" ]; then
 		# make the exclude paths relative to the release directory
 		nolib_exclude=${nolib_exclude//$releasedir\//}
 
+		start_group "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
 		if [ -f "$nolib_archive" ]; then
 			rm -f "$nolib_archive"
 		fi
@@ -2054,7 +2081,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ ! -f "$nolib_archive" ]; then
 			exit_code=1
 		fi
-		echo
+		end_group "archive.nolib"
 	fi
 
 	###
@@ -2366,6 +2393,7 @@ fi
 
 # All done.
 
+echo
 echo "Packaging complete."
 echo
 
