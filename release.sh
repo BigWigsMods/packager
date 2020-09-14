@@ -1414,7 +1414,7 @@ checkout_external() {
 	_external_type=$4
 	# shellcheck disable=2034
 	_external_slug=$5 # unused until we can easily fetch the project id
-	_external_extra_type=$6
+	_external_checkout_type=$6
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
@@ -1424,8 +1424,8 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
-			if [ "$_external_extra_type" = "commit" ]; then
+			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
+			if [ "$_external_checkout_type" = "commit" ]; then
 				git clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag" || return 1
 			else
@@ -1487,7 +1487,7 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
+			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
 			hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else # [ "$_external_tag" = "latest" ]; then
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
@@ -1533,7 +1533,7 @@ external_uri=
 external_tag=
 external_type=
 external_slug=
-external_extra_type=
+external_checkout_type=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
 		# convert old curse repo urls
@@ -1591,7 +1591,7 @@ process_external() {
 		fi
 
 		echo "Fetching external: $external_dir"
-		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$releasedir/.$BASHPID.externalout" &
+		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_checkout_type" &> "$releasedir/.$BASHPID.externalout" &
 		external_pids+=($!)
 	fi
 	external_dir=
@@ -1599,7 +1599,7 @@ process_external() {
 	external_tag=
 	external_type=
 	external_slug=
-	external_extra_type=
+	external_checkout_type=
 }
 
 # Don't leave extra files around if exited early
@@ -1638,15 +1638,15 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 					url) external_uri=$yaml_value ;;
 					tag)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					branch)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					commit)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					type) external_type=$yaml_value ;;
 					curse-slug) external_slug=$yaml_value ;;
