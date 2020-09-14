@@ -1795,6 +1795,7 @@ else
 
 	start_group "Generating changelog of commits into $changelog" "changelog"
 
+	_changelog_range=
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
 		changelog_version=
@@ -1802,7 +1803,6 @@ else
 		changelog_url_wowi=
 		changelog_version_wowi=
 		changelog_previous_wowi="[url=${project_github_url}/releases]Previous Releases[/url]"
-		_changelog_range=
 		if [ -z "$previous_version" ] && [ -z "$tag" ]; then
 			# no range, show all commits up to ours
 			changelog_url="[Full Changelog](${project_github_url}/commits/${project_hash})"
@@ -1882,9 +1882,10 @@ else
 		fi
 
 	elif [ "$repository_type" = "svn" ]; then
-		_changelog_range=
-		if [ -n "$previous_version" ]; then
+		if [ -n "$previous_revision" ]; then
 			_changelog_range="-r$project_revision:$previous_revision"
+		else
+			_changelog_range="-rHEAD:1"
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
@@ -1924,9 +1925,10 @@ else
 		fi
 
 	elif [ "$repository_type" = "hg" ]; then
-		_changelog_range=.
 		if [ -n "$previous_revision" ]; then
 			_changelog_range="::$project_revision - ::$previous_revision - filelog(.hgtags)"
+		else
+			_changelog_range="."
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
