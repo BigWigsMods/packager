@@ -3,17 +3,12 @@
 __release.sh__ generates an addon zip file from a Git, SVN, or Mercurial
 checkout.
 
-__release.sh__ works by creating a new project directory, checking out external
-repositories within the project directory, then copying files from the checkout
-into the project directory.  The project directory is then zipped to create a
-distributable addon zip file.
-
-__release.sh__ creates the new project directory in the *.release* subdirectory
-of the top-level directory of the checkout.
-
-__release.sh__ can also upload your zip file to CurseForge, WoWInterface, and
-GitHub (as a release), but requires [jq](https://stedolan.github.io/jq/). See
-[Usage](#usage) for more info.
+__release.sh__ works by creating a new project directory (*.release* by
+default), copying files from the checkout into the project directory, checking
+out external repositories then copying their files into the project directory,
+then moves subdirectories into the project root.  The project directory is then
+zipped to create a distributable addon zip file which can also be uploaded to
+CurseForge, WoWInterface, and GitHub (as a release).
 
 __release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
 the version numbers for the project.  It will identify if the HEAD is tagged and
@@ -29,11 +24,13 @@ id (`-w`) by adding the following to the TOC file:
     ## X-WoWI-ID: 5678
 
 Your CurseForge project id can be found on the addon page in the "About Project"
-side box. Your WoWInterface addon id is in the url for the addon, eg, the "5678"
+side box.
+
+Your WoWInterface addon id is in the url for the addon, eg, the "5678"
 in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
-__release.sh__ reads __.pkgmeta__ and supports the following directives. See the
-[wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
+__release.sh__ can read the __.pkgmeta__ file and supports the following
+directives. See the [wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
 for more info.
 
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
@@ -43,9 +40,9 @@ for more info.
 - *move-folders*
 - *package-as*
 - *enable-nolib-creation* (defaults to no) Caveats: nolib packages will only be
-  uploaded to GitHub and attached to a release. Unlike using the Curse packager,
-  manually uploading nolib packages has no affect for client users that choose
-  to download libraries separately.
+  uploaded to GitHub and attached to a release. Unlike using the CurseForge
+  packager, manually uploading nolib packages has no affect for client users
+  that choose to download libraries separately.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
@@ -99,7 +96,7 @@ for more info.
 
 ## Build type keywords
 
-*alpha*, *debug*, *retail*, *no-lib-strip*, and *do-not-package* are build type
+`alpha`, `debug`, `retail`, `no-lib-strip`, and `do-not-package` are build type
 keywords and are used to conditionally run a block of code based on the build
 type with the use of comments.
 
@@ -109,6 +106,10 @@ This will cause the line numbers of subsequent lines to change, which can result
 in bug report line numbers not matching the source code.  The typical usage is
 at the end of Lua files surrounding debugging functions and other code that end
 users should never see or execute.
+
+All keywords except `do-not-package` can be prefixed with `non-` to inverse the
+logic.  When doing this, the keywords should start and end a **block comment**
+as shown below.
 
 ### In Lua files
 
@@ -120,13 +121,13 @@ turn into `--@non-keyword@` and `--@end-non-keyword@`.
 
 ### In XML files
 
-**Note:** XML doesn't allow nested comments so make sure not to nest keywords. If
-you need nested keywords, you can do so in the TOC instead.
+**Note:** XML doesn't allow nested comments so make sure not to nest keywords.
+If you need to nest keywords, you can do so in the TOC instead.
 
 `<!--@keyword@-->` and `<!--@end-keyword@-->`  
 turn into `<!--@keyword` and `@end-keyword@-->`.
 
-`<!--@non-keyword@ and @end-non-keyword@-->`  
+`<!--@non-keyword@` and `@end-non-keyword@-->`  
 turn into `<!--@non-keyword@-->` and `<!--@end-non-keyword@-->`.
 
 ### In TOC files
@@ -137,7 +138,7 @@ line in-between.
 The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
 removing a '# ' at the beginning of each line in-between.
 
-## Using release.sh
+## Using release.sh to build locally
 
 The recommended way to include __release.sh__ in a project is to:
 
@@ -163,9 +164,9 @@ package.
     # ## Interface: 11305
     #@end-non-retail@
 
-__release.sh__ will target retail by default.  You can change this by passing a
-different game version as an argument.  To target classic this would be
-`release.sh -g 1.13.5`.
+__release.sh__ will set the build type as retail by default.  You can change
+this by passing a different game version as an argument.  To target classic this
+would be `release.sh -g 1.13.5`.
 
 ## Usage
 
@@ -186,7 +187,9 @@ different game version as an argument.  To target classic this would be
       -g game-version  Set the game version to use for CurseForge uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
 
-The following environment variables are necessary for uploading:
+### Uploading
+
+__release.sh__ uses following environment variables for uploading:
 
 - `CF_API_KEY` - a [CurseForge API token](https://wow.curseforge.com/account/api-tokens),
   required for the CurseForge API to fetch localization and upload files.
@@ -198,3 +201,17 @@ The following environment variables are necessary for uploading:
 __release.sh__ will attempt to load environment variables from a `.env` file in
 the topdir or current working directory.  You can also edit __release.sh__ and
 enter the tokens near the top of the file.
+
+### Dependancies
+
+__release.sh__ is mostly POSIX-compatible, so it should run in any Unix-like
+environment provided the following are available:
+
+- bash >= 4.3
+- awk
+- sed
+- curl
+- zip
+- version control software as needed (git, svn, hg)
+- jq (when uploading)
+- pandoc >= 1.19.2 (optional)
