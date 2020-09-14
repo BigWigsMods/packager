@@ -2109,8 +2109,8 @@ if [ -z "$skip_zipfile" ]; then
 			if [ -n "$game_version" ]; then
 				game_version_id=$(
 					_v=
-					IFS=',' read -ra V <<< "$game_version"
-					for i in "${V[@]}"; do
+					readarray -td, <<< "$game_version"
+					for i in ${MAPFILE[*]}; do
 						_v="$_v,\"$i\""
 					done
 					_v="[${_v#,}]"
@@ -2118,15 +2118,8 @@ if [ -z "$skip_zipfile" ]; then
 					echo "$_cf_versions" | jq -c --argjson v "$_v" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
 				)
 				if [ -n "$game_version_id" ]; then
-					# and now the reverse, since an invalid version will just be dropped (jq newlines are crlf on windows /wrists)
-					game_version=$(
-						_v=
-						mapfile -t V < <( echo "$_cf_versions" | jq -r --argjson v "$game_version_id" '.[] | select(.id as $x | $v | index($x)) | .name' 2>/dev/null )
-						for i in "${V[@]}"; do
-							_v="$_v,${i%%[[:cntrl:]]}"
-						done
-						echo "${_v#,}"
-					)
+					# and now the reverse, since an invalid version will just be dropped
+					game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | join(",")' 2>/dev/null )
 				fi
 			fi
 			if [ -z "$game_version_id" ]; then
