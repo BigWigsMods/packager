@@ -1591,14 +1591,7 @@ process_external() {
 		fi
 
 		echo "Fetching external: $external_dir"
-		(
-			output_file="$releasedir/.${RANDOM}.externalout"
-			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
-			status=$?
-			echo "$(<"$output_file")"
-			rm -f "$output_file" 2>/dev/null
-			exit $status
-		) &
+		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$releasedir/.$BASHPID.externalout" &
 		external_pids+=($!)
 	fi
 	external_dir=
@@ -1680,14 +1673,29 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 	# Reached end of file, so checkout any remaining queued externals.
 	process_external
 
-	if [ -n "$nolib_exclude" ]; then
+	if [ ${#external_pids[*]} -gt 0 ]; then
 		echo
 		echo "Waiting for externals to finish..."
-		for i in ${!external_pids[*]}; do
-			if ! wait "${external_pids[i]}"; then
-				_external_error=1
-			fi
+
+		while [ ${#external_pids[*]} -gt 0 ]; do
+			wait -n
+			for i in ${!external_pids[*]}; do
+				pid=${external_pids[i]}
+				if ! kill -0 $pid 2>/dev/null; then
+					_external_output="$releasedir/.$pid.externalout"
+					if ! wait $pid; then
+						_external_error=1
+						# wrap each line with a bright red color code
+						awk '{ printf "\033[01;31m%s\033[0m\n", $0 }' "$_external_output"
+					else
+						echo "$(<"$_external_output")"
+					fi
+					rm -f "$_external_output" 2>/dev/null
+					unset 'external_pids[i]'
+				fi
+			done
 		done
+
 		if [ -n "$_external_error" ]; then
 			echo
 			echo "There was an error fetching externals :(" >&2
