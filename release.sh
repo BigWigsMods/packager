@@ -853,7 +853,7 @@ if [ -z "$package" ]; then
 fi
 
 # Get the interface version for setting upload version.
-toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
 if [ -z "$toc_version" ]; then
 	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
 	if [[ "$toc_version" == "113"* ]]; then
@@ -865,7 +865,7 @@ if [ -z "$game_version" ]; then
 fi
 
 # Get the title of the project for using in the changelog.
-project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)[[:space:]]*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
 	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF }' )
@@ -1858,8 +1858,8 @@ else
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-			      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
-			      -e '/^\s*$/d' \
+			      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
+			      -e '/^[[:space:]]*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1875,8 +1875,8 @@ else
 			git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
 				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-				      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
-				      -e '/^\s*$/d' \
+				      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
+				      -e '/^[[:space:]]*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
@@ -1901,7 +1901,7 @@ else
 			      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-			      -e '/^\s*$/d' \
+			      -e '/^[[:space:]]*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1919,7 +1919,7 @@ else
 				| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 				      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-				      -e '/^\s*$/d' \
+				      -e '/^[[:space:]]*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
