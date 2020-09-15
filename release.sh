@@ -144,22 +144,26 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		skip_zipfile="true"
 		;;
 	g)
-		# Set version (x.y.z)
-		IFS=',' read -ra V <<< "$OPTARG"
-		for i in "${V[@]}"; do
-			if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
-				echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
-				usage
-				exit 1
-			fi
-			if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
-				classic="true"
-				toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
-			fi
-		done
-		# I should probably check to make sure people aren't mixing
-		# classic and retail on the same build (curse no like) TODO:?
-		game_version="$OPTARG"
+		# shortcut for classic
+		if [ "$OPTARG" = "classic" ]; then
+			classic="true"
+			# game_version from toc
+		else
+			# Set version (x.y.z)
+			readarray -td, <<< "$OPTARG"
+			for i in ${MAPFILE[*]}; do
+				if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
+					echo "Invalid argument for option \"-g\" ($i)" >&2
+					usage
+					exit 1
+				fi
+				if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
+					classic="true"
+					toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
+				fi
+			done
+			game_version="$OPTARG"
+		fi
 		;;
 	m)
 		# Set the pkgmeta file.
@@ -854,8 +858,11 @@ fi
 
 # Get the interface version for setting upload version.
 toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+if [ -n "$classic" ] && [ -z "$toc_version" ] && [ -z "$game_version" ]; then
+	toc_version=$( echo "$toc_file" | awk '/## Interface:[[:space:]]*113/ { print $NF; exit }' )
+fi
 if [ -z "$toc_version" ]; then
-	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
+	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
 	if [[ "$toc_version" == "113"* ]]; then
 		classic="true"
 	fi
@@ -865,13 +872,13 @@ if [ -z "$game_version" ]; then
 fi
 
 # Get the title of the project for using in the changelog.
-project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)[[:space:]]*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+project=$( echo "$toc_file" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)[[:space:]]*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
-	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF }' )
+	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
 fi
 if [ -z "$addonid" ]; then
-	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF }' )
+	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
 fi
 unset toc_file
 
