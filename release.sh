@@ -150,8 +150,8 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 			# game_version from toc
 		else
 			# Set version (x.y.z)
-			readarray -td, <<< "$OPTARG"
-			for i in ${MAPFILE[*]}; do
+			IFS=',' read -ra V <<< "$OPTARG"
+			for i in "${V[@]}"; do
 				if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
 					echo "Invalid argument for option \"-g\" ($i)" >&2
 					usage
@@ -2116,8 +2116,8 @@ if [ -z "$skip_zipfile" ]; then
 			if [ -n "$game_version" ]; then
 				game_version_id=$(
 					_v=
-					readarray -td, <<< "$game_version"
-					for i in ${MAPFILE[*]}; do
+					IFS=',' read -ra V <<< "$game_version"
+					for i in "${V[@]}"; do
 						_v="$_v,\"$i\""
 					done
 					_v="[${_v#,}]"
