@@ -1661,6 +1661,9 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		" "*)
 			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 			case $yaml_line in
+			# skip commented out lines
+			\#*)
+				;;			
 			"- "*)
 				;;
 			*:*)
