@@ -649,8 +649,13 @@ parse_ignore() {
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
+		# Skip commented out lines.
+		if [[ $yaml_line =~ ^[[:space:]]*\# ]]; then
+			continue
+		fi
 		# Strip any trailing CR character.
 		yaml_line=${yaml_line%$carriage_return}
+
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -687,8 +692,13 @@ if [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
+		# Skip commented out lines.
+		if [[ $yaml_line =~ ^[[:space:]]*\# ]]; then
+			continue
+		fi
 		# Strip any trailing CR character.
 		yaml_line=${yaml_line%$carriage_return}
+
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
@@ -1647,8 +1657,13 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
+		# Skip commented out lines.
+		if [[ $yaml_line =~ ^[[:space:]]*\# ]]; then
+			continue
+		fi
 		# Strip any trailing CR character.
 		yaml_line=${yaml_line%$carriage_return}
+
 		case $yaml_line in
 		[!\ ]*:*)
 			# Started a new section, so checkout any queued externals.
@@ -1975,8 +1990,13 @@ if [ -f "$pkgmeta_file" ]; then
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
+		# Skip commented out lines.
+		if [[ $yaml_line =~ ^[[:space:]]*\# ]]; then
+			continue
+		fi
 		# Strip any trailing CR character.
 		yaml_line=${yaml_line%$carriage_return}
+
 		case $yaml_line in
 		[!\ ]*:*)
 			# Split $yaml_line into a $yaml_key, $yaml_value pair.
