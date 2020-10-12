@@ -212,6 +212,9 @@ environment provided the following are available:
 - sed
 - curl
 - zip
-- version control software as needed (git, svn, hg)
-- jq (when uploading)
-- pandoc >= 1.19.2 (optional)
+- version control software as needed:
+  - git >= 2.13.0
+  - subversion >= 1.7.0
+  - mercurial >= 3.9.0 (pre-3.9 will have issues with [secure connections](https://www.mercurial-scm.org/wiki/SecureConnections))
+- [jq](https://stedolan.github.io/jq/download/) >= 1.5 (when uploading)
+- [pandoc](https://pandoc.org/installing.html) >= 1.19.2 (optional)
