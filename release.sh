@@ -180,9 +180,11 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		exit 1
 		;;
 	\?)
-		if [ "$OPTARG" != "?" ] && [ "$OPTARG" != "h" ]; then
-			echo "Unknown option \"-$OPTARG\"." >&2
+		if [ "$OPTARG" = "?" ] || [ "$OPTARG" = "h" ]; then
+			usage
+			exit 0
 		fi
+		echo "Unknown option \"-$OPTARG\"" >&2
 		usage
 		exit 1
 		;;
