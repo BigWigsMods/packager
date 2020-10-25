@@ -1132,9 +1132,16 @@ localization_filter() {
 }
 
 lua_filter() {
+	local level
+	case $1 in
+		alpha)  level="="    ;;
+		debug)  level="=="   ;;
+		retail) level="====" ;;
+		*)      level="==="
+	esac
 	sed \
-		-e "s/--@$1@/--[===[@$1@/g" \
-		-e "s/--@end-$1@/--@end-$1@]===]/g" \
+		-e "s/--@$1@/--[$level[@$1@/g" \
+		-e "s/--@end-$1@/--@end-$1@]$level]/g" \
 		-e "s/--\[===\[@non-$1@/--@non-$1@/g" \
 		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
 }
