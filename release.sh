@@ -1140,8 +1140,8 @@ lua_filter() {
 		*)      level="==="
 	esac
 	sed \
-		-e "s/--@$1@/--[$level[@$1@/g" \
-		-e "s/--@end-$1@/--@end-$1@]$level]/g" \
+		-e "s/--@$1@/--[${level}[@$1@/g" \
+		-e "s/--@end-$1@/--@end-$1@]${level}]/g" \
 		-e "s/--\[===\[@non-$1@/--@non-$1@/g" \
 		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
 }
