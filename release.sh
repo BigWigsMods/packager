@@ -1460,6 +1460,21 @@ parse_ignore "$pkgmeta_file"
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
+retry() {
+	local result=0
+	local count=1
+	while [[ "${count}" -le 3 ]]; do
+		"${@}" && { result=0 && break; } || result="${?}"
+		[[ "${result}" -ne 0 ]] && {
+			echo -e "\033[01;31mRetrying (${count}/3)\033[0m" >&2
+		}
+		count="$((count + 1))"
+		sleep 3
+	done
+
+	return "${result}"
+}
+
 # Checkout the external into a ".checkout" subdirectory of the final directory.
 checkout_external() {
 	_external_dir=$1
@@ -1475,17 +1490,17 @@ checkout_external() {
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
 			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
 			if [ "$_external_checkout_type" = "commit" ]; then
-				git clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+				retry git clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag" || return 1
 			else
 				git -c advice.detachedHead=false clone -q --depth 1 --branch "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 			fi
 		else # [ "$_external_tag" = "latest" ]; then
-			git clone -q --depth 50 "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry git clone -q --depth 50 "$_external_uri" "$_cqe_checkout_dir" || return 1
 			_external_tag=$( git -C "$_cqe_checkout_dir" for-each-ref refs/tags --sort=-creatordate --format=%\(refname:short\) --count=1 )
 			if [ -n "$_external_tag" ]; then
 				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
@@ -1511,7 +1526,7 @@ checkout_external() {
 
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else
 			_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
 			if [ "$_external_tag" = "latest" ]; then
@@ -1523,14 +1538,14 @@ checkout_external() {
 			if [ "$_external_tag" = "latest" ]; then
 				echo "No tags found in $_cqe_svn_tag_url"
 				echo "Fetching latest version of external $_external_uri"
-				svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+				retry svn checkout -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 			else
 				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
 				if [ -n "$_cqe_svn_subdir" ]; then
 					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
 				echo "Fetching tag \"$_external_tag\" from external $_cqe_external_uri"
-				svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir" || return 1
+				retry svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir" || return 1
 			fi
 		fi
 		set_info_svn "$_cqe_checkout_dir"
@@ -1538,12 +1553,12 @@ checkout_external() {
 	elif [ "$_external_type" = "hg" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
 			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
-			hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else # [ "$_external_tag" = "latest" ]; then
-			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
+			retry hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 			_external_tag=$( hg --cwd "$_cqe_checkout_dir" log -r . --template '{latesttag}' )
 			if [ -n "$_external_tag" ]; then
 				echo "Fetching tag \"$_external_tag\" from external $_external_uri"
