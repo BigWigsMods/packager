@@ -1463,16 +1463,15 @@ parse_ignore "$pkgmeta_file"
 retry() {
 	local result=0
 	local count=1
-	while [[ "${count}" -le 3 ]]; do
-		"${@}" && { result=0 && break; } || result="${?}"
-		[[ "${result}" -ne 0 ]] && {
+	while [[ "$count" -le 3 ]]; do
+		[[ "$result" -ne 0 ]] && {
 			echo -e "\033[01;31mRetrying (${count}/3)\033[0m" >&2
 		}
+		"$@" && { result=0 && break; } || result="$?"
 		count="$((count + 1))"
 		sleep 3
 	done
-
-	return "${result}"
+	return "$result"
 }
 
 # Checkout the external into a ".checkout" subdirectory of the final directory.
