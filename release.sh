@@ -2001,7 +2001,6 @@ else
 		fi
 	fi
 
-	echo
 	echo "$(<"$pkgdir/$changelog")"
 	end_group "changelog"
 fi
