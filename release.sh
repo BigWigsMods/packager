@@ -953,7 +953,7 @@ vcs_filter() {
 		-e "s/@project-revision@/$si_project_revision/g" \
 		-e "s/@project-hash@/$si_project_hash/g" \
 		-e "s/@project-abbreviated-hash@/$si_project_abbreviated_hash/g" \
-		-e "s/@project-author@/$si_project_author/g" \
+		-e "s/@project-author@/${si_project_author//\//\\/}/g" \
 		-e "s/@project-date-iso@/$si_project_date_iso/g" \
 		-e "s/@project-date-integer@/$si_project_date_integer/g" \
 		-e "s/@project-timestamp@/$si_project_timestamp/g" \
@@ -961,7 +961,7 @@ vcs_filter() {
 		-e "s/@file-revision@/$si_file_revision/g" \
 		-e "s/@file-hash@/$si_file_hash/g" \
 		-e "s/@file-abbreviated-hash@/$si_file_abbreviated_hash/g" \
-		-e "s/@file-author@/$si_file_author/g" \
+		-e "s/@file-author@/${si_file_author//\//\\/}/g" \
 		-e "s/@file-date-iso@/$si_file_date_iso/g" \
 		-e "s/@file-date-integer@/$si_file_date_integer/g" \
 		-e "s/@file-timestamp@/$si_file_timestamp/g"
