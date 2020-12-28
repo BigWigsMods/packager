@@ -947,24 +947,29 @@ contents="$package"
 ### Create filters for pass-through processing of files to replace repository keywords.
 ###
 
+# Filter for escaping values to be supplied as replacements in a sed 's//' expression
+escape_subst() {
+	echo $@ | sed -e 's/[&/\]/\\&/g'
+}
+
 # Filter for simple repository keyword replacement.
 vcs_filter() {
 	sed \
-		-e "s/@project-revision@/$si_project_revision/g" \
-		-e "s/@project-hash@/$si_project_hash/g" \
-		-e "s/@project-abbreviated-hash@/$si_project_abbreviated_hash/g" \
-		-e "s/@project-author@/$si_project_author/g" \
-		-e "s/@project-date-iso@/$si_project_date_iso/g" \
-		-e "s/@project-date-integer@/$si_project_date_integer/g" \
-		-e "s/@project-timestamp@/$si_project_timestamp/g" \
-		-e "s/@project-version@/$si_project_version/g" \
-		-e "s/@file-revision@/$si_file_revision/g" \
-		-e "s/@file-hash@/$si_file_hash/g" \
-		-e "s/@file-abbreviated-hash@/$si_file_abbreviated_hash/g" \
-		-e "s/@file-author@/$si_file_author/g" \
-		-e "s/@file-date-iso@/$si_file_date_iso/g" \
-		-e "s/@file-date-integer@/$si_file_date_integer/g" \
-		-e "s/@file-timestamp@/$si_file_timestamp/g"
+		-e "s/@project-revision@/$(escape_subst $si_project_revision)/g" \
+		-e "s/@project-hash@/$(escape_subst $si_project_hash)/g" \
+		-e "s/@project-abbreviated-hash@/$(escape_subst $si_project_abbreviated_hash)/g" \
+		-e "s/@project-author@/$(escape_subst $si_project_author)/g" \
+		-e "s/@project-date-iso@/$(escape_subst $si_project_date_iso)/g" \
+		-e "s/@project-date-integer@/$(escape_subst $si_project_date_integer)/g" \
+		-e "s/@project-timestamp@/$(escape_subst $si_project_timestamp)/g" \
+		-e "s/@project-version@/$(escape_subst $si_project_version)/g" \
+		-e "s/@file-revision@/$(escape_subst $si_file_revision)/g" \
+		-e "s/@file-hash@/$(escape_subst $si_file_hash)/g" \
+		-e "s/@file-abbreviated-hash@/$(escape_subst $si_file_abbreviated_hash)/g" \
+		-e "s/@file-author@/$(escape_subst $si_file_author)/g" \
+		-e "s/@file-date-iso@/$(escape_subst $si_file_date_iso)/g" \
+		-e "s/@file-date-integer@/$(escape_subst $si_file_date_integer)/g" \
+		-e "s/@file-timestamp@/$(escape_subst $si_file_timestamp)/g"
 }
 
 # Find URL of localization api.
