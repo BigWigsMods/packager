@@ -947,8 +947,9 @@ contents="$package"
 ### Create filters for pass-through processing of files to replace repository keywords.
 ###
 
+# Escape a string for use in sed substitutions.
 escape_substr() {
-	local s="$*"
+	local s="$1"
 	s=${s//\\/\\\\}
 	s=${s//\//\\/}
 	s=${s//&/\\&}
@@ -965,7 +966,7 @@ vcs_filter() {
 		-e "s/@project-date-iso@/$si_project_date_iso/g" \
 		-e "s/@project-date-integer@/$si_project_date_integer/g" \
 		-e "s/@project-timestamp@/$si_project_timestamp/g" \
-		-e "s/@project-version@/$si_project_version/g" \
+		-e "s/@project-version@/$( escape_substr "$si_project_version" )/g" \
 		-e "s/@file-revision@/$si_file_revision/g" \
 		-e "s/@file-hash@/$si_file_hash/g" \
 		-e "s/@file-abbreviated-hash@/$si_file_abbreviated_hash/g" \
