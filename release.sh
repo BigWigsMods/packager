@@ -621,6 +621,10 @@ yaml_listitem() {
 
 if [ -z "$pkgmeta_file" ]; then
 	pkgmeta_file="$topdir/.pkgmeta"
+	# CurseForge allows this so check for it
+	if [ ! -f "$pkgmeta_file" ] && [ -f "$topdir/pkgmeta.yaml" ]; then
+		pkgmeta_file="$topdir/pkgmeta.yaml"
+	fi
 fi
 
 # Variables set via .pkgmeta.
