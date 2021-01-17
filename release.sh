@@ -2085,7 +2085,7 @@ if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
 	classic_tag=
-	if [[ -n "$classic" && "${project_version,,}" != *"classic"* ]]; then
+	if [[ -n "$classic" && ("${archive_package_name,,}" != *"classic"* || ${project_version,,}" != *"classic"*) ]]; then
 		# if it's a classic build, and classic isn't in the name, append it for clarity
 		classic_tag="-classic"
 	fi
