@@ -702,10 +702,10 @@ parse_ignore() {
 }
 
 if [ -f "$pkgmeta_file" ]; then
-	if grep -q --max-count=1 $'^[ ]*\t\+[[:space:]]*[[:graph:]]' "$pkgmeta_file"; then
+	if grep -q --max-count=1 $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file"; then
 		# Try to cut down on some troubleshooting pain.
 		echo "ERROR! Your pkgmeta file contains a leading tab. Only spaces are allowed for indentation in YAML files." >&2
-		grep --line-number $'^[ ]*\t\+[[:space:]]*[[:graph:]]' "$pkgmeta_file" | sed 's/\t/^I/g'
+		grep --line-number $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file" | sed 's/\t/^I/g'
 		exit 1
 	fi
 
