@@ -729,6 +729,9 @@ if [ -f "$pkgmeta_file" ]; then
 				changelog=$yaml_value
 				manual_changelog="true"
 				;;
+			changelog-title)
+				project="$yaml_value"
+				;;
 			package-as)
 				package=$yaml_value
 				;;
@@ -895,7 +898,9 @@ if [ -z "$game_version" ]; then
 fi
 
 # Get the title of the project for using in the changelog.
-project=$( echo "$toc_file" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+if [ -z "$project" ]; then
+	project=$( echo "$toc_file" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+fi
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
 	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )

@@ -36,6 +36,7 @@ for more info.
 - *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
   parsed for ignore and externals will not have localization keywords replaced.
 - *ignore*
+- *changelog-title*
 - *manual-changelog*
 - *move-folders*
 - *package-as*
