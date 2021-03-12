@@ -51,6 +51,7 @@ skip_zipfile=
 skip_upload=
 skip_cf_upload=
 pkgmeta_file=
+file_type=
 
 # Game versions for uploading
 game_version=
@@ -573,7 +574,6 @@ hg) 	set_info_hg  "$topdir" ;;
 esac
 
 tag=$si_tag
-[[ -z "$tag" || "${tag,,}" == *"alpha"* ]] && alpha="true"
 project_version=$si_project_version
 previous_version=$si_previous_tag
 project_hash=$si_project_hash
@@ -925,6 +925,23 @@ unset toc_file
 [ "$addonid" = "0" ] && addonid=
 [ "$wagoid" = "0" ] && wagoid=
 
+# Automatic file type detection based on CurseForge rules
+# 1) Untagged commits will be marked as an alpha.
+# 2) Tagged commits will be marked as a release with the following exceptions:
+#    - If the tag contains the word "alpha", it will be marked as an alpha file.
+#    - If instead the tag contains the word "beta", it will be marked as a beta file.
+if [ -n "$tag" ]; then
+	if [[ "${tag,,}" == *"alpha"* ]]; then
+		file_type="alpha"
+	elif [[ "${tag,,}" == *"beta"* ]]; then
+		file_type="beta"
+	else
+		file_type="release"
+	fi
+else
+	file_type="alpha"
+fi
+
 echo
 echo "Packaging $package"
 if [ -n "$project_version" ]; then
@@ -935,7 +952,7 @@ if [ -n "$previous_version" ]; then
 fi
 (
 	[ -n "$classic" ] && retail="non-retail" || retail="retail"
-	[ -z "$alpha" ] && alpha="non-alpha" || alpha="alpha"
+	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
 	echo "Build type: ${retail} ${alpha} non-debug${nolib:+ nolib}"
 	echo "Game version: ${game_version}"
 	echo
@@ -1482,7 +1499,7 @@ copy_directory_tree() {
 
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
-	[ -z "$alpha" ] && cdt_args+="a"
+	[ "$file_type" != "alpha" ] && cdt_args+="a"
 	[ -z "$skip_localization" ] && cdt_args+="l"
 	[ -n "$nolib" ] && cdt_args+="n"
 	[ -n "$classic" ] && cdt_args+="c"
@@ -2191,28 +2208,6 @@ if [ -z "$skip_zipfile" ]; then
 		upload_wago=
 		upload_github=
 		exit_code=1
-	fi
-
-	# Automatic file type detection for CurseForge and Wago
-	#
-	# When packaging is triggered on your repository, the generated file’s release type will
-	# automatically be set based on two factors:
-	#   1) If configured to package all commits, the latest untagged commit will be packaged
-	#      and will be marked as an alpha.
-	#   2) Otherwise, when a tagged commit is pushed, it will be flagged as either alpha, beta,
-	#      or release depending on the tag itself:
-	#        - If the tag contains the word "alpha", it will be marked as an alpha file.
-	#        - If instead the tag contains the word "beta", it will be marked as a beta file.
-	# https://authors.curseforge.com/knowledge-base/projects/3451-automatic-packaging
-	file_type="alpha"
-	if [ -n "$tag" ]; then
-		if [[ "${tag,,}" == *"alpha"* ]]; then
-			file_type="alpha"
-		elif [[ "${tag,,}" == *"beta"* ]]; then
-			file_type="beta"
-		else
-			file_type="release"
-		fi
 	fi
 
 	if [ -n "$upload_curseforge" ]; then
