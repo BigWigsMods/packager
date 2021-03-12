@@ -51,6 +51,7 @@ skip_zipfile=
 skip_upload=
 skip_cf_upload=
 pkgmeta_file=
+game_type="retail"
 file_type=
 
 # Game versions for uploading
@@ -58,7 +59,6 @@ game_version=
 game_version_id=
 toc_version=
 alpha=
-classic=
 
 ## END USER OPTIONS
 
@@ -153,7 +153,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
 	g)
 		# shortcut for classic
 		if [ "$OPTARG" = "classic" ]; then
-			classic="true"
+			game_type="classic"
 			# game_version from toc
 		else
 			# Set version (x.y.z)
@@ -165,7 +165,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
 					exit 1
 				fi
 				if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
-					classic="true"
+					game_type="classic"
 					toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
 				fi
 			done
@@ -891,13 +891,13 @@ fi
 
 # Get the interface version for setting upload version.
 toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
-if [ -n "$classic" ] && [ -z "$toc_version" ] && [ -z "$game_version" ]; then
+if [ "$game_type" = "classic" ] && [ -z "$toc_version" ] && [ -z "$game_version" ]; then
 	toc_version=$( echo "$toc_file" | awk '/## Interface:[[:space:]]*113/ { print $NF; exit }' )
 fi
 if [ -z "$toc_version" ]; then
 	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
 	if [[ "$toc_version" == "113"* ]]; then
-		classic="true"
+		game_type="classic"
 	fi
 fi
 if [ -z "$game_version" ]; then
@@ -951,7 +951,7 @@ if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
 (
-	[ -n "$classic" ] && retail="non-retail" || retail="retail"
+	[ "$game_type" = "retail" ] && retail="retail" || retail="non-retail"
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
 	echo "Build type: ${retail} ${alpha} non-debug${nolib:+ nolib}"
 	echo "Game version: ${game_version}"
@@ -1502,7 +1502,7 @@ if [ -z "$skip_copying" ]; then
 	[ "$file_type" != "alpha" ] && cdt_args+="a"
 	[ -z "$skip_localization" ] && cdt_args+="l"
 	[ -n "$nolib" ] && cdt_args+="n"
-	[ -n "$classic" ] && cdt_args+="c"
+	[ "$game_type" != "retail" ] && cdt_args+="c"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
@@ -2133,7 +2133,7 @@ if [ -z "$skip_zipfile" ]; then
 	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
 
 	classic_tag=
-	if [[ -n "$classic" && "${project_version,,}" != *"classic"* ]]; then
+	if [[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* ]]; then
 		# if it's a classic build, and classic isn't in the name, append it for clarity
 		classic_tag="-classic"
 	fi
@@ -2230,7 +2230,7 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 			fi
 			if [ -z "$game_version_id" ]; then
-				if [ -n "$classic" ]; then
+				if [ "$game_type" = "classic" ]; then
 					game_version_type_id=67408
 				else
 					game_version_type_id=517
@@ -2314,7 +2314,7 @@ if [ -z "$skip_zipfile" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
 			fi
 			# handle delayed support from WoWI
-			if [ -z "$game_version" ] && [ -n "$classic" ]; then
+			if [ -z "$game_version" ] && [ "$game_type" = "classic" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
 			fi
 			if [ -z "$game_version" ]; then
@@ -2387,7 +2387,7 @@ if [ -z "$skip_zipfile" ]; then
 	# Upload to Wago
 	if [ -n "$upload_wago" ] ; then
 		_wago_support_property="supported_retail_patch"
-		if [ -n "$classic" ]; then
+		if [ "$game_type" = "classic" ]; then
 			_wago_support_property="supported_classic_patch"
 		fi
 
