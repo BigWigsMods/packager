@@ -33,10 +33,12 @@
 cf_token=
 github_token=
 wowi_token=
+wago_token=
 
 # Variables set via command-line options
 slug=
 addonid=
+wagoid=
 topdir=
 releasedir=
 overwrite=
@@ -79,6 +81,7 @@ usage() {
 	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)" >&2
+	echo "  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
 	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
 }
@@ -116,6 +119,9 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		;;
 	w)
 		addonid="$OPTARG"
+		;;
+	a)
+		wagoid="$OPTARG"
 		;;
 	r)
 		# Set the release directory to a non-default value.
@@ -279,6 +285,7 @@ fi
 [ -z "$cf_token" ] && cf_token=$CF_API_KEY
 [ -z "$github_token" ] && github_token=$GITHUB_OAUTH
 [ -z "$wowi_token" ] && wowi_token=$WOWI_API_TOKEN
+[ -z "$wago_token" ] && wago_token=$WAGO_API_TOKEN
 
 # Set $releasedir to the directory which will contain the generated addon zipfile.
 if [ -z "$releasedir" ]; then
@@ -908,11 +915,15 @@ fi
 if [ -z "$addonid" ]; then
 	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
 fi
+if [ -z "$wagoid" ]; then
+	wagoid=$( echo "$toc_file" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+fi
 unset toc_file
 
 # unset project ids if they are set to 0
 [ "$slug" = "0" ] && slug=
 [ "$addonid" = "0" ] && addonid=
+[ "$wagoid" = "0" ] && wagoid=
 
 echo
 echo "Packaging $package"
@@ -935,6 +946,9 @@ if [[ "$slug" =~ ^[0-9]+$ ]]; then
 fi
 if [ -n "$addonid" ]; then
 	echo "WoWInterface ID: $addonid${wowi_token:+ [token set]}"
+fi
+if [ -n "$wagoid" ]; then
+	echo "Wago ID: $wagoid${wago_token:+ [token set]}"
 fi
 if [ -n "$project_github_slug" ]; then
 	echo "GitHub: $project_github_slug${github_token:+ [token set]}"
@@ -2166,15 +2180,39 @@ if [ -z "$skip_zipfile" ]; then
 
 	upload_curseforge=$( [[ -z "$skip_upload" && -z "$skip_cf_upload" && -n "$slug" && -n "$cf_token" && -n "$project_site" ]] && echo true )
 	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
+	upload_wago=$( [[ -z "$skip_upload" && -n "$wagoid" && -n "$wago_token" ]] && echo true )
 	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
-	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! hash jq &>/dev/null; then
+	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" || -n "$upload_wago" ]] && ! hash jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		upload_curseforge=
 		upload_wowinterface=
+		upload_wago=
 		upload_github=
 		exit_code=1
+	fi
+
+	# Automatic file type detection for CurseForge and Wago
+	#
+	# When packaging is triggered on your repository, the generated file’s release type will
+	# automatically be set based on two factors:
+	#   1) If configured to package all commits, the latest untagged commit will be packaged
+	#      and will be marked as an alpha.
+	#   2) Otherwise, when a tagged commit is pushed, it will be flagged as either alpha, beta,
+	#      or release depending on the tag itself:
+	#        - If the tag contains the word "alpha", it will be marked as an alpha file.
+	#        - If instead the tag contains the word "beta", it will be marked as a beta file.
+	# https://authors.curseforge.com/knowledge-base/projects/3451-automatic-packaging
+	file_type="alpha"
+	if [ -n "$tag" ]; then
+		if [[ "${tag,,}" == *"alpha"* ]]; then
+			file_type="alpha"
+		elif [[ "${tag,,}" == *"beta"* ]]; then
+			file_type="beta"
+		else
+			file_type="release"
+		fi
 	fi
 
 	if [ -n "$upload_curseforge" ]; then
@@ -2218,26 +2256,6 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload to CurseForge.
 	if [ -n "$upload_curseforge" ]; then
-		# When packaging is triggered on your repository, the generated file’s release type will
-		# automatically be set based on two factors:
-		#   1) If configured to package all commits, the latest untagged commit will be packaged
-		#      and will be marked as an alpha.
-		#   2) Otherwise, when a tagged commit is pushed, it will be flagged as either alpha, beta,
-		#      or release depending on the tag itself:
-		#        - If the tag contains the word "alpha", it will be marked as an alpha file.
-		#        - If instead the tag contains the word "beta", it will be marked as a beta file.
-		# https://authors.curseforge.com/knowledge-base/projects/3451-automatic-packaging
-		file_type="alpha"
-		if [ -n "$tag" ]; then
-			if [[ "${tag,,}" == *"alpha"* ]]; then
-				file_type="alpha"
-			elif [[ "${tag,,}" == *"beta"* ]]; then
-				file_type="beta"
-			else
-				file_type="release"
-			fi
-		fi
-
 		_cf_payload=$( cat <<-EOF
 		{
 		  "displayName": "$project_version$classic_tag",
@@ -2353,6 +2371,65 @@ if [ -z "$skip_zipfile" ]; then
 					;;
 				403)
 					echo "Error! Incorrect api key or you do not have permission to upload files."
+					exit_code=1
+					;;
+				*)
+					echo "Error! ($result)"
+					if [ -s "$resultfile" ]; then
+						echo "$(<"$resultfile")"
+					fi
+					exit_code=1
+					;;
+			esac
+		} || {
+			exit_code=1
+		}
+		echo
+
+		rm -f "$resultfile" 2>/dev/null
+	fi
+
+	# Upload to Wago
+	if [ -n "$upload_wago" ] ; then
+		_wago_support_property="supported_retail_patch"
+		if [ -n "$classic" ]; then
+			_wago_support_property="supported_classic_patch"
+		fi
+
+		_wago_stability=$file_type
+		if [ "$file_type" = "release" ]; then
+			_wago_stability="stable"
+		fi
+
+		_wago_payload=$( cat <<-EOF
+		{
+		  "label": "$project_version$classic_tag",
+		  "$_wago_support_property": "$game_version",
+		  "stability": "$_wago_stability",
+		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" )
+		}
+		EOF
+		)
+
+		echo "Uploading $archive_name ($game_version $file_type) to Wago"
+		resultfile="$releasedir/wago_result.json"
+		result=$( echo "$_wago_payload" | curl -sS --retry 3 --retry-delay 10 \
+				-w "%{http_code}" -o "$resultfile" \
+				-H "authorization: Bearer $wago_token" \
+				-H "accept: application/json" \
+				-F "metadata=<-" \
+				-F "file=@$archive" \
+				"https://addons.wago.io/api/projects/$wagoid/version" ) &&
+		{
+			case $result in
+				200|201) echo "Success!" ;;
+				302)
+					echo "Error! ($result)"
+					# don't need to ouput the redirect page
+					exit_code=1
+					;;
+				404)
+					echo "Error! No Wago project for id \"$wagoid\" found."
 					exit_code=1
 					;;
 				*)

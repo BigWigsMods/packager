@@ -8,7 +8,7 @@ default), copying files from the checkout into the project directory, checking
 out external repositories then copying their files into the project directory,
 then moves subdirectories into the project root.  The project directory is then
 zipped to create a distributable addon zip file which can also be uploaded to
-CurseForge, WoWInterface, and GitHub (as a release).
+CurseForge, WoWInterface, Wago, and GitHub (as a release).
 
 __release.sh__ assumes that tags (Git annotated tags and SVN tags) are named for
 the version numbers for the project.  It will identify if the HEAD is tagged and
@@ -17,17 +17,20 @@ commits for the previous tag and generate a changelog containing the commits
 since that tag.
 
 __release.sh__ uses the TOC file to determine the package name for the project.
-You can also set the CurseForge project id (`-p`) and the WoWInterface addon
-id (`-w`) by adding the following to the TOC file:
+You can also set the CurseForge project id (`-p`), the WoWInterface addon
+id (`-w`) or the Wago project id (`-a`) by adding the following to the TOC file:
 
     ## X-Curse-Project-ID: 1234
     ## X-WoWI-ID: 5678
+    ## X-Wago-ID: he54k6bL
 
 Your CurseForge project id can be found on the addon page in the "About Project"
 side box.
 
 Your WoWInterface addon id is in the url for the addon, eg, the "5678"
 in <https://wowinterface.com/downloads/info5678-MyAddon>.
+
+Your Wago project id can be found on the developer dashboard.
 
 __release.sh__ can read the __.pkgmeta__ file and supports the following
 directives. See the [wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
@@ -185,6 +188,7 @@ would be `release.sh -g 1.13.5`.
       -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
       -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
       -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
+      -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
       -g game-version  Set the game version to use for CurseForge uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
 
@@ -196,6 +200,8 @@ __release.sh__ uses following environment variables for uploading:
   required for the CurseForge API to fetch localization and upload files.
 - `WOWI_API_TOKEN` - a [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens),
   required for uploading to WoWInterface.
+- `WAGO_API_TOKEN` - a [Wago Addons API token](https://addons.wago.io/account/apikeys),
+  required for uploading to Wago Addons.
 - `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens),
   required for uploading to GitHub.
 
