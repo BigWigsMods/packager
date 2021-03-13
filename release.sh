@@ -87,7 +87,7 @@ usage() {
 }
 
 OPTIND=1
-while getopts ":celLzusop:dw:r:t:g:m:" opt; do
+while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
