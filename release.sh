@@ -83,7 +83,7 @@ usage() {
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)" >&2
-	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
+	echo "  -g game-version  Set the game version to use for CurseForge and Wago uploading (currently supports 'classic' and 'bc')." >&2
 	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
 }
 
@@ -154,6 +154,8 @@ while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
 		# shortcut for classic
 		if [ "$OPTARG" = "classic" ]; then
 			game_type="classic"
+		elif [ "$OPTARG" = "bc" ]; then
+			game_type="bc"
 			# game_version from toc
 		else
 			# Set version (x.y.z)
@@ -2387,8 +2389,14 @@ if [ -z "$skip_zipfile" ]; then
 	# Upload to Wago
 	if [ -n "$upload_wago" ] ; then
 		_wago_support_property="supported_retail_patch"
+		
 		if [ "$game_type" = "classic" ]; then
 			_wago_support_property="supported_classic_patch"
+		elif [ "$game_type" = "bc" ]; then
+			_wago_support_property="supported_bc_patch"
+		else
+			echo "Invalid game version for Wago upload: $game_type"
+			exit 1;
 		fi
 
 		_wago_stability=$file_type
