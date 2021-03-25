@@ -153,24 +153,26 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Using release.sh to build a Classic release
 
-To make use of the `@retail@` and `@non-retail@` keywords, __release.sh__ needs
-to know what version of World of Warcraft the package is targeting.  This is
-automatically detected using the `## Interface:` line of the addon's TOC file.
+__release.sh__ needs to know what version of World of Warcraft the package is
+targeting.  This is normally set using the `## Interface:` line of the
+addon's TOC file, but can be set manually using the `-g` switch.
 
 If your addon supports both retail and classic in the same branch, you can use
-keywords in your TOC file to include the appropriate `## Interface:` line in the
+multiple `## Interface-Type:` lines in your TOC file which will write the
+`## Interface:` line with the correct value in the package based on the game
+version.
+
+    ## Interface: 90005
+    ## Interface-Classic: 11306
+    ## Interface-BC: 20501
+
+When setting the game version, you can use a specific version like `-g 1.13.6`
+or you can use the type (`retail`, `classic`, or `bc`) which will set the
+game version based on the `Interface` value.
+
+With the example above, to target classic, you would use `release.sh -g classic`.
+This would replace `## Interface: 90005` with `## Interface: 11306` in the
 package.
-
-    #@retail@
-    ## Interface: 80300
-    #@end-retail@
-    #@non-retail@
-    # ## Interface: 11305
-    #@end-non-retail@
-
-__release.sh__ will set the build type as retail by default.  You can change
-this by passing a different game version as an argument.  To target classic this
-would be `release.sh -g 1.13.5`.
 
 ## Usage
 
@@ -189,7 +191,7 @@ would be `release.sh -g 1.13.5`.
       -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
       -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
       -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
-      -g game-version  Set the game version to use for CurseForge uploading.
+      -g game-version  Set the game version to use for uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
       -n archive-name  Set the archive name template. Defaults to "{package-name}-{project-version}{nolib}{classic}".
 

@@ -51,7 +51,7 @@ skip_zipfile=
 skip_upload=
 skip_cf_upload=
 pkgmeta_file=
-game_type="retail"
+game_type=
 file_type=
 file_name="{package-name}-{project-version}{nolib}{classic}"
 
@@ -59,7 +59,6 @@ file_name="{package-name}-{project-version}{nolib}{classic}"
 game_version=
 game_version_id=
 toc_version=
-alpha=
 
 ## END USER OPTIONS
 
@@ -80,7 +79,7 @@ escape_substr() {
 filename_filter() {
 	local classic alpha beta
 	# only append classic if the tag doesn't include it
-	[[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* ]] && classic="-classic"
+	[[ "$game_type" != "retail" && "${project_version,,}" != *"classic"* ]] && classic="-$game_type"
 	[ "$file_type" == "alpha" ] && alpha="-alpha"
 	[ "$file_type" == "beta" ] && beta="-beta"
 	sed \
@@ -93,6 +92,7 @@ filename_filter() {
 		-e "s/{project-date-integer}/$si_project_date_integer/g" \
 		-e "s/{project-timestamp}/$si_project_timestamp/g" \
 		-e "s/{project-version}/$( escape_substr "$si_project_version" )/g" \
+		-e "s/{game-type}/${game_type}/g" \
 		-e "s/{release-type}/${file_type}/g" \
 		-e "s/{alpha}/${alpha}/g" \
 		-e "s/{beta}/${beta}/g" \
@@ -119,7 +119,7 @@ usage() {
 	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)" >&2
-	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
+	echo "  -g game-version  Set the game version to use for uploading." >&2
 	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
 	echo "  -n archive-name  Set the archive name template. Defaults to \"{package-name}-{project-version}{nolib}{classic}\". " >&2
 }
@@ -189,25 +189,29 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		;;
 	g)
 		# shortcut for classic
-		if [ "$OPTARG" = "classic" ]; then
-			game_type="classic"
-			# game_version from toc
-		else
-			# Set version (x.y.z)
-			IFS=',' read -ra V <<< "$OPTARG"
-			for i in "${V[@]}"; do
-				if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
-					echo "Invalid argument for option \"-g\" ($i)" >&2
-					usage
-					exit 1
-				fi
-				if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
-					game_type="classic"
-					toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
-				fi
-			done
-			game_version="$OPTARG"
-		fi
+		case "$OPTARG" in
+			retail|classic|bc)
+				game_type="$OPTARG"
+				# game_version from toc
+				;;
+			*)
+				game_type="retail"
+				# Set version (x.y.z)
+				IFS=',' read -ra V <<< "$OPTARG"
+				for i in "${V[@]}"; do
+					if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
+						echo "Invalid argument for option \"-g\" ($i)" >&2
+						usage
+						exit 1
+					fi
+					if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
+						game_type="classic"
+					elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
+						game_type="bc"
+					fi
+				done
+				game_version="$OPTARG"
+		esac
 		;;
 	m)
 		# Set the pkgmeta file.
@@ -930,15 +934,42 @@ if [ -z "$package" ]; then
 	package="$toc_name"
 fi
 
-# Get the interface version for setting upload version.
+# Get the interface version for setting the upload version.
 toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
-if [ "$game_type" = "classic" ] && [ -z "$toc_version" ] && [ -z "$game_version" ]; then
-	toc_version=$( echo "$toc_file" | awk '/## Interface:[[:space:]]*113/ { print $NF; exit }' )
-fi
-if [ -z "$toc_version" ]; then
-	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
-	if [[ "$toc_version" == "113"* ]]; then
-		game_type="classic"
+root_toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
+toc_version="$root_toc_version"
+if [[ -n "$toc_version" && -z "$game_type" ]]; then
+	# toc -> game type
+	case $toc_version in
+		113*) game_type="classic" ;;
+		205*) game_type="bc" ;;
+		*) game_type="retail"
+	esac
+else
+	# game type -> toc
+	if [[ -z "$game_type" ]]; then
+		game_type="retail" # default to retail
+	fi
+	# Check for other interface lines
+	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]]; then
+		toc_version=$( echo "$toc_file" | awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' )
+		if [[ -z "$toc_version" ]]; then
+			# Check @non-retail@ blocks
+			case $game_type in
+				classic) toc_version=$( sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				bc) toc_version=$( sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+			esac
+			# This becomes the actual interface version after string replacements
+			root_toc_version="$toc_version"
+		fi
+	fi
+	if [[ -z "$toc_version" ]]; then
+		echo "Addon TOC version does not match for the game version \"${game_type}\" or was not found." >&2
+		exit 1
+	fi
+	if [[ "${toc_version,,}" == "incompatible" ]]; then
+		echo "Addon TOC version is set as incompatible for game version \"${game_type}\"." >&2
+		exit 1
 	fi
 fi
 if [ -z "$game_version" ]; then
@@ -1011,7 +1042,7 @@ fi
 if [ -n "$project_github_slug" ]; then
 	echo "GitHub: $project_github_slug${github_token:+ [token set]}"
 fi
-if [ -n "$project_site" ] || [ -n "$addonid" ] || [ -n "$project_github_slug" ]; then
+if [ -n "$project_site" ] || [ -n "$addonid" ] || [ -n "$wagoid" ] || [ -n "$project_github_slug" ]; then
 	echo
 fi
 echo "Checkout directory: $topdir"
@@ -1309,6 +1340,15 @@ toc_filter2() {
 	done
 }
 
+toc_interface_filter() {
+	if [ -n "$root_toc_version" ]; then # rewrite
+		sed 's/^## Interface:.*$/## Interface: '"$toc_version"'/'
+	else # add
+		sed '1i\
+## Interface: '"$toc_version"
+	fi
+}
+
 xml_filter() {
 	sed \
 		-e "s/<!--@$1@-->/<!--@$1/g" \
@@ -1508,6 +1548,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
 							_cdt_filters+="|toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
 							_cdt_filters+="|toc_filter2 retail ${_cdt_classic:-0}"
+							[ "$root_toc_version" != "$toc_version" ] && _cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
@@ -2165,9 +2206,9 @@ if [ -z "$skip_zipfile" ]; then
 	archive_version="$project_version"
 	archive_name="$( filename_filter "$file_name" ).zip"
 	archive_label="$archive_version"
-	if [[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* && "$file_name" == *"{classic}"* ]]; then
+	if [[ "$game_type" != "retail" && "${project_version,,}" != *"classic"* && "$file_name" == *"{classic}"* ]]; then
 		# append it for clarity
-		archive_label="$archive_version-classic"
+		archive_label="$archive_version-$game_type"
 	fi
 	archive="$releasedir/$archive_name"
 
@@ -2269,13 +2310,15 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 			fi
 			if [ -z "$game_version_id" ]; then
-				if [ "$game_type" = "classic" ]; then
-					game_version_type_id=67408
-				else
-					game_version_type_id=517
+				case $game_type in
+					retail) game_version_type_id=517 ;;
+					classic) game_version_type_id=67408 ;;
+					bc) game_version_type_id= ;;
+				esac
+				if [ -n "$game_version_type_id" ]; then
+					game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
+					game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
 				fi
-				game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
-				game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
 			fi
 		fi
 		if [ -z "$game_version_id" ]; then
@@ -2428,6 +2471,8 @@ if [ -z "$skip_zipfile" ]; then
 		_wago_support_property="supported_retail_patch"
 		if [ "$game_type" = "classic" ]; then
 			_wago_support_property="supported_classic_patch"
+		elif [ "$game_type" = "bc" ]; then
+			_wago_support_property="supported_bc_patch"
 		fi
 
 		_wago_stability=$file_type
