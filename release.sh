@@ -53,6 +53,7 @@ skip_cf_upload=
 pkgmeta_file=
 game_type="retail"
 file_type=
+file_name="{package-name}-{project-version}{nolib}{classic}"
 
 # Game versions for uploading
 game_version=
@@ -66,9 +67,44 @@ alpha=
 # Script return code
 exit_code=0
 
+# Escape a string for use in sed substitutions.
+escape_substr() {
+	local s="$1"
+	s=${s//\\/\\\\}
+	s=${s//\//\\/}
+	s=${s//&/\\&}
+	echo "$s"
+}
+
+# File name templating
+filename_filter() {
+	local classic alpha beta
+	# only append classic if the tag doesn't include it
+	[[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* ]] && classic="-classic"
+	[ "$file_type" == "alpha" ] && alpha="-alpha"
+	[ "$file_type" == "beta" ] && beta="-beta"
+	sed \
+		-e "s/{package-name}/$( escape_substr "$package" )/g" \
+		-e "s/{project-revision}/$si_project_revision/g" \
+		-e "s/{project-hash}/$si_project_hash/g" \
+		-e "s/{project-abbreviated-hash}/$si_project_abbreviated_hash/g" \
+		-e "s/{project-author}/$( escape_substr "$si_project_author" )/g" \
+		-e "s/{project-date-iso}/$si_project_date_iso/g" \
+		-e "s/{project-date-integer}/$si_project_date_integer/g" \
+		-e "s/{project-timestamp}/$si_project_timestamp/g" \
+		-e "s/{project-version}/$( escape_substr "$si_project_version" )/g" \
+		-e "s/{release-type}/${file_type}/g" \
+		-e "s/{alpha}/${alpha}/g" \
+		-e "s/{beta}/${beta}/g" \
+		-e "s/{nolib}/${nolib:+-nolib}/g" \
+		-e "s/{classic}/${classic}/g" \
+		-e "s/[^A-Za-z0-9._-]/_/g" \
+		<<< "$1"
+}
+
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml]" >&2
+	echo "Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]" >&2
 	echo "  -c               Skip copying files into the package directory." >&2
 	echo "  -d               Skip uploading." >&2
 	echo "  -e               Skip checkout of external repositories." >&2
@@ -85,10 +121,11 @@ usage() {
 	echo "  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)" >&2
 	echo "  -g game-version  Set the game version to use for CurseForge uploading." >&2
 	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
+	echo "  -n archive-name  Set the archive name template. Defaults to \"{package-name}-{project-version}{nolib}{classic}\". " >&2
 }
 
 OPTIND=1
-while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
+while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 	case $opt in
 	c)
 		# Skip copying files into the package directory.
@@ -180,6 +217,10 @@ while getopts ":celLzusop:dw:a:r:t:g:m:" opt; do
 			exit 1
 		fi
 		pkgmeta_file="$OPTARG"
+		;;
+	n)
+		# TODO some sort of validation?
+		file_name="$OPTARG"
 		;;
 	:)
 		echo "Option \"-$OPTARG\" requires an argument." >&2
@@ -993,15 +1034,6 @@ contents="$package"
 ###
 ### Create filters for pass-through processing of files to replace repository keywords.
 ###
-
-# Escape a string for use in sed substitutions.
-escape_substr() {
-	local s="$1"
-	s=${s//\\/\\\\}
-	s=${s//\//\\/}
-	s=${s//&/\\&}
-	echo "$s"
-}
 
 # Filter for simple repository keyword replacement.
 vcs_filter() {
@@ -2130,25 +2162,32 @@ fi
 ###
 
 if [ -z "$skip_zipfile" ]; then
-	archive_package_name="${package//[^A-Za-z0-9._-]/_}"
-
-	classic_tag=
-	if [[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* ]]; then
-		# if it's a classic build, and classic isn't in the name, append it for clarity
-		classic_tag="-classic"
-	fi
-
 	archive_version="$project_version"
-	archive_name="$archive_package_name-$project_version$classic_tag.zip"
+	archive_name="$( filename_filter "$file_name" ).zip"
+	archive_label="$archive_version"
+	if [[ "$game_type" == "classic" && "${project_version,,}" != *"classic"* && "$file_name" == *"{classic}"* ]]; then
+		# append it for clarity
+		archive_label="$archive_version-classic"
+	fi
 	archive="$releasedir/$archive_name"
 
-	nolib_archive_version="$project_version-nolib"
-	nolib_archive_name="$archive_package_name-$nolib_archive_version$classic_tag.zip"
+	if [ -n "$GITHUB_ACTIONS" ]; then
+		echo "::set-output name=archive_path::${archive}"
+	fi
+
+	nolib_archive_version="${project_version}-nolib"
+	nolib_archive_name="$( nolib=true filename_filter "$file_name" ).zip"
+	if [ "$archive_name" = "$nolib_archive_name" ]; then
+		# someone didn't include {nolib} and they're forcing nolib creation
+		nolib_archive_name="${nolib_archive_name#.zip}-nolib.zip"
+	fi
+	nolib_archive_label="${archive_label}-nolib"
 	nolib_archive="$releasedir/$nolib_archive_name"
 
 	if [ -n "$nolib" ]; then
 		archive_version="$nolib_archive_version"
 		archive_name="$nolib_archive_name"
+		archive_label="$nolib_archive_label"
 		archive="$nolib_archive"
 		nolib_archive=
 	fi
@@ -2253,7 +2292,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_curseforge" ]; then
 		_cf_payload=$( cat <<-EOF
 		{
-		  "displayName": "$project_version$classic_tag",
+		  "displayName": "$archive_label",
 		  "gameVersions": $game_version_id,
 		  "releaseType": "$file_type",
 		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
@@ -2398,7 +2437,7 @@ if [ -z "$skip_zipfile" ]; then
 
 		_wago_payload=$( cat <<-EOF
 		{
-		  "label": "$project_version$classic_tag",
+		  "label": "$archive_label",
 		  "$_wago_support_property": "$game_version",
 		  "stability": "$_wago_stability",
 		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" )
