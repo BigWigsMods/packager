@@ -174,7 +174,7 @@ would be `release.sh -g 1.13.5`.
 
 ## Usage
 
-    Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml]
+    Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]
       -c               Skip copying files into the package directory.
       -d               Skip uploading.
       -e               Skip checkout of external repositories.
@@ -191,6 +191,7 @@ would be `release.sh -g 1.13.5`.
       -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
       -g game-version  Set the game version to use for CurseForge uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
+      -n archive-name  Set the archive name template. Defaults to "{package-name}-{project-version}{nolib}{classic}".
 
 ### Uploading
 
