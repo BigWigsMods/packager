@@ -951,7 +951,7 @@ else
 		game_type="retail" # default to retail
 	fi
 	# Check for other interface lines
-	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]]; then
+	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
 		toc_version=$( echo "$toc_file" | awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' )
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-retail@ blocks
