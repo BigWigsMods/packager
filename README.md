@@ -210,7 +210,7 @@ __release.sh__ will attempt to load environment variables from a `.env` file in
 the topdir or current working directory.  You can also edit __release.sh__ and
 enter the tokens near the top of the file.
 
-### Dependancies
+### Dependencies
 
 __release.sh__ is mostly POSIX-compatible, so it should run in any Unix-like
 environment provided the following are available:
