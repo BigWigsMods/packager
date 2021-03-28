@@ -1341,11 +1341,16 @@ toc_filter2() {
 }
 
 toc_interface_filter() {
-	if [ -n "$root_toc_version" ]; then # rewrite
-		sed 's/^## Interface:.*$/## Interface: '"$toc_version"'/'
-	else # add
-		sed '1i\
-## Interface: '"$toc_version"
+	if [ "$root_toc_version" != "$toc_version" ]; then
+		# toc version isn't what is set in the toc file
+		if [ -n "$root_toc_version" ]; then # rewrite
+			sed -e 's/^## Interface:.*$/## Interface: '"$toc_version"'/' -e '/^## Interface-/d'
+		else # add
+			sed -e '1i\
+## Interface: '"$toc_version" -e '/^## Interface-/d'
+		fi
+	else
+		sed -e '/^## Interface-/d'
 	fi
 }
 
@@ -1548,7 +1553,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
 							_cdt_filters+="|toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
 							_cdt_filters+="|toc_filter2 retail ${_cdt_classic:-0}"
-							[ "$root_toc_version" != "$toc_version" ] && _cdt_filters+="|toc_interface_filter"
+							_cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
