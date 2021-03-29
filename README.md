@@ -16,6 +16,8 @@ use that as the current version number.  It will search back through parent
 commits for the previous tag and generate a changelog containing the commits
 since that tag.
 
+## Customizing the build
+
 __release.sh__ uses the TOC file to determine the package name for the project.
 You can also set the CurseForge project id (`-p`), the WoWInterface addon
 id (`-w`) or the Wago project id (`-a`) by adding the following to the TOC file:
@@ -32,7 +34,9 @@ in <https://wowinterface.com/downloads/info5678-MyAddon>.
 
 Your Wago project id can be found on the developer dashboard.
 
-__release.sh__ can read the __.pkgmeta__ file and supports the following
+### The PackageMeta file
+
+__release.sh__ can read a __.pkgmeta__ file and supports the following
 directives. See the [wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
 for more info.
 
@@ -44,13 +48,13 @@ for more info.
 - *move-folders*
 - *package-as*
 - *enable-nolib-creation* (defaults to no) Caveats: nolib packages will only be
-  uploaded to GitHub and attached to a release. Unlike using the CurseForge
-  packager, manually uploading nolib packages has no affect for client users
-  that choose to download libraries separately.
+  uploaded to GitHub and attached to a release. Unlike with the CurseForge
+  packager, manually uploaded nolib packages will not be used by the client when
+  users have enabled downloading libraries separately.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
-- *embedded-libraries* Note: All externals will be marked as embedded,
+- *embedded-libraries* Note: All fetched externals will be marked as embedded,
   overriding any manually set relations in the pkgmeta.
 
 You can also use a few directives for WoWInterface uploading.
@@ -63,6 +67,8 @@ You can also use a few directives for WoWInterface uploading.
 - *wowi-convert-changelog* : `yes|no` (defaults to yes) Convert a manual
   changelog in Markdown format to BBCode if you have [pandoc](http://pandoc.org/)
   installed; otherwise, the manual changelog will be used as-is.
+
+### String replacements
 
 __release.sh__ supports the following repository substitution keywords when
 copying the files from the checkout into the project directory. See the
@@ -79,9 +85,9 @@ for more info.
   - *table-name*
 - *@alpha@*...*@end-alpha@* / *@non-alpha@*...*@end-non-alpha@*
 - *@debug@*...*@end-debug@* / *@non-debug@*...*@end-non-debug@*
-- *@do-not-package@*...*@end-do-not-package@*
-- *@no-lib-strip@*...*@end-no-lib-strip@*
 - *@retail@*...*@end-retail@* / *@non-retail@*...*@end-non-retail@*
+- *@no-lib-strip@*...*@end-no-lib-strip@*
+- *@do-not-package@*...*@end-do-not-package@*
 - *@file-revision@*
 - *@project-revision@*
 - *@file-hash@*
@@ -98,7 +104,7 @@ for more info.
 - *@project-timestamp@*
 - *@project-version@*
 
-## Build type keywords
+### Build type keywords
 
 `alpha`, `debug`, `retail`, `no-lib-strip`, and `do-not-package` are build type
 keywords and are used to conditionally run a block of code based on the build
@@ -115,7 +121,7 @@ All keywords except `do-not-package` can be prefixed with `non-` to inverse the
 logic.  When doing this, the keywords should start and end a **block comment**
 as shown below.
 
-### In Lua files
+#### In Lua files
 
 `--@keyword@` and `--@end-keyword@`  
 turn into `--[===[@keyword` and `--@end-keyword]===]`.
@@ -123,7 +129,7 @@ turn into `--[===[@keyword` and `--@end-keyword]===]`.
 `--[===[@non-keyword@` and `--@end-non-keyword@]===]`  
 turn into `--@non-keyword@` and `--@end-non-keyword@`.
 
-### In XML files
+#### In XML files
 
 **Note:** XML doesn't allow nested comments so make sure not to nest keywords.
 If you need to nest keywords, you can do so in the TOC instead.
@@ -134,7 +140,7 @@ turn into `<!--@keyword` and `@end-keyword@-->`.
 `<!--@non-keyword@` and `@end-non-keyword@-->`  
 turn into `<!--@non-keyword@-->` and `<!--@end-non-keyword@-->`.
 
-### In TOC files
+#### In TOC files
 
 The lines with `#@keyword@` and `#@end-keyword@` get removed, as well as every
 line in-between.
@@ -142,7 +148,28 @@ line in-between.
 The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
 removing a '# ' at the beginning of each line in-between.
 
-## Using release.sh to build locally
+## Building for multiple game versions
+
+__release.sh__ needs to know what version of World of Warcraft the package is
+targeting.  This is normally automatically detected using the `## Interface:`
+line of the addon's TOC file.
+
+If your addon supports both retail and classic in the same branch, you can use
+multiple `## Interface-Type:` lines in your TOC file.  Only one `## Interface:`
+line will be included in the packaged TOC file based on the targeted game
+version.
+
+    ## Interface: 90005
+    ## Interface-Retail: 90005
+    ## Interface-Classic: 11306
+    ## Interface-BC: 20501
+
+You specify what version of the game you're targeting with the `-g` switch. You
+can use a specific version (`release.sh -g 1.13.6`) or you can use the game type
+(`release.sh -g classic`).  Using a game type will set the game version based on
+the appropriate TOC `Interface` value.
+
+## Building locally
 
 The recommended way to include __release.sh__ in a project is to:
 
@@ -150,29 +177,6 @@ The recommended way to include __release.sh__ in a project is to:
 2. Copy __release.sh__ into the *.release* directory.
 3. Ignore the *.release* subdirectory in __.gitignore__.
 4. Run __release.sh__.
-
-## Using release.sh to build a Classic release
-
-__release.sh__ needs to know what version of World of Warcraft the package is
-targeting.  This is normally set using the `## Interface:` line of the
-addon's TOC file, but can be set manually using the `-g` switch.
-
-If your addon supports both retail and classic in the same branch, you can use
-multiple `## Interface-Type:` lines in your TOC file which will write the
-`## Interface:` line with the correct value in the package based on the game
-version.
-
-    ## Interface: 90005
-    ## Interface-Classic: 11306
-    ## Interface-BC: 20501
-
-When setting the game version, you can use a specific version like `-g 1.13.6`
-or you can use the type (`retail`, `classic`, or `bc`) which will set the
-game version based on the `Interface` value.
-
-With the example above, to target classic, you would use `release.sh -g classic`.
-This would replace `## Interface: 90005` with `## Interface: 11306` in the
-package.
 
 ## Usage
 
