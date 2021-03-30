@@ -954,10 +954,10 @@ else
 	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
 		toc_version=$( echo "$toc_file" | awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' )
 		if [[ -z "$toc_version" ]]; then
-			# Check @non-retail@ blocks
+			# Check @non-@ blocks
 			case $game_type in
-				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}'| awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
-				bc) toc_version=$( echo "$toc_file" | sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}'| awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				bc) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
 			root_toc_version="$toc_version"
@@ -1023,7 +1023,7 @@ if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
 (
-	[ "$game_type" = "retail" ] && retail="retail" || retail="non-retail"
+	[ "$game_type" = "retail" ] && retail="retail" || retail="non-retail version-${game_type}"
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
 	echo "Build type: ${retail} ${alpha} non-debug${nolib:+ nolib}"
 	echo "Game version: ${game_version}"
@@ -1348,7 +1348,7 @@ copy_directory_tree() {
 	_cdt_unchanged_patterns=
 	_cdt_classic=
 	OPTIND=1
-	while getopts :adi:lnpu:c _cdt_opt "$@"; do
+	while getopts :adi:lnpu:c: _cdt_opt "$@"; do
 		# shellcheck disable=2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
@@ -1360,7 +1360,7 @@ copy_directory_tree() {
 			n)	_cdt_nolib="true" ;;
 			p)	_cdt_do_not_package="true" ;;
 			u)	_cdt_unchanged_patterns=$OPTARG ;;
-			c)	_cdt_classic="true" ;;
+			c)	_cdt_classic=$OPTARG ;;
 		esac
 	done
 	shift $((OPTIND - 1))
@@ -1427,7 +1427,15 @@ copy_directory_tree() {
 							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
-							[ -n "$_cdt_classic" ] && _cdt_filters+="|lua_filter retail"
+							if [ -n "$_cdt_classic" ]; then
+								_cdt_filters+="|lua_filter retail"
+								_cdt_filters+="|lua_filter version-retail"
+								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|lua_filter version-bc"
+								[ "$_cdt_classic" = "bc" ] && _cdt_filters+="|lua_filter version-classic"
+							else
+								_cdt_filters+="|lua_filter version-classic"
+								_cdt_filters+="|lua_filter version-bc"
+							fi
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
@@ -1481,7 +1489,7 @@ if [ -z "$skip_copying" ]; then
 	[ "$file_type" != "alpha" ] && cdt_args+="a"
 	[ -z "$skip_localization" ] && cdt_args+="l"
 	[ -n "$nolib" ] && cdt_args+="n"
-	[ "$game_type" != "retail" ] && cdt_args+="c"
+	[ "$game_type" != "retail" ] && cdt_args+=" -c $game_type"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""

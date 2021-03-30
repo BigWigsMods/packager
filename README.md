@@ -83,11 +83,6 @@ for more info.
   - *namespace*
   - *same-key-is-true*
   - *table-name*
-- *@alpha@*...*@end-alpha@* / *@non-alpha@*...*@end-non-alpha@*
-- *@debug@*...*@end-debug@* / *@non-debug@*...*@end-non-debug@*
-- *@retail@*...*@end-retail@* / *@non-retail@*...*@end-non-retail@*
-- *@no-lib-strip@*...*@end-no-lib-strip@*
-- *@do-not-package@*...*@end-do-not-package@*
 - *@file-revision@*
 - *@project-revision@*
 - *@file-hash@*
@@ -106,20 +101,34 @@ for more info.
 
 ### Build type keywords
 
-`alpha`, `debug`, `retail`, `no-lib-strip`, and `do-not-package` are build type
-keywords and are used to conditionally run a block of code based on the build
-type with the use of comments.
+Specific keywords used in a comment at the start (`@keyword@`) and end
+(`@end-keyword@`) of a block of code can be used to conditionally run that code
+based on the build type.  If the build type does not match, the block of code
+is comment out so line numbers do not change.
 
-`@do-not-package@` and `@end-do-not-package@` are a bit special. Everything
-between the tags, including the tags themselves, will be removed from the file.
-This will cause the line numbers of subsequent lines to change, which can result
-in bug report line numbers not matching the source code.  The typical usage is
-at the end of Lua files surrounding debugging functions and other code that end
-users should never see or execute.
+Supported keywords and when the code block will run:
+
+- `alpha`: in untagged builds.
+- `debug`: never.  Code will only run when using an unpackaged source.
+- `do-not-package`: never.  Same as `debug` except removed from the packaged
+  file.
+- `no-lib-strip`: _(not supported in Lua files)_ in any build other than a
+  *nolib* build.
+- `retail`,`version-retail`,`version-classic`,`version-bc`: based on game
+  version.
+
+`do-not-package` is a bit special. Everything between the tags, including the
+tags themselves, will always be removed from the packaged file. This will cause
+the line numbers of subsequent lines to change, which can result in bug report
+line numbers not matching the source code.  The typical usage is at the end of
+Lua files surrounding debugging functions and other code that end users should
+never see or execute.
 
 All keywords except `do-not-package` can be prefixed with `non-` to inverse the
 logic.  When doing this, the keywords should start and end a **block comment**
 as shown below.
+
+More examples are available on the [wiki page](https://github.com/BigWigsMods/packager/wiki/Repository-Keyword-Substitutions#debug-replacements).
 
 #### In Lua files
 
