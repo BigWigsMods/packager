@@ -956,8 +956,8 @@ else
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-retail@ blocks
 			case $game_type in
-				classic) toc_version=$( sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
-				bc) toc_version=$( sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}'| awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				bc) toc_version=$( echo "$toc_file" | sed -n '/@non-retail@/,/@end-non-retail@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
 			root_toc_version="$toc_version"
