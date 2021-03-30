@@ -1266,78 +1266,20 @@ lua_filter() {
 }
 
 toc_filter() {
-	_trf_token=$1; shift
-	_trf_comment=
-	_trf_eof=
-	while [ -z "$_trf_eof" ]; do
-		IFS='' read -r _trf_line || _trf_eof="true"
-		# Strip any trailing CR character.
-		_trf_line=${_trf_line%$carriage_return}
-		_trf_passthrough=
-		case $_trf_line in
-		"#@${_trf_token}@"*)
-			_trf_comment="# "
-			_trf_passthrough="true"
-			;;
-		"#@end-${_trf_token}@"*)
-			_trf_comment=
-			_trf_passthrough="true"
-			;;
-		esac
-		if [ -z "$_trf_passthrough" ]; then
-			_trf_line="$_trf_comment$_trf_line"
-		fi
-		if [ -n "$_trf_eof" ]; then
-			echo -n "$_trf_line"
-		else
-			echo "$_trf_line"
-		fi
-	done
-}
-
-toc_filter2() {
-	_trf_token=$1
-	_trf_action=1
-	if [ "$2" = "true" ]; then
-		_trf_action=0
+	local keyword="$1"
+	local remove="$2"
+	if [ -z "$remove" ]; then
+		# "active" build type: remove comments (keep content), remove non-blocks (remove all)
+		sed \
+			-e "/#@\(end-\)\{0,1\}${keyword}@/d" \
+			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/d"
+	else
+		# "non" build type: remove blocks (remove content), uncomment non-blocks (remove tags)
+		sed \
+			-e "/#@${keyword}@/,/#@end-${keyword}@/d" \
+			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/s/^#[[:blank:]]*//" \
+			-e "/@\(end-\)\{0,1\}non-${keyword}@/d"
 	fi
-	shift 2
-	_trf_keep=1
-	_trf_uncomment=
-	_trf_eof=
-	while [ -z "$_trf_eof" ]; do
-		IFS='' read -r _trf_line || _trf_eof="true"
-		# Strip any trailing CR character.
-		_trf_line=${_trf_line%$carriage_return}
-		case $_trf_line in
-		*"#@$_trf_token@"*)
-			# remove the tokens, keep the content
-			_trf_keep=$_trf_action
-			;;
-		*"#@non-$_trf_token@"*)
-			# remove the tokens, remove the content
-			_trf_keep=$(( 1-_trf_action ))
-			_trf_uncomment="true"
-			;;
-		*"#@end-$_trf_token@"*|*"#@end-non-$_trf_token@"*)
-			# remove the tokens
-			_trf_keep=1
-			_trf_uncomment=
-			;;
-		*)
-			if (( _trf_keep )); then
-				if [ -n "$_trf_uncomment" ]; then
-					_trf_line="${_trf_line#\# }"
-				fi
-				if [ -n "$_trf_eof" ]; then
-					echo -n "$_trf_line"
-				else
-					echo "$_trf_line"
-				fi
-			fi
-			;;
-		esac
-	done
 }
 
 toc_interface_filter() {
@@ -1349,75 +1291,29 @@ toc_interface_filter() {
 			sed -e '1i\
 ## Interface: '"$toc_version" -e '/^## Interface-/d'
 		fi
-	else
+	else # cleanup
 		sed -e '/^## Interface-/d'
 	fi
 }
 
 xml_filter() {
 	sed \
-		-e "s/<!--@$1@-->/<!--@$1/g" \
+		-e "s/<!--@$1@-->/<!--@$1@/g" \
 		-e "s/<!--@end-$1@-->/@end-$1@-->/g" \
 		-e "s/<!--@non-$1@/<!--@non-$1@-->/g" \
 		-e "s/@end-non-$1@-->/<!--@end-non-$1@-->/g"
 }
 
 do_not_package_filter() {
-	_dnpf_token=$1; shift
-	_dnpf_string="do-not-package"
-	_dnpf_start_token=
-	_dnpf_end_token=
-	case $_dnpf_token in
-	lua)
-		_dnpf_start_token="--@$_dnpf_string@"
-		_dnpf_end_token="--@end-$_dnpf_string@"
-		;;
-	toc)
-		_dnpf_start_token="#@$_dnpf_string@"
-		_dnpf_end_token="#@end-$_dnpf_string@"
-		;;
-	xml)
-		_dnpf_start_token="<!--@$_dnpf_string@-->"
-		_dnpf_end_token="<!--@end-$_dnpf_string@-->"
-		;;
+	case $1 in
+		lua) sed '/--@do-not-package@/,/--@end-do-not-package@/d' ;;
+		toc) sed '/#@do-not-package@/,/#@end-do-not-package@/d' ;;
+		xml) sed '/<!--@do-not-package@-->/,/<!--@end-do-not-package@-->/d' ;;
 	esac
-	if [ -z "$_dnpf_start_token" ] || [ -z "$_dnpf_end_token" ]; then
-		cat
-	else
-		# Replace all content between the start and end tokens, inclusive, with a newline to match CF packager.
-		_dnpf_eof=
-		_dnpf_skip=
-		while [ -z "$_dnpf_eof" ]; do
-			IFS='' read -r _dnpf_line || _dnpf_eof="true"
-			# Strip any trailing CR character.
-			_dnpf_line=${_dnpf_line%$carriage_return}
-			case $_dnpf_line in
-			*$_dnpf_start_token*)
-				_dnpf_skip="true"
-				echo -n "${_dnpf_line%%${_dnpf_start_token}*}"
-				;;
-			*$_dnpf_end_token*)
-				_dnpf_skip=
-				if [ -z "$_dnpf_eof" ]; then
-					echo ""
-				fi
-				;;
-			*)
-				if [ -z "$_dnpf_skip" ]; then
-					if [ -n "$_dnpf_eof" ]; then
-						echo -n "$_dnpf_line"
-					else
-						echo "$_dnpf_line"
-					fi
-				fi
-				;;
-			esac
-		done
-	fi
 }
 
 line_ending_filter() {
-	_lef_eof=
+	local _lef_eof _lef_line
 	while [ -z "$_lef_eof" ]; do
 		IFS='' read -r _lef_line || _lef_eof="true"
 		# Strip any trailing CR character.
@@ -1427,14 +1323,8 @@ line_ending_filter() {
 			echo -n "$_lef_line"
 		else
 			case $line_ending in
-			dos)
-				# Terminate lines with CR LF.
-				printf "%s\r\n" "$_lef_line"
-				;;
-			unix)
-				# Terminate lines with LF.
-				printf "%s\n" "$_lef_line"
-				;;
+				dos) printf "%s\r\n" "$_lef_line" ;; # Terminate lines with CR LF.
+				unix) printf "%s\n" "$_lef_line"  ;; # Terminate lines with LF.
 			esac
 		fi
 	done
@@ -1534,25 +1424,36 @@ copy_directory_tree() {
 					_cdt_filters="vcs_filter"
 					case $file in
 						*.lua)
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
-							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
 							[ -n "$_cdt_classic" ] && _cdt_filters+="|lua_filter retail"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
+							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
-							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
-							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
-							[ -n "$_cdt_classic" ] && _cdt_filters+="|xml_filter retail"
+							if [ -n "$_cdt_classic" ]; then
+								_cdt_filters+="|xml_filter retail"
+								_cdt_filters+="|xml_filter version-retail"
+								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|xml_filter version-bc"
+								[ "$_cdt_classic" = "bc" ] && _cdt_filters+="|xml_filter version-classic"
+							else
+								_cdt_filters+="|xml_filter version-classic"
+								_cdt_filters+="|xml_filter version-bc"
+							fi
 							;;
 						*.toc)
-							_cdt_filters+="|toc_filter2 alpha ${_cdt_alpha:-0}"
-							_cdt_filters+="|toc_filter2 debug ${_cdt_debug:-0}"
-							_cdt_filters+="|toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
-							_cdt_filters+="|toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
-							_cdt_filters+="|toc_filter2 retail ${_cdt_classic:-0}"
+							_cdt_filters+="|do_not_package_filter toc"
+							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
+							_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
+							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
+							_cdt_filters+="|toc_filter retail ${_cdt_classic:+true}"
+							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
+							_cdt_filters+="|toc_filter version-classic $([[ -z "$_cdt_classic" || "$_cdt_classic" == "bc" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-bc $([[ -z "$_cdt_classic" || "$_cdt_classic" == "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
@@ -2254,8 +2155,8 @@ if [ -z "$skip_zipfile" ]; then
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
 			case $file in
-			*.toc)	_filter="toc_filter2 no-lib-strip" ;;
-			*.xml)	_filter="xml_filter no-lib-strip" ;;
+				*.toc) _filter="toc_filter no-lib-strip true" ;;
+				*.xml) _filter="xml_filter no-lib-strip" ;;
 			esac
 			$_filter < "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 		done
