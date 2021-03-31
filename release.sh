@@ -189,9 +189,9 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		;;
 	g)
 		# shortcut for classic
-		case "$OPTARG" in
+		case "${OPTARG,,}" in
 			retail|classic|bc)
-				game_type="$OPTARG"
+				game_type="${OPTARG,,}"
 				# game_version from toc
 				;;
 			*)
