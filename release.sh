@@ -2227,12 +2227,10 @@ if [ -z "$skip_zipfile" ]; then
 				case $game_type in
 					retail) game_version_type_id=517 ;;
 					classic) game_version_type_id=67408 ;;
-					bc) game_version_type_id= ;;
+					bc) game_version_type_id=73246 ;;
 				esac
-				if [ -n "$game_version_type_id" ]; then
-					game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
-					game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
-				fi
+				game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
+				game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
 			fi
 		fi
 		if [ -z "$game_version_id" ]; then
@@ -2310,7 +2308,7 @@ if [ -z "$skip_zipfile" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
 			fi
 			# handle delayed support from WoWI
-			if [ -z "$game_version" ] && [ "$game_type" = "classic" ]; then
+			if [ -z "$game_version" ] && [ "$game_type" != "retail" ]; then
 				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
 			fi
 			if [ -z "$game_version" ]; then
