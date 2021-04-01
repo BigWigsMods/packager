@@ -1280,8 +1280,8 @@ toc_filter() {
 		# "non" build type: remove blocks (remove content), uncomment non-blocks (remove tags)
 		sed \
 			-e "/#@${keyword}@/,/#@end-${keyword}@/d" \
-			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/s/^#[[:blank:]]*//" \
-			-e "/@\(end-\)\{0,1\}non-${keyword}@/d"
+			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/s/^#[[:blank:]]\{1,\}//" \
+			-e "/#@\(end-\)\{0,1\}non-${keyword}@/d"
 	fi
 }
 
