@@ -1256,10 +1256,10 @@ localization_filter() {
 lua_filter() {
 	local level
 	case $1 in
-		alpha)  level="="    ;;
-		debug)  level="=="   ;;
-		retail) level="====" ;;
-		*)      level="==="
+		alpha) level="=" ;;
+		debug) level="==" ;;
+		retail|version-*) level="====" ;;
+		*) level="==="
 	esac
 	sed \
 		-e "s/--@$1@/--[${level}[@$1@/g" \
