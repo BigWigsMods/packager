@@ -188,15 +188,16 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		skip_zipfile="true"
 		;;
 	g)
+		OPTARG="${OPTARG,,}"
 		# shortcut for classic
-		case "${OPTARG,,}" in
+		case "$OPTARG" in
 			retail|classic|bc)
-				game_type="${OPTARG,,}"
+				game_type="$OPTARG"
 				# game_version from toc
 				;;
 			*)
-				game_type="retail"
 				# Set version (x.y.z)
+				# Build game version/type is set from the last version if a list
 				IFS=',' read -ra V <<< "$OPTARG"
 				for i in "${V[@]}"; do
 					if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
@@ -208,6 +209,8 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 						game_type="classic"
 					elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
 						game_type="bc"
+					else
+						game_type="retail"
 					fi
 				done
 				game_version="$OPTARG"
