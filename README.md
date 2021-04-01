@@ -178,6 +178,13 @@ can use a specific version (`release.sh -g 1.13.6`) or you can use the game type
 (`release.sh -g classic`).  Using a game type will set the game version based on
 the appropriate TOC `Interface` value.
 
+You can also set multiple specific versions as a comma delimited list using the
+`-g` switch (`release.sh -g 1.13.6,2.5.1,9.0.5`), the last of which is what will
+be used as the target version for the build.  This is not recommended, though,
+even if you do not need any special file processing, because the addon will
+always be marked "Out of date" for versions that do not match the TOC interface
+value.
+
 ## Building locally
 
 The recommended way to include __release.sh__ in a project is to:
