@@ -2307,13 +2307,13 @@ if [ -z "$skip_zipfile" ]; then
 		wowi_game_version=game_version
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
+			wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc "$toc_version" -r '.[] | select(.interface == $toc and .default == true) | .id' 2>/dev/null )
 			if [ -z "$wowi_game_version" ]; then
-				wowi_game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
+				wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc "$toc_version" -r 'map(select(.interface == $toc))[0] | .id // empty' 2>/dev/null )
 			fi
 			# handle delayed support from WoWI
 			if [ -z "$wowi_game_version" ] && [ "$game_type" != "retail" ]; then
-				wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
+				wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc $((toc_version - 1)) -r '.[] | select(.interface == $toc) | .id' 2>/dev/null )
 			fi
 			if [ -z "$wowi_game_version" ]; then
 				wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
@@ -2452,7 +2452,7 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
 
 			# check if an asset exists and delete it (editing a release)
-			asset_id=$( curl -sS -H "Authorization: token $github_token" "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq '.[] | select(.name? == "'"$_ghf_file_name"'") | .id' )
+			asset_id=$( curl -sS -H "Authorization: token $github_token" "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq --arg file "$_ghf_file_name"  '.[] | select(.name? == $file) | .id' )
 			if [ -n "$asset_id" ]; then
 				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
 			fi
