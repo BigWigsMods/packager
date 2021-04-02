@@ -2304,21 +2304,22 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_wowinterface" ]; then
+		wowi_game_version=game_version
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
-			if [ -z "$game_version" ]; then
-				game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
+			_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
+			if [ -z "$wowi_game_version" ]; then
+				wowi_game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
 			fi
 			# handle delayed support from WoWI
-			if [ -z "$game_version" ] && [ "$game_type" != "retail" ]; then
-				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
+			if [ -z "$wowi_game_version" ] && [ "$game_type" != "retail" ]; then
+				wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'$((toc_version - 1))'") | .id' 2>/dev/null )
 			fi
-			if [ -z "$game_version" ]; then
-				game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+			if [ -z "$wowi_game_version" ]; then
+				wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
 			fi
 		fi
-		if [ -z "$game_version" ]; then
+		if [ -z "$wowi_game_version" ]; then
 			echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
 			echo
 			echo "Skipping upload to WoWInterface."
@@ -2340,14 +2341,14 @@ if [ -z "$skip_zipfile" ]; then
 			_wowi_args+=("-F archive=No")
 		fi
 
-		echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
+		echo "Uploading $archive_name ($wowi_game_version) to https://www.wowinterface.com/downloads/info$addonid"
 		resultfile="$releasedir/wi_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "x-api-token: $wowi_token" \
 			  -F "id=$addonid" \
 			  -F "version=$archive_version" \
-			  -F "compatible=$game_version" \
+			  -F "compatible=$wowi_game_version" \
 			  "${_wowi_args[@]}" \
 			  -F "updatefile=@$archive" \
 			  "https://api.wowinterface.com/addons/update" ) &&
