@@ -939,7 +939,7 @@ fi
 
 # Get the interface version for setting the upload version.
 toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
-root_toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
+root_toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
 toc_version="$root_toc_version"
 if [[ -n "$toc_version" && -z "$game_type" ]]; then
 	# toc -> game type
@@ -955,11 +955,11 @@ else
 	fi
 	# Check for other interface lines
 	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
-		toc_version=$( echo "$toc_file" | awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' )
+		toc_version=$( awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' <<< "$toc_file" )
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-@ blocks
 			case $game_type in
-				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}'| awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
 				bc) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
@@ -981,17 +981,17 @@ fi
 
 # Get the title of the project for using in the changelog.
 if [ -z "$project" ]; then
-	project=$( echo "$toc_file" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+	project=$( awk '/^## Title:/ { print $0; exit }' <<< "$toc_file" | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
 fi
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
-	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
+	slug=$( awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' <<< "$toc_file" )
 fi
 if [ -z "$addonid" ]; then
-	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
+	addonid=$( awk '/^## X-WoWI-ID:/ { print $NF; exit }' <<< "$toc_file" )
 fi
 if [ -z "$wagoid" ]; then
-	wagoid=$( echo "$toc_file" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+	wagoid=$( awk '/^## X-Wago-ID:/ { print $NF; exit }' <<< "$toc_file" )
 fi
 unset toc_file
 
