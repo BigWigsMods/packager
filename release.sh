@@ -2307,7 +2307,7 @@ if [ -z "$skip_zipfile" ]; then
 		wowi_game_version=game_version
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
+			wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.interface == "'"$toc_version"'" and .default == true) | .id' 2>/dev/null )
 			if [ -z "$wowi_game_version" ]; then
 				wowi_game_version=$( echo "$_wowi_versions" | jq -r 'map(select(.interface == "'"$toc_version"'"))[0] | .id // empty' 2>/dev/null )
 			fi
