@@ -2316,13 +2316,20 @@ if [ -z "$skip_zipfile" ]; then
 		_wowi_game_version=
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			_wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc "$toc_version" -r '.[] | select(.interface == $toc and .default == true) | .id' 2>/dev/null )
-			if [ -z "$_wowi_game_version" ]; then
-				_wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc "$toc_version" -r 'map(select(.interface == $toc))[0] | .id // empty' 2>/dev/null )
+			# Multiple versions, match on game version
+			if [[ "$game_version" == *","* ]]; then
+				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.id as $x | $v | index($x)) | .id) | join(",")' 2>/dev/null )
 			fi
-			# handle delayed support from WoWI
+			# TOC matching
+			if [ -z "$_wowi_game_version" ]; then
+				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc "$toc_version" '.[] | select(.interface == $toc and .default == true) | .id' 2>/dev/null )
+			fi
+			if [ -z "$_wowi_game_version" ]; then
+				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc "$toc_version" 'map(select(.interface == $toc))[0] | .id // empty' 2>/dev/null )
+			fi
+			# Handle delayed support (probably don't really need this anymore)
 			if [ -z "$_wowi_game_version" ] && [ "$game_type" != "retail" ]; then
-				_wowi_game_version=$( echo "$_wowi_versions" | jq --arg toc $((toc_version - 1)) -r '.[] | select(.interface == $toc) | .id' 2>/dev/null )
+				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc $((toc_version - 1)) '.[] | select(.interface == $toc) | .id' 2>/dev/null )
 			fi
 			if [ -z "$_wowi_game_version" ]; then
 				_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
@@ -2393,14 +2400,12 @@ if [ -z "$skip_zipfile" ]; then
 
 	# Upload to Wago
 	if [ -n "$upload_wago" ] ; then
-		_wago_support_property="supported_retail_patch"
-		if [ "$game_type" = "classic" ]; then
-			_wago_support_property="supported_classic_patch"
-		elif [ "$game_type" = "bc" ]; then
-			_wago_support_property="supported_bc_patch"
-		fi
+		_wago_support_property=""
+		for type in "${!game_versions[@]}"; do
+			_wago_support_property+="\"supported_${type}_patch\": \"${game_versions[$type]}\", "
+		done
 
-		_wago_stability=$file_type
+		_wago_stability="$file_type"
 		if [ "$file_type" = "release" ]; then
 			_wago_stability="stable"
 		fi
@@ -2408,7 +2413,7 @@ if [ -z "$skip_zipfile" ]; then
 		_wago_payload=$( cat <<-EOF
 		{
 		  "label": "$archive_label",
-		  "$_wago_support_property": "$game_version",
+		  $_wago_support_property
 		  "stability": "$_wago_stability",
 		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" )
 		}
