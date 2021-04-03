@@ -51,6 +51,7 @@ skip_zipfile=
 skip_upload=
 skip_cf_upload=
 pkgmeta_file=
+game_version=
 game_type=
 file_type=
 file_name="{package-name}-{project-version}{nolib}{classic}"
@@ -60,8 +61,6 @@ file_name="{package-name}-{project-version}{nolib}{classic}"
 
 # Game versions for uploading
 declare -A game_versions
-game_version=
-game_version_id=
 toc_version=
 
 # Script return code
@@ -2219,33 +2218,25 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_curseforge" ]; then
 		_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
 		if [ -n "$_cf_versions" ]; then
-			if [ -n "$game_version" ]; then
-				game_version_id=$(
-					_v=
-					IFS=',' read -ra V <<< "$game_version"
-					for i in "${V[@]}"; do
-						_v="$_v,\"$i\""
-					done
-					_v="[${_v#,}]"
-					# jq -c '["8.0.1","7.3.5"] as $v | map(select(.name as $x | $v | index($x)) | .id)'
-					echo "$_cf_versions" | jq -c --argjson v "$_v" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
-				)
-				if [ -n "$game_version_id" ]; then
+			_cf_game_version="$game_version"
+			if [ -n "$_cf_game_version" ]; then
+				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null )
+				if [ -n "$_cf_game_version_id" ]; then
 					# and now the reverse, since an invalid version will just be dropped
-					game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | join(",")' 2>/dev/null )
+					_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | join(",")' 2>/dev/null )
 				fi
 			fi
-			if [ -z "$game_version_id" ]; then
+			if [ -z "$_cf_game_version_id" ]; then
 				case $game_type in
-					retail) game_version_type_id=517 ;;
-					classic) game_version_type_id=67408 ;;
-					bc) game_version_type_id=73246 ;;
+					retail) _cf_game_type_id=517 ;;
+					classic) _cf_game_type_id=67408 ;;
+					bc) _cf_game_type_id=73246 ;;
 				esac
-				game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
-				game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
+				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
+				_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
 			fi
 		fi
-		if [ -z "$game_version_id" ]; then
+		if [ -z "$_cf_game_version_id" ]; then
 			echo "Error fetching game version info from $project_site/api/game/versions"
 			echo
 			echo "Skipping upload to CurseForge."
@@ -2260,7 +2251,7 @@ if [ -z "$skip_zipfile" ]; then
 		_cf_payload=$( cat <<-EOF
 		{
 		  "displayName": "$archive_label",
-		  "gameVersions": $game_version_id,
+		  "gameVersions": $_cf_game_version_id,
 		  "releaseType": "$file_type",
 		  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
 		  "changelogType": "$changelog_markup"
@@ -2276,7 +2267,7 @@ if [ -z "$skip_zipfile" ]; then
 			_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
 		fi
 
-		echo "Uploading $archive_name ($game_version $file_type) to $project_site/projects/$slug"
+		echo "Uploading $archive_name ($_cf_game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
 		result=$( echo "$_cf_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
