@@ -157,6 +157,42 @@ line in-between.
 The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
 removing a '# ' at the beginning of each line in-between.
 
+### Changing the file name
+
+__release.sh__ uses the file name template `"{package-name}-{project-version}{nolib}{classic}"`
+for the addon zip file.  This can be changed with the `-n` switch (`release.sh
+-n "{package-name}-{project-version}"`).
+
+These tokens are always replaced with their value:
+
+- `{package-name}`
+- `{project-revision}`
+- `{project-hash}`
+- `{project-abbreviated-hash}`
+- `{project-author}`
+- `{project-date-iso}`
+- `{project-date-integer}`
+- `{project-timestamp}`
+- `{project-version}`
+- `{game-type}`
+- `{release-type}`
+
+These tokens are "flags" and are conditionally shown prefixed with a dash based
+on the build type:
+
+- `{alpha}`
+- `{beta}`
+- `{nolib}`
+- `{classic}`
+
+`{classic}` has some additional magic:
+
+1. It will show as the non-retail build type, so either `-classic` or `-bc`.
+2. It will not be shown if "classic" (case insensitive) is in the project
+   version.
+3. If it is included in the file name and #2 does not apply, it will also be
+   appended to the file label (i.e., the name shown).
+
 ## Building for multiple game versions
 
 __release.sh__ needs to know what version of World of Warcraft the package is
@@ -176,14 +212,18 @@ version.
 You specify what version of the game you're targeting with the `-g` switch. You
 can use a specific version (`release.sh -g 1.13.6`) or you can use the game type
 (`release.sh -g classic`).  Using a game type will set the game version based on
-the appropriate TOC `Interface` value.
+the appropriate TOC `## Interface` value.
 
 You can also set multiple specific versions as a comma delimited list using the
-`-g` switch (`release.sh -g 1.13.6,2.5.1,9.0.5`), the last of which is what will
-be used as the target version for the build.  This is not recommended, though,
-even if you do not need any special file processing, because the addon will
-always be marked "Out of date" for versions that do not match the TOC interface
-value.
+`-g` switch (`release.sh -g 1.13.6,2.5.1,9.0.5`).  This will still only build
+one package, with the the last version listed used as the target version for
+the build.
+
+**Setting multiple versions is not recommended!** The addon will always be
+marked "Out of date" in-game for versions that do not match the TOC interface
+value for the last version set. So even if you don't need any special file
+processing, it will always be best to run the packager multiple times so the TOC
+interface value is correct for each game version.
 
 ## Building locally
 
