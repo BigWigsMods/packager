@@ -55,13 +55,14 @@ game_type=
 file_type=
 file_name="{package-name}-{project-version}{nolib}{classic}"
 
+## END USER OPTIONS
+
+
 # Game versions for uploading
+declare -A game_versions
 game_version=
 game_version_id=
 toc_version=
-
-## END USER OPTIONS
-
 
 # Script return code
 exit_code=0
@@ -212,6 +213,12 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 					else
 						game_type="retail"
 					fi
+					if [ -n "${game_versions[$game_type]}" ]; then
+						echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
+						usage
+						exit 1
+					fi
+					game_versions[$game_type]="$i"
 				done
 				game_version="$OPTARG"
 		esac
@@ -977,6 +984,7 @@ else
 fi
 if [ -z "$game_version" ]; then
 	game_version="${toc_version:0:1}.$( printf "%d" ${toc_version:1:2} ).$( printf "%d" ${toc_version:3:2} )"
+	game_versions[$game_type]="$game_version"
 fi
 
 # Get the title of the project for using in the changelog.
