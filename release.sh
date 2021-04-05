@@ -104,24 +104,26 @@ filename_filter() {
 
 # Process command-line options
 usage() {
-	echo "Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]" >&2
-	echo "  -c               Skip copying files into the package directory." >&2
-	echo "  -d               Skip uploading." >&2
-	echo "  -e               Skip checkout of external repositories." >&2
-	echo "  -l               Skip @localization@ keyword replacement." >&2
-	echo "  -L               Only do @localization@ keyword replacement (skip upload to CurseForge)." >&2
-	echo "  -o               Keep existing package directory, overwriting its contents." >&2
-	echo "  -s               Create a stripped-down \"nolib\" package." >&2
-	echo "  -u               Use Unix line-endings." >&2
-	echo "  -z               Skip zip file creation." >&2
-	echo "  -t topdir        Set top-level directory of checkout." >&2
-	echo "  -r releasedir    Set directory containing the package directory. Defaults to \"\$topdir/.release\"." >&2
-	echo "  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)" >&2
-	echo "  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)" >&2
-	echo "  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)" >&2
-	echo "  -g game-version  Set the game version to use for uploading." >&2
-	echo "  -m pkgmeta.yaml  Set the pkgmeta file to use." >&2
-	echo "  -n archive-name  Set the archive name template. Defaults to \"{package-name}-{project-version}{nolib}{classic}\". " >&2
+	cat <<-'EOF' >&2
+	Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]
+	  -c               Skip copying files into the package directory.
+	  -d               Skip uploading.
+	  -e               Skip checkout of external repositories.
+	  -l               Skip @localization@ keyword replacement.
+	  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
+	  -o               Keep existing package directory, overwriting its contents.
+	  -s               Create a stripped-down "nolib" package.
+	  -u               Use Unix line-endings.
+	  -z               Skip zip file creation.
+	  -t topdir        Set top-level directory of checkout.
+	  -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
+	  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
+	  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
+	  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
+	  -g game-version  Set the game version to use for uploading.
+	  -m pkgmeta.yaml  Set the pkgmeta file to use.
+	  -n archive-name  Set the archive name template. Use "-n help" for more info.
+	EOF
 }
 
 OPTIND=1
