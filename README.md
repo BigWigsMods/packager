@@ -253,7 +253,7 @@ The recommended way to include __release.sh__ in a project is to:
       -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
       -g game-version  Set the game version to use for uploading.
       -m pkgmeta.yaml  Set the pkgmeta file to use.
-      -n archive-name  Set the archive name template. Defaults to "{package-name}-{project-version}{nolib}{classic}".
+      -n archive-name  Set the archive name template. Use "-n help" for more info.
 
 ### Uploading
 

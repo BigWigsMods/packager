@@ -232,6 +232,24 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		pkgmeta_file="$OPTARG"
 		;;
 	n)
+		if [ "$OPTARG" = "help" ]; then
+			cat <<-'EOF' >&2
+			Set the archive name template. There are several string substitutions you can use to
+			include version control or build type infomation in the file name.
+
+			The default file name is "{package-name}-{project-version}{nolib}{classic}".
+
+			Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
+			        {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
+			        {project-version}{game-type}{release-type}
+
+			Flags:  {alpha}{beta}{nolib}{classic}
+
+			Tokens are always replaced with their value. Flags are shown prefixed with a dash
+			depending on the build type.
+			EOF
+			exit 0
+		fi
 		# TODO some sort of validation?
 		file_name="$OPTARG"
 		;;
