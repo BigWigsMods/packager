@@ -899,7 +899,7 @@ fi
 if [ "$repository_type" = "git" ]; then
 	OLDIFS=$IFS
 	IFS=$'\n'
-	for _vcs_ignore in $(git -C "$topdir" ls-files --others --directory); do
+	for _vcs_ignore in $( git -C "$topdir" ls-files --others --directory ); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore*"
 		fi
@@ -985,24 +985,27 @@ else
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-@ blocks
 			case $game_type in
-				classic) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
-				bc) toc_version=$( echo "$toc_file" | sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				bc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
 			root_toc_version="$toc_version"
 		fi
 	fi
 	if [[ -z "$toc_version" ]]; then
-		echo "Addon TOC version does not match for the game version \"${game_type}\" or was not found." >&2
+		echo "Addon TOC interface version is not compatible with the game version \"${game_type}\" or was not found." >&2
 		exit 1
 	fi
 	if [[ "${toc_version,,}" == "incompatible" ]]; then
-		echo "Addon TOC version is set as incompatible for game version \"${game_type}\"." >&2
+		echo "Addon TOC interface version is set as incompatible for game version \"${game_type}\"." >&2
 		exit 1
 	fi
 fi
 if [ -z "$game_version" ]; then
-	game_version="${toc_version:0:1}.$( printf "%d" ${toc_version:1:2} ).$( printf "%d" ${toc_version:3:2} )"
+	printf -v game_version "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} 2>/dev/null || {
+		echo "Addon TOC interface version \"${toc_version}\" is invalid." >&2
+		exit 1
+	}
 	game_versions[$game_type]="$game_version"
 fi
 
