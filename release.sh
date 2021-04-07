@@ -776,10 +776,10 @@ parse_ignore() {
 }
 
 if [ -f "$pkgmeta_file" ]; then
-	if grep -q --max-count=1 $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file"; then
+	if grep -q $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file"; then
 		# Try to cut down on some troubleshooting pain.
 		echo "ERROR! Your pkgmeta file contains a leading tab. Only spaces are allowed for indentation in YAML files." >&2
-		grep --line-number $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file" | sed $'s/\t/^I/g'
+		grep -n $'^[ ]*\t\+[[:blank:]]*[[:graph:]]' "$pkgmeta_file" | sed $'s/\t/^I/g'
 		exit 1
 	fi
 
@@ -1122,7 +1122,7 @@ set_localization_url() {
 	if [ -n "$slug" ] && [ -n "$cf_token" ] && [ -n "$project_site" ]; then
 		localization_url="${project_site}/api/projects/$slug/localization/export"
 	fi
-	if [ -z "$localization_url" ] && grep -rq --max-count=1 --include="*.lua" "@localization" "$topdir"; then
+	if [ -z "$localization_url" ] && find "$topdir" -path '*/.*' -prune -o -name "*.lua" -print0 | xargs -0 grep -q "@localization"; then
 		echo "Skipping localization! Missing CurseForge API token and/or project id is invalid."
 		echo
 	fi
