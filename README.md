@@ -188,10 +188,10 @@ on the build type:
 `{classic}` has some additional magic:
 
 1. It will show as the non-retail build type, so either `-classic` or `-bc`.
-2. It will not be shown if "classic" (case insensitive) is in the project
-   version.
-3. If it is included in the file name and #2 does not apply, it will also be
-   appended to the file label (i.e., the name shown).
+2. It will not be shown if "-classic" or "-bc" is in the project version.
+3. If it is included in the file name (it is by default) and #2 does not apply,
+   it will also be appended to the file label (i.e., the name shown on
+   CurseForge).
 
 ## Building for multiple game versions
 
