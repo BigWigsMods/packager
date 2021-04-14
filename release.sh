@@ -78,8 +78,10 @@ escape_substr() {
 # File name templating
 filename_filter() {
 	local classic alpha beta
-	# only append classic if the tag doesn't include it
-	[[ "$game_type" != "retail" && "${project_version,,}" != *"classic"* ]] && classic="-$game_type"
+	if [[ "$game_type" != "retail" ]] && [[ "$game_type" != "classic" || "${si_project_version,,}" != *"-classic"* ]] && [[ "$game_type" != "bc" || "${si_project_version,,}" != *"-bc"* ]]; then
+		# only append the game type if the tag doesn't include it
+		classic="-$game_type"
+	fi
 	[ "$file_type" == "alpha" ] && alpha="-alpha"
 	[ "$file_type" == "beta" ] && beta="-beta"
 	sed \
