@@ -58,6 +58,10 @@ file_name="{package-name}-{project-version}{nolib}{classic}"
 
 ## END USER OPTIONS
 
+if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 3 ]]; then
+	echo "ERROR! bash version 4.3 or above is required. Your version is ${BASH_VERSION}." >&2
+	exit 1
+fi
 
 # Game versions for uploading
 declare -A game_versions
