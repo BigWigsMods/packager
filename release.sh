@@ -53,6 +53,7 @@ skip_cf_upload=
 pkgmeta_file=
 game_version=
 game_type=
+game_type_defined=false
 file_type=
 file_name="{package-name}-{project-version}{nolib}{classic}"
 
@@ -197,6 +198,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		case "$OPTARG" in
 			retail|classic|bc)
 				game_type="$OPTARG"
+				game_type_defined=true
 				# game_version from toc
 				;;
 			*)
@@ -216,6 +218,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 					else
 						game_type="retail"
 					fi
+					game_type_defined=true
 					if [ -n "${game_versions[$game_type]}" ]; then
 						echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
 						usage
@@ -982,7 +985,7 @@ else
 		game_type="retail" # default to retail
 	fi
 	# Check for other interface lines
-	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
+	if [[ -z "$toc_version" ]] || [[ $game_type_defined ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
 		toc_version=$( awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' <<< "$toc_file" )
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-@ blocks
