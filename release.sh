@@ -1004,12 +1004,21 @@ if [[ -n "$toc_version" && -z "$game_type" ]]; then
 	esac
 else
 	# game type -> toc
+	game_type_toc_version=$( awk 'tolower($0) ~ /^## interface-'${game_type:-retail}':/ { print $NF; exit }' <<< "$toc_file" )
 	if [[ -z "$game_type" ]]; then
-		game_type="retail" # default to retail
+		# default to retail
+		game_type="retail"
+	elif [[ -n "$game_type_toc_version" ]]; then
+		# use the game version value if set
+		toc_version="$game_type_toc_version"
 	fi
 	# Check for other interface lines
-	if [[ -z "$toc_version" ]] || [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]; then
-		toc_version=$( awk 'tolower($0) ~ /^## interface-'${game_type}':/ { print $NF; exit }' <<< "$toc_file" )
+	if [[ -z "$toc_version" ]] || \
+		 [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || \
+		 [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || \
+		 [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]
+	then
+		toc_version="$game_type_toc_version"
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-@ blocks
 			case $game_type in
