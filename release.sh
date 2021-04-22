@@ -108,6 +108,24 @@ filename_filter() {
 		<<< "$1"
 }
 
+toc_filter() {
+	local keyword="$1"
+	local remove="$2"
+	if [ -z "$remove" ]; then
+		# "active" build type: remove comments (keep content), remove non-blocks (remove all)
+		sed \
+			-e "/#@\(end-\)\{0,1\}${keyword}@/d" \
+			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/d"
+	else
+		# "non" build type: remove blocks (remove content), uncomment non-blocks (remove tags)
+		sed \
+			-e "/#@${keyword}@/,/#@end-${keyword}@/d" \
+			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/s/^#[[:blank:]]\{1,\}//" \
+			-e "/#@\(end-\)\{0,1\}non-${keyword}@/d"
+	fi
+}
+
+
 # Process command-line options
 usage() {
 	cat <<-'EOF' >&2
@@ -970,7 +988,11 @@ if [ -z "$package" ]; then
 fi
 
 # Get the interface version for setting the upload version.
-toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+toc_file=$(
+	# remove bom and cr and apply some non-version toc filters
+	[ "$file_type" != "alpha" ] && _tf_alpha="true"
+	sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" | toc_filter alpha ${_tf_alpha} | toc_filter debug true
+)
 root_toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
 toc_version="$root_toc_version"
 if [[ -n "$toc_version" && -z "$game_type" ]]; then
@@ -1302,23 +1324,6 @@ lua_filter() {
 		-e "s/--@end-$1@/--@end-$1@]${level}]/g" \
 		-e "s/--\[===\[@non-$1@/--@non-$1@/g" \
 		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
-}
-
-toc_filter() {
-	local keyword="$1"
-	local remove="$2"
-	if [ -z "$remove" ]; then
-		# "active" build type: remove comments (keep content), remove non-blocks (remove all)
-		sed \
-			-e "/#@\(end-\)\{0,1\}${keyword}@/d" \
-			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/d"
-	else
-		# "non" build type: remove blocks (remove content), uncomment non-blocks (remove tags)
-		sed \
-			-e "/#@${keyword}@/,/#@end-${keyword}@/d" \
-			-e "/#@non-${keyword}@/,/#@end-non-${keyword}@/s/^#[[:blank:]]\{1,\}//" \
-			-e "/#@\(end-\)\{0,1\}non-${keyword}@/d"
-	fi
 }
 
 toc_interface_filter() {
