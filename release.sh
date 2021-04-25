@@ -147,7 +147,7 @@ usage() {
 	  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
 	  -g game-version  Set the game version to use for uploading.
 	  -m pkgmeta.yaml  Set the pkgmeta file to use.
-	  -n archive-name  Set the archive name template. Use "-n help" for more info.
+	  -n package-name  Set the package zip file name. Use "-n help" for more info.
 	EOF
 }
 
@@ -224,8 +224,8 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		n) # Set the package file name
 			if [ "$OPTARG" = "help" ]; then
 				cat <<-'EOF' >&2
-				Set the archive name template. There are several string substitutions you can use to
-				include version control or build type infomation in the file name.
+				Set the package zip file name. There are several string substitutions you can
+				use to include version control and build type infomation in the file name.
 
 				The default file name is "{package-name}-{project-version}{nolib}{classic}".
 
