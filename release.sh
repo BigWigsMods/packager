@@ -156,7 +156,6 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 	c)
 		# Skip copying files into the package directory.
 		skip_copying="true"
-		skip_upload="true"
 		;;
 	e)
 		# Skip checkout of external repositories.
@@ -207,7 +206,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		;;
 	u)
 		# Skip Unix-to-DOS line-ending translation.
-		line_ending=unix
+		line_ending="unix"
 		;;
 	z)
 		# Skip generating the zipfile.
