@@ -81,7 +81,8 @@ escape_substr() {
 
 # File name templating
 filename_filter() {
-	local classic alpha beta
+	local classic alpha beta invalid
+	[ -n "$skip_invalid" ] && invalid="&" || invalid="_"
 	if [[ "$game_type" != "retail" ]] && [[ "$game_type" != "classic" || "${si_project_version,,}" != *"-classic"* ]] && [[ "$game_type" != "bc" || "${si_project_version,,}" != *"-bc"* ]]; then
 		# only append the game type if the tag doesn't include it
 		classic="-$game_type"
@@ -104,7 +105,7 @@ filename_filter() {
 		-e "s/{beta}/${beta}/g" \
 		-e "s/{nolib}/${nolib:+-nolib}/g" \
 		-e "s/{classic}/${classic}/g" \
-		-e "s/[^A-Za-z0-9._-]/_/g" \
+		-e "s/\([^A-Za-z0-9._-]\)/${invalid}/g" \
 		<<< "$1"
 }
 
@@ -239,8 +240,12 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 				EOF
 				exit 0
 			fi
-			# TODO some sort of validation?
 			file_name="$OPTARG"
+			if skip_invalid=true filename_filter "$file_name" | grep -q '[{}]'; then
+				tokens=$( skip_invalid=true filename_filter "$file_name" | sed -e '/^[^{]*{\|}[^{]*{\|}[^{]*/s//}{/g' -e 's/^}\({.*}\){$/\1/' )
+				echo "Invalid argument for option \"-n\" - Invalid substitutions: $tokens" >&2
+				exit 1
+			fi
 			;;
 		:)
 			echo "Option \"-$OPTARG\" requires an argument." >&2
