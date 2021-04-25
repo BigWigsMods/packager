@@ -129,7 +129,7 @@ toc_filter() {
 # Process command-line options
 usage() {
 	cat <<-'EOF' >&2
-	Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]
+	Usage: release.sh [options]
 	  -c               Skip copying files into the package directory.
 	  -d               Skip uploading.
 	  -e               Skip checkout of external repositories.
@@ -153,145 +153,109 @@ usage() {
 OPTIND=1
 while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 	case $opt in
-	c)
-		# Skip copying files into the package directory.
-		skip_copying="true"
-		;;
-	e)
-		# Skip checkout of external repositories.
-		skip_externals="true"
-		;;
-	l)
-		# Skip @localization@ keyword replacement.
-		skip_localization="true"
-		;;
-	L)
-		# Skip uploading to CurseForge.
-		skip_cf_upload="true"
-		;;
-	d)
-		# Skip uploading.
-		skip_upload="true"
-		;;
-	o)
-		# Skip deleting any previous package directory.
-		overwrite="true"
-		;;
-	p)
-		slug="$OPTARG"
-		;;
-	w)
-		addonid="$OPTARG"
-		;;
-	a)
-		wagoid="$OPTARG"
-		;;
-	r)
-		# Set the release directory to a non-default value.
-		releasedir="$OPTARG"
-		;;
-	s)
-		# Create a nolib package.
-		nolib="true"
-		skip_externals="true"
-		;;
-	t)
-		# Set the top-level directory of the checkout to a non-default value.
-		if [ ! -d "$OPTARG" ]; then
-			echo "Invalid argument for option \"-t\" - Directory \"$OPTARG\" does not exist." >&2
+		c) skip_copying="true" ;; # Skip copying files into the package directory
+		z) skip_zipfile="true" ;; # Skip creating a zip file
+		e) skip_externals="true" ;; # Skip checkout of external repositories
+		l) skip_localization="true" ;; # Skip @localization@ keyword replacement
+		L) skip_cf_upload="true" ;; # Skip uploading to CurseForge
+		d) skip_upload="true" ;; # Skip uploading
+		u) line_ending="unix" ;; # Use LF instead of CRLF as the line ending for all text files
+		o) overwrite="true" ;; # Don't delete existing directories in the release directory
+		p) slug="$OPTARG" ;; # Set CurseForge project id
+		w) addonid="$OPTARG" ;; # Set WoWInterface addon id
+		a) wagoid="$OPTARG" ;; # Set Wago Addons project id
+		r) releasedir="$OPTARG" ;; # Set the release directory
+		t) # Set the top-level directory of the checkout
+			if [ ! -d "$OPTARG" ]; then
+				echo "Invalid argument for option \"-t\" - Directory \"$OPTARG\" does not exist." >&2
+				usage
+				exit 1
+			fi
+			topdir="$OPTARG"
+			;;
+		s) # Create a nolib package without externals
+			nolib="true"
+			skip_externals="true"
+			;;
+		g) # Set the game type or version
+			OPTARG="${OPTARG,,}"
+			case "$OPTARG" in
+				retail|classic|bc)
+					game_type="$OPTARG"
+					# game_version from toc
+					;;
+				*)
+					# Set game version (x.y.z)
+					# Build game type set from the last value if a list
+					IFS=',' read -ra V <<< "$OPTARG"
+					for i in "${V[@]}"; do
+						if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
+							echo "Invalid argument for option \"-g\" ($i)" >&2
+							usage
+							exit 1
+						fi
+						if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
+							game_type="classic"
+						elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
+							game_type="bc"
+						else
+							game_type="retail"
+						fi
+						# Only one version per game type is allowed
+						if [ -n "${game_versions[$game_type]}" ]; then
+							echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
+							usage
+							exit 1
+						fi
+						game_versions[$game_type]="$i"
+					done
+					game_version="$OPTARG"
+			esac
+			;;
+		m) # Set the pkgmeta file
+			if [ ! -f "$OPTARG" ]; then
+				echo "Invalid argument for option \"-m\" - File \"$OPTARG\" does not exist." >&2
+				usage
+				exit 1
+			fi
+			pkgmeta_file="$OPTARG"
+			;;
+		n) # Set the package file name
+			if [ "$OPTARG" = "help" ]; then
+				cat <<-'EOF' >&2
+				Set the archive name template. There are several string substitutions you can use to
+				include version control or build type infomation in the file name.
+
+				The default file name is "{package-name}-{project-version}{nolib}{classic}".
+
+				Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
+				        {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
+				        {project-version}{game-type}{release-type}
+
+				Flags:  {alpha}{beta}{nolib}{classic}
+
+				Tokens are always replaced with their value. Flags are shown prefixed with a dash
+				depending on the build type.
+				EOF
+				exit 0
+			fi
+			# TODO some sort of validation?
+			file_name="$OPTARG"
+			;;
+		:)
+			echo "Option \"-$OPTARG\" requires an argument." >&2
 			usage
 			exit 1
-		fi
-		topdir="$OPTARG"
-		;;
-	u)
-		# Skip Unix-to-DOS line-ending translation.
-		line_ending="unix"
-		;;
-	z)
-		# Skip generating the zipfile.
-		skip_zipfile="true"
-		;;
-	g)
-		OPTARG="${OPTARG,,}"
-		# shortcut for classic
-		case "$OPTARG" in
-			retail|classic|bc)
-				game_type="$OPTARG"
-				# game_version from toc
-				;;
-			*)
-				# Set version (x.y.z)
-				# Build game version/type is set from the last version if a list
-				IFS=',' read -ra V <<< "$OPTARG"
-				for i in "${V[@]}"; do
-					if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
-						echo "Invalid argument for option \"-g\" ($i)" >&2
-						usage
-						exit 1
-					fi
-					if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
-						game_type="classic"
-					elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
-						game_type="bc"
-					else
-						game_type="retail"
-					fi
-					if [ -n "${game_versions[$game_type]}" ]; then
-						echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
-						usage
-						exit 1
-					fi
-					game_versions[$game_type]="$i"
-				done
-				game_version="$OPTARG"
-		esac
-		;;
-	m)
-		# Set the pkgmeta file.
-		if [ ! -f "$OPTARG" ]; then
-			echo "Invalid argument for option \"-m\" - File \"$OPTARG\" does not exist." >&2
+			;;
+		\?)
+			if [ "$OPTARG" = "?" ] || [ "$OPTARG" = "h" ]; then
+				usage
+				exit 0
+			fi
+			echo "Unknown option \"-$OPTARG\"" >&2
 			usage
 			exit 1
-		fi
-		pkgmeta_file="$OPTARG"
-		;;
-	n)
-		if [ "$OPTARG" = "help" ]; then
-			cat <<-'EOF' >&2
-			Set the archive name template. There are several string substitutions you can use to
-			include version control or build type infomation in the file name.
-
-			The default file name is "{package-name}-{project-version}{nolib}{classic}".
-
-			Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
-			        {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
-			        {project-version}{game-type}{release-type}
-
-			Flags:  {alpha}{beta}{nolib}{classic}
-
-			Tokens are always replaced with their value. Flags are shown prefixed with a dash
-			depending on the build type.
-			EOF
-			exit 0
-		fi
-		# TODO some sort of validation?
-		file_name="$OPTARG"
-		;;
-	:)
-		echo "Option \"-$OPTARG\" requires an argument." >&2
-		usage
-		exit 1
-		;;
-	\?)
-		if [ "$OPTARG" = "?" ] || [ "$OPTARG" = "h" ]; then
-			usage
-			exit 0
-		fi
-		echo "Unknown option \"-$OPTARG\"" >&2
-		usage
-		exit 1
-		;;
+			;;
 	esac
 done
 shift $((OPTIND - 1))

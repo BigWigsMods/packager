@@ -236,7 +236,7 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Usage
 
-    Usage: release.sh [-cdelLosuz] [-t topdir] [-r releasedir] [-p curse-id] [-w wowi-id] [-g game-version] [-m pkgmeta.yml] [-n filename]
+    Usage: release.sh [options]
       -c               Skip copying files into the package directory.
       -d               Skip uploading.
       -e               Skip checkout of external repositories.
