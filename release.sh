@@ -56,6 +56,8 @@ game_type=
 file_type=
 file_name="{package-name}-{project-version}{nolib}{classic}"
 
+wowi_markup="bbcode"
+
 ## END USER OPTIONS
 
 if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 3 ]]; then
@@ -1903,6 +1905,10 @@ else
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 
+	if [ -n "$wowi_gen_changelog" ] && [ -z "$wowi_convert_changelog" ]; then
+		wowi_markup="markdown"
+	fi
+
 	start_group "Generating changelog of commits into $changelog" "changelog"
 
 	_changelog_range=
@@ -1974,7 +1980,7 @@ else
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ] && [ "$wowi_markup" = "bbcode" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
@@ -2016,7 +2022,7 @@ else
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ] && [ "$wowi_markup" = "bbcode" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
@@ -2052,7 +2058,7 @@ else
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
-		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ]; then
+		if [ -n "$addonid" ] && [ -n "$tag" ] && [ -n "$wowi_gen_changelog" ] && [ "$wowi_markup" = "bbcode" ]; then
 			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 			cat <<- EOF | line_ending_filter > "$wowi_changelog"
 			[size=5]${project}[/size]
@@ -2357,7 +2363,7 @@ if [ -z "$skip_zipfile" ]; then
 		_wowi_args=()
 		if [ -f "$wowi_changelog" ]; then
 			_wowi_args+=("-F changelog=<$wowi_changelog")
-		elif [ -n "$manual_changelog" ]; then
+		elif [ -n "$manual_changelog" ] || [ "$wowi_markup" = "markdown" ]; then
 			_wowi_args+=("-F changelog=<$pkgdir/$changelog")
 		fi
 		if [ -z "$wowi_archive" ]; then
@@ -2379,7 +2385,7 @@ if [ -z "$skip_zipfile" ]; then
 			case $result in
 				202)
 					echo "Success!"
-					rm -f "$wowi_changelog" 2>/dev/null
+					[ -f "$wowi_changelog" ] && rm -f "$wowi_changelog" 2>/dev/null
 					;;
 				401)
 					echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."

@@ -66,7 +66,10 @@ You can also use a few directives for WoWInterface uploading.
   be used instead if set in the .pkgmeta.
 - *wowi-convert-changelog* : `yes|no` (defaults to yes) Convert a manual
   changelog in Markdown format to BBCode if you have [pandoc](http://pandoc.org/)
-  installed; otherwise, the manual changelog will be used as-is.
+  installed; otherwise, the manual changelog will be used as-is.  If set to `no`
+  when using a generated changelog, Markdown will be used instead of BBCode.
+  **Note**: Markdown support is experimental and needs to be requested on a
+  per-project basis.
 
 ### String replacements
 
