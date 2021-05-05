@@ -2479,14 +2479,24 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
 
 			# check if an asset exists and delete it (editing a release)
-			asset_id=$( curl -sS -H "Authorization: token $github_token" "https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" | jq --arg file "$_ghf_file_name"  '.[] | select(.name? == $file) | .id' )
+			asset_id=$( curl -sS \
+					-H "Accept: application/vnd.github.v3+json" \
+					-H "Authorization: token $github_token" \
+					"https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" \
+				| jq --arg file "$_ghf_file_name"  '.[] | select(.name? == $file) | .id'
+			)
 			if [ -n "$asset_id" ]; then
-				curl -s -H "Authorization: token $github_token" -X DELETE "https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
+				curl -s \
+					-X DELETE \
+					-H "Accept: application/vnd.github.v3+json" \
+					-H "Authorization: token $github_token" \
+					"https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
 			fi
 
 			echo -n "Uploading $_ghf_file_name... "
 			result=$( curl -sS --retry 3 --retry-delay 10 \
 					-w "%{http_code}" -o "$_ghf_resultfile" \
+					-H "Accept: application/vnd.github.v3+json" \
 					-H "Authorization: token $github_token" \
 					-H "Content-Type: application/zip" \
 					--data-binary "@$_ghf_file_path" \
@@ -2521,7 +2531,11 @@ if [ -z "$skip_zipfile" ]; then
 		)
 		resultfile="$releasedir/gh_result.json"
 
-		release_id=$( curl -sS -H "Authorization: token $github_token" "https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty' )
+		release_id=$( curl -sS \
+				-H "Accept: application/vnd.github.v3+json" \
+				-H "Authorization: token $github_token" \
+				"https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty'
+		)
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			_gh_release_url="-X PATCH https://api.github.com/repos/$project_github_slug/releases/$release_id"
@@ -2531,6 +2545,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
+				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
 				-d @- \
 				$_gh_release_url ) &&
