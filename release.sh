@@ -2519,6 +2519,22 @@ if [ -z "$skip_zipfile" ]; then
 			return 0
 		}
 
+		_gh_metadata='{ "filename": "'"$archive_name"'", "metadata": ['
+		for type in "${!game_versions[@]}"; do
+			_gh_metadata+='{ "flavor": "'"$type"'", "interface": '"$toc_version"', "nolib": false },'
+		done
+		_gh_metadata=${_gh_metadata%,}
+		_gh_metadata+='] }'
+		if [ -f "$nolib_archive" ]; then
+			_gh_metadata+=',{ "filename": "'"$nolib_archive_name"'", "metadata": ['
+			for type in "${!game_versions[@]}"; do
+				_gh_metadata+='{ "flavor": "'"$type"'", "interface": '"$toc_version"', "nolib": true },'
+			done
+			_gh_metadata=${_gh_metadata%,}
+			_gh_metadata+='] }'
+		fi
+		_gh_metadata='{ "releases": ['"$_gh_metadata"'] }'
+
 		_gh_payload=$( cat <<-EOF
 		{
 		  "tag_name": "$tag",
@@ -2540,6 +2556,25 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			_gh_release_url="-X PATCH https://api.github.com/repos/$project_github_slug/releases/$release_id"
+
+			# combine version info
+			_gh_metadata_url=$( curl -sS \
+					-H "Accept: application/vnd.github.v3+json" \
+					-H "Authorization: token $github_token" \
+					"https://api.github.com/repos/$project_github_slug/releases/$release_id/assets" \
+				| jq -r '.[] | select(.name? == "release.json") | .url // empty'
+			)
+			if [ -n "$_gh_metadata_url" ]; then
+				_gh_previous_metadata=$( curl -sSL --fail \
+						-H "Accept: application/octet-stream" \
+						-H "Authorization: token $github_token" \
+						"$_gh_metadata_url"
+				) && {
+					_gh_metadata=$( jq -s '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_previous_metadata} ${_gh_metadata}" )
+				} || {
+					echo "Warning: Unable to update release.json ($?)"
+				}
+			fi
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			_gh_release_url="https://api.github.com/repos/$project_github_slug/releases"
@@ -2559,6 +2594,7 @@ if [ -z "$skip_zipfile" ]; then
 				if [ -f "$nolib_archive" ]; then
 					upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
 				fi
+				jq -c <<< "$_gh_metadata" > "$releasedir/release.json" && upload_github_asset "$release_id" "release.json" "$releasedir/release.json"
 			else
 				echo "Error! ($result)"
 				if [ -s "$resultfile" ]; then
