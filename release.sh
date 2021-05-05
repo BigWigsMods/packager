@@ -2525,7 +2525,7 @@ if [ -z "$skip_zipfile" ]; then
 		  "name": "$tag",
 		  "body": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
 		  "draft": false,
-		  "prerelease": $( [[ "${tag,,}" == *"beta"* || "${tag,,}" == *"alpha"* ]] && echo true || echo false )
+		  "prerelease": $( [[ "$file_type" != "release" ]] && echo true || echo false )
 		}
 		EOF
 		)
