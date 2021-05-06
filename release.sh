@@ -66,6 +66,7 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
+declare -A game_flavors=( ["retail"]="mainline" ["classic"]="classic" ["bc"]="bcc" )
 declare -A game_versions
 toc_version=
 
@@ -2520,14 +2521,14 @@ if [ -z "$skip_zipfile" ]; then
 
 		_gh_metadata='{ "filename": "'"$archive_name"'", "metadata": ['
 		for type in "${!game_versions[@]}"; do
-			_gh_metadata+='{ "flavor": "'"$type"'", "interface": '"$toc_version"', "nolib": false },'
+			_gh_metadata+='{ "flavor": "'"${game_flavors[$type]}"'", "interface": '"$toc_version"', "nolib": false },'
 		done
 		_gh_metadata=${_gh_metadata%,}
 		_gh_metadata+='] }'
 		if [ -f "$nolib_archive" ]; then
 			_gh_metadata+=',{ "filename": "'"$nolib_archive_name"'", "metadata": ['
 			for type in "${!game_versions[@]}"; do
-				_gh_metadata+='{ "flavor": "'"$type"'", "interface": '"$toc_version"', "nolib": true },'
+				_gh_metadata+='{ "flavor": "'"${game_flavors[$type]}"'", "interface": '"$toc_version"', "nolib": true },'
 			done
 			_gh_metadata=${_gh_metadata%,}
 			_gh_metadata+='] }'
