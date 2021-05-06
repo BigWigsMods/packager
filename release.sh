@@ -2296,8 +2296,8 @@ if [ -z "$skip_zipfile" ]; then
 				-H "x-api-token: $cf_token" \
 				-F "metadata=<-" \
 				-F "file=@$archive" \
-				"$project_site/api/projects/$slug/upload-file" ) &&
-		{
+				"$project_site/api/projects/$slug/upload-file"
+		) && {
 			case $result in
 				200) echo "Success!" ;;
 				302)
@@ -2373,15 +2373,15 @@ if [ -z "$skip_zipfile" ]; then
 		echo "Uploading $archive_name ($_wowi_game_version) to https://www.wowinterface.com/downloads/info$addonid"
 		resultfile="$releasedir/wi_result.json"
 		result=$( curl -sS --retry 3 --retry-delay 10 \
-			  -w "%{http_code}" -o "$resultfile" \
-			  -H "x-api-token: $wowi_token" \
-			  -F "id=$addonid" \
-			  -F "version=$archive_version" \
-			  -F "compatible=$_wowi_game_version" \
-			  "${_wowi_args[@]}" \
-			  -F "updatefile=@$archive" \
-			  "https://api.wowinterface.com/addons/update" ) &&
-		{
+				-w "%{http_code}" -o "$resultfile" \
+				-H "x-api-token: $wowi_token" \
+				-F "id=$addonid" \
+				-F "version=$archive_version" \
+				-F "compatible=$_wowi_game_version" \
+				"${_wowi_args[@]}" \
+				-F "updatefile=@$archive" \
+				"https://api.wowinterface.com/addons/update"
+		) && {
 			case $result in
 				202)
 					echo "Success!"
@@ -2441,8 +2441,8 @@ if [ -z "$skip_zipfile" ]; then
 				-H "accept: application/json" \
 				-F "metadata=<-" \
 				-F "file=@$archive" \
-				"https://addons.wago.io/api/projects/$wagoid/version" ) &&
-		{
+				"https://addons.wago.io/api/projects/$wagoid/version"
+		) && {
 			case $result in
 				200|201) echo "Success!" ;;
 				302)
@@ -2500,8 +2500,8 @@ if [ -z "$skip_zipfile" ]; then
 					-H "Authorization: token $github_token" \
 					-H "Content-Type: application/zip" \
 					--data-binary "@$_ghf_file_path" \
-					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name" ) &&
-			{
+					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name"
+			) && {
 				if [ "$result" = "201" ]; then
 					echo "Success!"
 				else
@@ -2534,7 +2534,8 @@ if [ -z "$skip_zipfile" ]; then
 		release_id=$( curl -sS \
 				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
-				"https://api.github.com/repos/$project_github_slug/releases/tags/$tag" | jq '.id // empty'
+				"https://api.github.com/repos/$project_github_slug/releases/tags/$tag" \
+			| jq '.id // empty'
 		)
 		if [ -n "$release_id" ]; then
 			echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
@@ -2548,8 +2549,8 @@ if [ -z "$skip_zipfile" ]; then
 				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
 				-d @- \
-				$_gh_release_url ) &&
-		{
+				$_gh_release_url
+		) && {
 			if [ "$result" = "200" ] || [ "$result" = "201" ]; then # edited || created
 				if [ -z "$release_id" ]; then
 					release_id=$( jq '.id' < "$resultfile" )
