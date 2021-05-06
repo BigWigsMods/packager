@@ -183,10 +183,9 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		g) # Set the game type or version
 			OPTARG="${OPTARG,,}"
 			case "$OPTARG" in
-				retail|classic|bc)
-					game_type="$OPTARG"
-					# game_version from toc
-					;;
+				retail|classic|bc) game_type="$OPTARG" ;; # game_version from toc
+				mainline) game_type="retail" ;;
+				bcc) game_type="bc" ;;
 				*)
 					# Set game version (x.y.z)
 					# Build game type set from the last value if a list
