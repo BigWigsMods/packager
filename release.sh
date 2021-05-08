@@ -947,12 +947,10 @@ if [[ -z "$package" ]]; then
 fi
 
 toc_path="$package.toc"
-if [[ ! -f "$topdir/$toc_path" ]]; then
-	if [[ -f "$topdir/$package/$toc_path" ]]; then
-		toc_path="$package/$package.toc"
-	# else
-	# 	toc_path=$( cd "$topdir" && find . -name "$package.toc" ! -path "**/.*" | head -n1 )
-	fi
+
+# Handle having the main addon in a sub dir
+if [[ ! -f "$topdir/$toc_path" && -f "$topdir/$package/$toc_path" ]]; then
+	toc_path="$package/$toc_path"
 fi
 
 if [[ ! -f "$topdir/$toc_path" ]]; then
