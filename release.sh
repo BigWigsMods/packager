@@ -931,37 +931,40 @@ elif [ "$repository_type" = "hg" ]; then
 	fi
 fi
 
-# TOC file processing.
-tocfile=$(
-	cd "$topdir" || exit
-	filename=$( ls ./*.toc -1 2>/dev/null | head -n1 )
-	if [[ -z "$filename" && -n "$package" ]]; then
-		# Handle having the core addon in a sub dir, which people have starting doing
-		# for some reason. Tons of caveats, just make the base dir your base addon people!
-		filename=$( ls "$package"/*.toc -1 2>/dev/null | head -n1 )
+###
+### Process TOC file
+###
+
+# Set the package name from a TOC file name
+if [[ -z "$package" ]]; then
+	toc_path=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | head -n1 )
+	if [[ -z "$toc_path" ]]; then
+		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
+		exit 1
 	fi
-	echo "$filename"
-)
-if [[ -z "$tocfile" || ! -f "$topdir/$tocfile" ]]; then
-	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
-	exit 1
+	package=${toc_path%.toc}
+	package=$( shopt -s extglob && echo "${package%-@(Mainline|Classic|BCC)}" )
 fi
 
-# Set the package name from the TOC filename.
-toc_name=$( basename "$tocfile" | sed 's/\.toc$//' )
-if [[ -n "$package" && "$package" != "$toc_name" ]]; then
-	echo "Addon package name does not match TOC file name." >&2
-	exit 1
+toc_path="$package.toc"
+if [[ ! -f "$topdir/$toc_path" ]]; then
+	if [[ -f "$topdir/$package/$toc_path" ]]; then
+		toc_path="$package/$package.toc"
+	# else
+	# 	toc_path=$( cd "$topdir" && find . -name "$package.toc" ! -path "**/.*" | head -n1 )
+	fi
 fi
-if [ -z "$package" ]; then
-	package="$toc_name"
+
+if [[ ! -f "$topdir/$toc_path" ]]; then
+	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
+	exit 1
 fi
 
 # Get the interface version for setting the upload version.
 toc_file=$(
 	# remove bom and cr and apply some non-version toc filters
 	[ "$file_type" != "alpha" ] && _tf_alpha="true"
-	sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" | toc_filter alpha ${_tf_alpha} | toc_filter debug true
+	sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$toc_path" | toc_filter alpha ${_tf_alpha} | toc_filter debug true
 )
 root_toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
 toc_version="$root_toc_version"
