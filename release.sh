@@ -2477,6 +2477,7 @@ if [ -z "$skip_zipfile" ]; then
 			_ghf_file_name=$2
 			_ghf_file_path=$3
 			_ghf_resultfile="$releasedir/gh_asset_result.json"
+			_ghf_content_type="application/${_ghf_file_name##*.}" # zip or json
 
 			# check if an asset exists and delete it (editing a release)
 			asset_id=$( curl -sS \
@@ -2498,7 +2499,7 @@ if [ -z "$skip_zipfile" ]; then
 					-w "%{http_code}" -o "$_ghf_resultfile" \
 					-H "Accept: application/vnd.github.v3+json" \
 					-H "Authorization: token $github_token" \
-					-H "Content-Type: application/zip" \
+					-H "Content-Type: $_ghf_content_type" \
 					--data-binary "@$_ghf_file_path" \
 					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name"
 			) && {
