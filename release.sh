@@ -937,13 +937,15 @@ fi
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
-	toc_path=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | head -n1 )
-	if [[ -z "$toc_path" ]]; then
+	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | head -n1 )
+	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
 		exit 1
 	fi
-	package=${toc_path%.toc}
-	package=$( shopt -s extglob && echo "${package%-@(Mainline|Classic|BCC)}" )
+	package=${package%.toc}
+	if [[ $package =~ ^(.*)-(Mainline|Classic|BCC)$ ]]; then
+		package="${BASH_REMATCH[1]}"
+	fi
 fi
 
 toc_path="$package.toc"
