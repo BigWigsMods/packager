@@ -2388,7 +2388,9 @@ if [ -z "$skip_zipfile" ]; then
 			case $result in
 				202)
 					echo "Success!"
-					[ -f "$wowi_changelog" ] && rm -f "$wowi_changelog" 2>/dev/null
+					if [ -f "$wowi_changelog" ]; then
+						rm -f "$wowi_changelog" 2>/dev/null
+					fi
 					;;
 				401)
 					echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
