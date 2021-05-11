@@ -2541,6 +2541,9 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		_gh_metadata='{ "releases": ['"$_gh_metadata"'] }'
 
+		versionfile="$releasedir/release.json"
+		jq -c '.' <<< "$_gh_metadata" > "$versionfile" || echo "There was an error creating release.json" >&2
+
 		_gh_payload=$( cat <<-EOF
 		{
 		  "tag_name": "$tag",
@@ -2600,7 +2603,9 @@ if [ -z "$skip_zipfile" ]; then
 				if [ -f "$nolib_archive" ]; then
 					upload_github_asset "$release_id" "$nolib_archive_name" "$nolib_archive"
 				fi
-				jq -c <<< "$_gh_metadata" > "$releasedir/release.json" && upload_github_asset "$release_id" "release.json" "$releasedir/release.json"
+				if [ -s "$versionfile" ]; then
+					upload_github_asset "$release_id" "release.json" "$versionfile"
+				fi
 			else
 				echo "Error! ($result)"
 				if [ -s "$resultfile" ]; then
@@ -2613,6 +2618,7 @@ if [ -z "$skip_zipfile" ]; then
 		}
 
 		rm -f "$resultfile" 2>/dev/null
+		[ -z "$CI" ] && rm -f "$versionfile" 2>/dev/null
 		echo
 	fi
 fi
