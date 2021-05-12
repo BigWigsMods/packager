@@ -991,7 +991,7 @@ if [[ -z "$package" ]]; then
 		exit 1
 	fi
 	package=${package%.toc}
-	if [[ $package =~ ^(.*)-(Mainline|Classic|BCC)$ ]]; then
+	if [[ $package =~ ^(.*)-([Mm]ainline|[Cc]lassic|[Bb][Cc][Cc])$ ]]; then
 		package="${BASH_REMATCH[1]}"
 	fi
 fi
@@ -1029,7 +1029,7 @@ do_toc() {
 		wagoid=$( awk '/^## X-Wago-ID:/ { print $NF; exit }' <<< "$toc_file" )
 	fi
 
-	if [[ $toc_name =~ $package-(Mainline|Classic|BCC)\.toc$ ]]; then
+	if [[ ${toc_name,,} =~ $package-(mainline|classic|bcc)\.toc$ ]]; then
 		# Flavored
 		if [[ -z "$toc_version" ]]; then
 			echo "$toc_name is missing an interface version." >&2
@@ -1105,11 +1105,13 @@ do_toc() {
 }
 
 # Parse the main addon's TOC file(s)
+shopt -s nocasematch # case insensitive -f
 for toc in "$topdir"{,/"$package"}/"$package"{,-Mainline,-Classic,-BCC}.toc; do
 	if [[ -f "$toc" ]]; then
 		do_toc "$toc"
 	fi
 done
+shopt -u nocasematch
 
 if [[ ${#toc_paths[@]} -eq 0 ]]; then
 	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
