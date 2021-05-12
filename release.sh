@@ -724,11 +724,16 @@ match_pattern() {
 	return 1
 }
 
+
 # Simple .pkgmeta YAML processor.
+declare -A yaml_bool=( ["yes"]="yes" ["true"]="yes" ["on"]="yes" ["false"]="no" ["off"]="no" ["no"]="no" )
 yaml_keyvalue() {
 	yaml_key=${1%%:*}
 	yaml_value=${1#$yaml_key:}
 	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"} # trim leading whitespace
+	if [[ -n "$yaml_value" && -n "${yaml_bool[${yaml_value,,}]}" ]]; then # normalize booleans
+		yaml_value="${yaml_bool[$yaml_value]}"
+	fi
 	yaml_value=${yaml_value#[\'\"]} # trim leading quotes
 	yaml_value=${yaml_value%[\'\"]} # trim trailing quotes
 }
