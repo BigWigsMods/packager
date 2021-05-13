@@ -2341,6 +2341,9 @@ if [ -z "$skip_zipfile" ]; then
 				esac
 				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
 				_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
+				if [[ -n "$game_version" ]]; then
+					echo "WARNING: No CurseForge game version match, defaulting to \"$_cf_game_version\"" >&2
+				fi
 			fi
 		fi
 		if [ -z "$_cf_game_version_id" ]; then
@@ -2437,6 +2440,9 @@ if [ -z "$skip_zipfile" ]; then
 			# fi
 			if [ -z "$_wowi_game_version" ]; then
 				_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
+				if [[ -n "$game_version" ]]; then
+					echo "WARNING: No WoWInterface game version match, defaulting to \"$_wowi_game_version\"" >&2
+				fi
 			fi
 		fi
 		if [ -z "$_wowi_game_version" ]; then
