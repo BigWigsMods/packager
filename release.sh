@@ -1393,14 +1393,15 @@ lua_filter() {
 }
 
 toc_interface_filter() {
-	# Always remove BOM so ^ works
-	if [ "$root_toc_version" != "${toc_versions[$game_type]}" ]; then
-		# toc version isn't what is set in the toc file
+	local toc_version="$1"
+	# TOC version isn't what is set in the TOC file
+	if [[ -n "$toc_version" && "$root_toc_version" != "$toc_version" ]]; then
+		# Always remove BOM so ^ works
 		if [ -n "$root_toc_version" ]; then # rewrite
-			sed -e $'1s/^\xEF\xBB\xBF//' -e 's/^## Interface:.*$/## Interface: '"${toc_versions[$game_type]}"'/' -e '/^## Interface-/d'
+			sed -e $'1s/^\xEF\xBB\xBF//' -e 's/^## Interface:.*$/## Interface: '"$toc_version"'/' -e '/^## Interface-/d'
 		else # add
 			sed -e $'1s/^\xEF\xBB\xBF//' -e '1i\
-## Interface: '"${toc_versions[$game_type]}" -e '/^## Interface-/d'
+## Interface: '"$toc_version" -e '/^## Interface-/d'
 		fi
 	else # cleanup
 		sed -e $'1s/^\xEF\xBB\xBF//' -e '/^## Interface-/d'
@@ -1575,7 +1576,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
 							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_classic" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_classic" != "bcc" ]] && echo "true")"
-							[ -n "$game_type" ] && _cdt_filters+="|toc_interface_filter"
+							_cdt_filters+="|toc_interface_filter ${toc_versions[${game_type:--}]}"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
