@@ -395,12 +395,8 @@ fi
 # Set $basedir to the basename of the checkout directory.
 basedir=$( cd "$topdir" && pwd )
 case $basedir in
-/*/*)
-	basedir=${basedir##/*/}
-	;;
-/*)
-	basedir=${basedir##/}
-	;;
+	/*/*) basedir=${basedir##/*/} ;;
+	/*) basedir=${basedir##/} ;;
 esac
 
 # Set $repository_type to "git" or "svn" or "hg".
@@ -418,12 +414,12 @@ fi
 
 # $releasedir must be an absolute path or inside $topdir.
 case $releasedir in
-/*)			;;
-$topdir/*)	;;
-*)
-	echo "The release directory \"$releasedir\" must be an absolute path or inside \"$topdir\"." >&2
-	exit 1
-	;;
+	/*) ;;
+	$topdir/*) ;;
+	*)
+		echo "The release directory \"$releasedir\" must be an absolute path or inside \"$topdir\"." >&2
+		exit 1
+		;;
 esac
 
 # Create the staging directory.
@@ -535,26 +531,26 @@ set_info_svn() {
 		si_repo_url=$_si_root
 
 		case ${_si_url#${_si_root}/} in
-		tags/*)
-			# Extract the tag from the URL.
-			si_tag=${_si_url#${_si_root}/tags/}
-			si_tag=${si_tag%%/*}
-			si_project_revision="$_si_revision"
-			;;
-		*)
-			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
-			_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
-			_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
+			tags/*)
+				# Extract the tag from the URL.
+				si_tag=${_si_url#${_si_root}/tags/}
+				si_tag=${si_tag%%/*}
+				si_project_revision="$_si_revision"
+				;;
+			*)
+				# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
+				_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
+				_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
+				_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
 
-			if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
-				si_tag="$_si_tag"
-				si_project_revision=$( svn info "$_si_root/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
-			else
-				# Set $si_project_revision to the highest revision of the project at the checkout path
-				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
-			fi
-			;;
+				if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
+					si_tag="$_si_tag"
+					si_project_revision=$( svn info "$_si_root/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
+				else
+					# Set $si_project_revision to the highest revision of the project at the checkout path
+					si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
+				fi
+				;;
 		esac
 
 		if [ -n "$si_tag" ]; then
@@ -791,33 +787,33 @@ parse_ignore() {
 		yaml_line=${yaml_line%$carriage_return}
 
 		case $yaml_line in
-		[!\ ]*:*)
-			# Split $yaml_line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$yaml_line"
-			# Set the $pkgmeta_phase for stateful processing.
-			pkgmeta_phase=$yaml_key
-			;;
-		[\ ]*"- "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-			# Get the YAML list item.
-			yaml_listitem "$yaml_line"
-			if [ "$pkgmeta_phase" = "ignore" ]; then
-				pattern=$yaml_item
-				if [ -d "$checkpath/$pattern" ]; then
-					pattern="$copypath$pattern/*"
-				elif [ ! -f "$checkpath/$pattern" ]; then
-					# doesn't exist so match both a file and a path
-					pattern="$copypath$pattern:$copypath$pattern/*"
-				else
-					pattern="$copypath$pattern"
+			[!\ ]*:*)
+				# Split $yaml_line into a $yaml_key, $yaml_value pair.
+				yaml_keyvalue "$yaml_line"
+				# Set the $pkgmeta_phase for stateful processing.
+				pkgmeta_phase=$yaml_key
+				;;
+			[\ ]*"- "*)
+				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				# Get the YAML list item.
+				yaml_listitem "$yaml_line"
+				if [ "$pkgmeta_phase" = "ignore" ]; then
+					pattern=$yaml_item
+					if [ -d "$checkpath/$pattern" ]; then
+						pattern="$copypath$pattern/*"
+					elif [ ! -f "$checkpath/$pattern" ]; then
+						# doesn't exist so match both a file and a path
+						pattern="$copypath$pattern:$copypath$pattern/*"
+					else
+						pattern="$copypath$pattern"
+					fi
+					if [ -z "$ignore" ]; then
+						ignore="$pattern"
+					else
+						ignore="$ignore:$pattern"
+					fi
 				fi
-				if [ -z "$ignore" ]; then
-					ignore="$pattern"
-				else
-					ignore="$ignore:$pattern"
-				fi
-			fi
-			;;
+				;;
 		esac
 	done < "$pkgmeta"
 }
@@ -841,103 +837,103 @@ if [ -f "$pkgmeta_file" ]; then
 		yaml_line=${yaml_line%$carriage_return}
 
 		case $yaml_line in
-		[!\ ]*:*)
-			# Split $yaml_line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$yaml_line"
-			# Set the $pkgmeta_phase for stateful processing.
-			pkgmeta_phase=$yaml_key
-
-			case $yaml_key in
-			enable-nolib-creation)
-				if [ "$yaml_value" = "yes" ]; then
-					enable_nolib_creation="true"
-				fi
-				;;
-			manual-changelog)
-				changelog=$yaml_value
-				manual_changelog="true"
-				;;
-			changelog-title)
-				project="$yaml_value"
-				;;
-			package-as)
-				package=$yaml_value
-				;;
-			wowi-create-changelog)
-				if [ "$yaml_value" = "no" ]; then
-					wowi_gen_changelog=
-				fi
-				;;
-			wowi-convert-changelog)
-				if [ "$yaml_value" = "no" ]; then
-					wowi_convert_changelog=
-				fi
-				;;
-			wowi-archive-previous)
-				if [ "$yaml_value" = "no" ]; then
-					wowi_archive=
-				fi
-				;;
-			esac
-			;;
-		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-			case $yaml_line in
-			"- "*)
-				# Get the YAML list item.
-				yaml_listitem "$yaml_line"
-				case $pkgmeta_phase in
-				ignore)
-					pattern=$yaml_item
-					if [ -d "$topdir/$pattern" ]; then
-						pattern="$pattern/*"
-					elif [ ! -f "$topdir/$pattern" ]; then
-						# doesn't exist so match both a file and a path
-						pattern="$pattern:$pattern/*"
-					fi
-					if [ -z "$ignore" ]; then
-						ignore="$pattern"
-					else
-						ignore="$ignore:$pattern"
-					fi
-					;;
-				tools-used)
-					relations["$yaml_item"]="tool"
-					;;
-				required-dependencies)
-					relations["$yaml_item"]="requiredDependency"
-					;;
-				optional-dependencies)
-					relations["$yaml_item"]="optionalDependency"
-					;;
-				embedded-libraries)
-					relations["$yaml_item"]="embeddedLibrary"
-					;;
-				esac
-				;;
-			*:*)
+			[!\ ]*:*)
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
-				case $pkgmeta_phase in
-				manual-changelog)
-					case $yaml_key in
-					filename)
+				# Set the $pkgmeta_phase for stateful processing.
+				pkgmeta_phase=$yaml_key
+
+				case $yaml_key in
+					enable-nolib-creation)
+						if [ "$yaml_value" = "yes" ]; then
+							enable_nolib_creation="true"
+						fi
+						;;
+					manual-changelog)
 						changelog=$yaml_value
 						manual_changelog="true"
 						;;
-					markup-type)
-						if [ "$yaml_value" = "markdown" ] || [ "$yaml_value" = "html" ]; then
-							changelog_markup=$yaml_value
-						else
-							changelog_markup="text"
+					changelog-title)
+						project="$yaml_value"
+						;;
+					package-as)
+						package=$yaml_value
+						;;
+					wowi-create-changelog)
+						if [ "$yaml_value" = "no" ]; then
+							wowi_gen_changelog=
 						fi
 						;;
-					esac
-					;;
+					wowi-convert-changelog)
+						if [ "$yaml_value" = "no" ]; then
+							wowi_convert_changelog=
+						fi
+						;;
+					wowi-archive-previous)
+						if [ "$yaml_value" = "no" ]; then
+							wowi_archive=
+						fi
+						;;
 				esac
 				;;
-			esac
-			;;
+			" "*)
+				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				case $yaml_line in
+					"- "*)
+						# Get the YAML list item.
+						yaml_listitem "$yaml_line"
+						case $pkgmeta_phase in
+							ignore)
+								pattern=$yaml_item
+								if [ -d "$topdir/$pattern" ]; then
+									pattern="$pattern/*"
+								elif [ ! -f "$topdir/$pattern" ]; then
+									# doesn't exist so match both a file and a path
+									pattern="$pattern:$pattern/*"
+								fi
+								if [ -z "$ignore" ]; then
+									ignore="$pattern"
+								else
+									ignore="$ignore:$pattern"
+								fi
+								;;
+							tools-used)
+								relations["$yaml_item"]="tool"
+								;;
+							required-dependencies)
+								relations["$yaml_item"]="requiredDependency"
+								;;
+							optional-dependencies)
+								relations["$yaml_item"]="optionalDependency"
+								;;
+							embedded-libraries)
+								relations["$yaml_item"]="embeddedLibrary"
+								;;
+						esac
+						;;
+					*:*)
+						# Split $yaml_line into a $yaml_key, $yaml_value pair.
+						yaml_keyvalue "$yaml_line"
+						case $pkgmeta_phase in
+							manual-changelog)
+								case $yaml_key in
+									filename)
+										changelog=$yaml_value
+										manual_changelog="true"
+										;;
+									markup-type)
+										if [ "$yaml_value" = "markdown" ] || [ "$yaml_value" = "html" ]; then
+											changelog_markup=$yaml_value
+										else
+											changelog_markup="text"
+										fi
+										;;
+								esac
+								;;
+						esac
+						;;
+				esac
+				;;
 		esac
 	done < "$pkgmeta_file"
 fi
@@ -1235,144 +1231,144 @@ localization_filter() {
 		# Strip any trailing CR character.
 		_ul_line=${_ul_line%$carriage_return}
 		case $_ul_line in
-		*@localization\(*\)@*)
-			_ul_lang=
-			_ul_namespace=
-			_ul_singlekey=
-			_ul_tablename="L"
-			# Get the prefix of the line before the comment.
-			_ul_prefix=${_ul_line%%@localization(*}
-			_ul_prefix=${_ul_prefix%%--*}
-			# Strip everything but the localization parameters.
-			_ul_params=${_ul_line#*@localization(}
-			_ul_params=${_ul_params%)@}
-			# Sanitize the params a bit. (namespaces are restricted to [a-zA-Z0-9_], separated by [./:])
-			_ul_params=${_ul_params// /}
-			_ul_params=${_ul_params//,/, }
-			# Pull the locale language first (mainly for warnings).
-			_ul_lang="enUS"
-			if [[ $_ul_params == *"locale=\""* ]]; then
-				_ul_lang=${_ul_params##*locale=\"}
-				_ul_lang=${_ul_lang:0:4}
-				_ul_lang=${_ul_lang%%\"*}
-			else
-				echo "    Warning! No locale set, using enUS." >&2
-			fi
-			# Generate a URL parameter string from the localization parameters.
-			# https://authors.curseforge.com/knowledge-base/projects/529-api
-			_ul_url_params=""
-			set -- ${_ul_params}
-			for _ul_param; do
-				_ul_key=${_ul_param%%=*}
-				_ul_value=${_ul_param#*=}
-				_ul_value=${_ul_value%,*}
-				_ul_value=${_ul_value#*\"}
-				_ul_value=${_ul_value%\"*}
-				case ${_ul_key} in
-					escape-non-ascii)
-						if [ "$_ul_value" = "true" ]; then
-							_ul_url_params="${_ul_url_params}&escape-non-ascii-characters=true"
-						fi
-						;;
-					format)
-						if [ "$_ul_value" = "lua_table" ]; then
-							_ul_url_params="${_ul_url_params}&export-type=Table"
-						fi
-						;;
-					handle-unlocalized)
-						if [ "$_ul_value" != "english" ] && [ -n "${unlocalized_values[$_ul_value]}" ]; then
-							_ul_url_params="${_ul_url_params}&unlocalized=${unlocalized_values[$_ul_value]}"
-						fi
-						;;
-					handle-subnamespaces)
-						if [ "$_ul_value" = "concat" ]; then # concat with /
-							_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
-						elif [ "$_ul_value" = "subtable" ]; then
-							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Include each full subnamespace, comma delimited." >&2
-						fi
-						;;
-					key)
-						# _ul_params was stripped of spaces, so reparse the line for the key
-						_ul_singlekey=${_ul_line#*@localization(}
-						_ul_singlekey=${_ul_singlekey#*key=\"}
-						_ul_singlekey=${_ul_singlekey%%\",*}
-						_ul_singlekey=${_ul_singlekey%%\")@*}
-						;;
-					locale)
-						_ul_lang=$_ul_value
-						;;
-					namespace)
-						# reparse to get all namespaces if multiple
-						_ul_namespace=${_ul_params##*namespace=\"}
-						_ul_namespace=${_ul_namespace%%\"*}
-						_ul_namespace=${_ul_namespace//, /,}
-						_ul_url_params="${_ul_url_params}&namespaces=${_ul_namespace}"
-						_ul_namespace="/${_ul_namespace}"
-						;;
-					namespace-delimiter)
-						if [ "$_ul_value" != "/" ]; then
-							echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported." >&2
-						fi
-						;;
-					prefix-values)
-						echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported." >&2
-						;;
-					same-key-is-true)
-						if [ "$_ul_value" = "true" ]; then
-							_ul_url_params="${_ul_url_params}&true-if-value-equals-key=true"
-						fi
-						;;
-					table-name)
-						if [ "$_ul_value" != "L" ]; then
-							_ul_tablename="$_ul_value"
-							_ul_url_params="${_ul_url_params}&table-name=${_ul_value}"
-						fi
-						;;
-				esac
-			done
-
-			if [ -z "$_cdt_localization" ] || [ -z "$localization_url" ]; then
-				echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&2
-
-				# If the line isn't a TOC entry, print anything before the keyword.
-				if [[ $_ul_line != "## "* ]]; then
-					if [ -n "$_ul_eof" ]; then
-						echo -n "$_ul_prefix"
-					else
-						echo "$_ul_prefix"
-					fi
+			*@localization\(*\)@*)
+				_ul_lang=
+				_ul_namespace=
+				_ul_singlekey=
+				_ul_tablename="L"
+				# Get the prefix of the line before the comment.
+				_ul_prefix=${_ul_line%%@localization(*}
+				_ul_prefix=${_ul_prefix%%--*}
+				# Strip everything but the localization parameters.
+				_ul_params=${_ul_line#*@localization(}
+				_ul_params=${_ul_params%)@}
+				# Sanitize the params a bit. (namespaces are restricted to [a-zA-Z0-9_], separated by [./:])
+				_ul_params=${_ul_params// /}
+				_ul_params=${_ul_params//,/, }
+				# Pull the locale language first (mainly for warnings).
+				_ul_lang="enUS"
+				if [[ $_ul_params == *"locale=\""* ]]; then
+					_ul_lang=${_ul_params##*locale=\"}
+					_ul_lang=${_ul_lang:0:4}
+					_ul_lang=${_ul_lang%%\"*}
+				else
+					echo "    Warning! No locale set, using enUS." >&2
 				fi
-			else
-				_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
-				echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+				# Generate a URL parameter string from the localization parameters.
+				# https://authors.curseforge.com/knowledge-base/projects/529-api
+				_ul_url_params=""
+				set -- ${_ul_params}
+				for _ul_param; do
+					_ul_key=${_ul_param%%=*}
+					_ul_value=${_ul_param#*=}
+					_ul_value=${_ul_value%,*}
+					_ul_value=${_ul_value#*\"}
+					_ul_value=${_ul_value%\"*}
+					case ${_ul_key} in
+						escape-non-ascii)
+							if [ "$_ul_value" = "true" ]; then
+								_ul_url_params="${_ul_url_params}&escape-non-ascii-characters=true"
+							fi
+							;;
+						format)
+							if [ "$_ul_value" = "lua_table" ]; then
+								_ul_url_params="${_ul_url_params}&export-type=Table"
+							fi
+							;;
+						handle-unlocalized)
+							if [ "$_ul_value" != "english" ] && [ -n "${unlocalized_values[$_ul_value]}" ]; then
+								_ul_url_params="${_ul_url_params}&unlocalized=${unlocalized_values[$_ul_value]}"
+							fi
+							;;
+						handle-subnamespaces)
+							if [ "$_ul_value" = "concat" ]; then # concat with /
+								_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
+							elif [ "$_ul_value" = "subtable" ]; then
+								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Include each full subnamespace, comma delimited." >&2
+							fi
+							;;
+						key)
+							# _ul_params was stripped of spaces, so reparse the line for the key
+							_ul_singlekey=${_ul_line#*@localization(}
+							_ul_singlekey=${_ul_singlekey#*key=\"}
+							_ul_singlekey=${_ul_singlekey%%\",*}
+							_ul_singlekey=${_ul_singlekey%%\")@*}
+							;;
+						locale)
+							_ul_lang=$_ul_value
+							;;
+						namespace)
+							# reparse to get all namespaces if multiple
+							_ul_namespace=${_ul_params##*namespace=\"}
+							_ul_namespace=${_ul_namespace%%\"*}
+							_ul_namespace=${_ul_namespace//, /,}
+							_ul_url_params="${_ul_url_params}&namespaces=${_ul_namespace}"
+							_ul_namespace="/${_ul_namespace}"
+							;;
+						namespace-delimiter)
+							if [ "$_ul_value" != "/" ]; then
+								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported." >&2
+							fi
+							;;
+						prefix-values)
+							echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported." >&2
+							;;
+						same-key-is-true)
+							if [ "$_ul_value" = "true" ]; then
+								_ul_url_params="${_ul_url_params}&true-if-value-equals-key=true"
+							fi
+							;;
+						table-name)
+							if [ "$_ul_value" != "L" ]; then
+								_ul_tablename="$_ul_value"
+								_ul_url_params="${_ul_url_params}&table-name=${_ul_value}"
+							fi
+							;;
+					esac
+				done
 
-				if [ -z "$_ul_singlekey" ]; then
-					# Write text that preceded the substitution.
-					echo -n "$_ul_prefix"
+				if [ -z "$_cdt_localization" ] || [ -z "$localization_url" ]; then
+					echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&2
 
-					# Fetch the localization data, but don't output anything if there is an error.
-					curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
-
-					# Insert a trailing blank line to match CF packager.
-					if [ -z "$_ul_eof" ]; then
-						echo ""
+					# If the line isn't a TOC entry, print anything before the keyword.
+					if [[ $_ul_line != "## "* ]]; then
+						if [ -n "$_ul_eof" ]; then
+							echo -n "$_ul_prefix"
+						else
+							echo "$_ul_prefix"
+						fi
 					fi
 				else
-					# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
-					_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
-					if [ -n "$_ul_value" ] && [ "$_ul_value" != "$_ul_singlekey" ]; then
-						# The result is different from the base value so print out the line.
-						echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
+					_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
+					echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+
+					if [ -z "$_ul_singlekey" ]; then
+						# Write text that preceded the substitution.
+						echo -n "$_ul_prefix"
+
+						# Fetch the localization data, but don't output anything if there is an error.
+						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
+
+						# Insert a trailing blank line to match CF packager.
+						if [ -z "$_ul_eof" ]; then
+							echo ""
+						fi
+					else
+						# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
+						_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
+						if [ -n "$_ul_value" ] && [ "$_ul_value" != "$_ul_singlekey" ]; then
+							# The result is different from the base value so print out the line.
+							echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
+						fi
 					fi
 				fi
-			fi
-			;;
-		*)
-			if [ -n "$_ul_eof" ]; then
-				echo -n "$_ul_line"
-			else
-				echo "$_ul_line"
-			fi
+				;;
+			*)
+				if [ -n "$_ul_eof" ]; then
+					echo -n "$_ul_line"
+				else
+					echo "$_ul_line"
+				fi
 		esac
 	done
 }
@@ -1496,8 +1492,8 @@ copy_directory_tree() {
 	# Prune the destination directory if it is a subdirectory of the source directory.
 	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
 	case $_cdt_dest_subdir in
-		/*)	;;
-		*)	_cdt_find_cmd+=" -o -path \"./$_cdt_dest_subdir\" -prune" ;;
+		/*) ;;
+		*) _cdt_find_cmd+=" -o -path \"./$_cdt_dest_subdir\" -prune" ;;
 	esac
 	# Print the filename, but suppress the current directory ".".
 	_cdt_find_cmd+=" -o \! -name \".\" -print"
@@ -1845,58 +1841,58 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		yaml_line=${yaml_line%$carriage_return}
 
 		case $yaml_line in
-		[!\ ]*:*)
-			# Started a new section, so checkout any queued externals.
-			process_external
-			# Split $yaml_line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$yaml_line"
-			# Set the $pkgmeta_phase for stateful processing.
-			pkgmeta_phase=$yaml_key
-			;;
-		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-			case $yaml_line in
-			"- "*)
-				;;
-			*:*)
+			[!\ ]*:*)
+				# Started a new section, so checkout any queued externals.
+				process_external
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
-				case $pkgmeta_phase in
-				externals)
-					case $yaml_key in
-					url) external_uri=$yaml_value ;;
-					tag)
-						external_tag=$yaml_value
-						external_checkout_type=$yaml_key
+				# Set the $pkgmeta_phase for stateful processing.
+				pkgmeta_phase=$yaml_key
+				;;
+			" "*)
+				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				case $yaml_line in
+					"- "*)
 						;;
-					branch)
-						external_tag=$yaml_value
-						external_checkout_type=$yaml_key
-						;;
-					commit)
-						external_tag=$yaml_value
-						external_checkout_type=$yaml_key
-						;;
-					type) external_type=$yaml_value ;;
-					curse-slug) external_slug=$yaml_value ;;
-					*)
-						# Started a new external, so checkout any queued externals.
-						process_external
+					*:*)
+						# Split $yaml_line into a $yaml_key, $yaml_value pair.
+						yaml_keyvalue "$yaml_line"
+						case $pkgmeta_phase in
+							externals)
+								case $yaml_key in
+									url) external_uri=$yaml_value ;;
+									tag)
+										external_tag=$yaml_value
+										external_checkout_type=$yaml_key
+										;;
+									branch)
+										external_tag=$yaml_value
+										external_checkout_type=$yaml_key
+										;;
+									commit)
+										external_tag=$yaml_value
+										external_checkout_type=$yaml_key
+										;;
+									type) external_type=$yaml_value ;;
+									curse-slug) external_slug=$yaml_value ;;
+									*)
+										# Started a new external, so checkout any queued externals.
+										process_external
 
-						external_dir=$yaml_key
-						nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
-						if [ -n "$yaml_value" ]; then
-							external_uri=$yaml_value
-							# Immediately checkout this fully-specified external.
-							process_external
-						fi
+										external_dir=$yaml_key
+										nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
+										if [ -n "$yaml_value" ]; then
+											external_uri=$yaml_value
+											# Immediately checkout this fully-specified external.
+											process_external
+										fi
+										;;
+								esac
+								;;
+						esac
 						;;
-					esac
-					;;
 				esac
 				;;
-			esac
-			;;
 		esac
 	done < "$pkgmeta_file"
 	# Reached end of file, so checkout any remaining queued externals.
@@ -2181,48 +2177,48 @@ if [ -f "$pkgmeta_file" ]; then
 		yaml_line=${yaml_line%$carriage_return}
 
 		case $yaml_line in
-		[!\ ]*:*)
-			# Split $yaml_line into a $yaml_key, $yaml_value pair.
-			yaml_keyvalue "$yaml_line"
-			# Set the $pkgmeta_phase for stateful processing.
-			pkgmeta_phase=$yaml_key
-			;;
-		" "*)
-			yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
-			case $yaml_line in
-			"- "*)
-				;;
-			*:*)
+			[!\ ]*:*)
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
-				case $pkgmeta_phase in
-				move-folders)
-					srcdir="$releasedir/$yaml_key"
-					destdir="$releasedir/$yaml_value"
-					if [[ -d "$destdir" && -z "$overwrite" && "$srcdir" != "$destdir/"* ]]; then
-						rm -fr "$destdir"
-					fi
-					if [ -d "$srcdir" ]; then
-						if [ ! -d "$destdir" ]; then
-							mkdir -p "$destdir"
-						fi
-						echo "Moving $yaml_key to $yaml_value"
-						mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
-						contents="$contents $yaml_value"
-						# Check to see if the base source directory is empty
-						_mf_basedir=${srcdir%$(basename "$yaml_key")}
-						if [ ! "$( ls -A "$_mf_basedir" )" ]; then
-							echo "Removing empty directory ${_mf_basedir#$releasedir/}"
-							rm -fr "$_mf_basedir"
-						fi
-					fi
-					# update external dir
-					nolib_exclude=${nolib_exclude//$srcdir/$destdir}
-					;;
+				# Set the $pkgmeta_phase for stateful processing.
+				pkgmeta_phase=$yaml_key
+				;;
+			" "*)
+				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				case $yaml_line in
+					"- "*)
+						;;
+					*:*)
+						# Split $yaml_line into a $yaml_key, $yaml_value pair.
+						yaml_keyvalue "$yaml_line"
+						case $pkgmeta_phase in
+							move-folders)
+								srcdir="$releasedir/$yaml_key"
+								destdir="$releasedir/$yaml_value"
+								if [[ -d "$destdir" && -z "$overwrite" && "$srcdir" != "$destdir/"* ]]; then
+									rm -fr "$destdir"
+								fi
+								if [ -d "$srcdir" ]; then
+									if [ ! -d "$destdir" ]; then
+										mkdir -p "$destdir"
+									fi
+									echo "Moving $yaml_key to $yaml_value"
+									mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
+									contents="$contents $yaml_value"
+									# Check to see if the base source directory is empty
+									_mf_basedir=${srcdir%$(basename "$yaml_key")}
+									if [ ! "$( ls -A "$_mf_basedir" )" ]; then
+										echo "Removing empty directory ${_mf_basedir#$releasedir/}"
+										rm -fr "$_mf_basedir"
+									fi
+								fi
+								# update external dir
+								nolib_exclude=${nolib_exclude//$srcdir/$destdir}
+								;;
+						esac
+						;;
 				esac
 				;;
-			esac
-			;;
 		esac
 	done < "$pkgmeta_file"
 	if [ -n "$srcdir" ]; then
