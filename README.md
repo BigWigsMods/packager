@@ -65,6 +65,8 @@ for more info.
   uploaded to GitHub and attached to a release. Unlike with the CurseForge
   packager, manually uploaded nolib packages will not be used by the client when
   users have enabled downloading libraries separately.
+- *enable-toc-creation* (defaults to no) Create game type specific TOC files
+  from your TOC file if you have multiple `## Interface-Type:` lines.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
@@ -264,6 +266,7 @@ Usage: release.sh [options]
   -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
   -o               Keep existing package directory, overwriting its contents.
   -s               Create a stripped-down "nolib" package.
+  -S               Create a package supporting multiple game types from a single TOC file.
   -u               Use Unix line-endings.
   -z               Skip zip file creation.
   -t topdir        Set top-level directory of checkout.

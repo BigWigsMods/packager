@@ -43,6 +43,7 @@ topdir=
 releasedir=
 overwrite=
 nolib=
+split=
 line_ending="dos"
 skip_copying=
 skip_externals=
@@ -146,6 +147,7 @@ usage() {
 	  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
 	  -o               Keep existing package directory, overwriting its contents.
 	  -s               Create a stripped-down "nolib" package.
+	  -S               Create a package supporting multiple game types from a single TOC file.
 	  -u               Use Unix line-endings.
 	  -z               Skip zip file creation.
 	  -t topdir        Set top-level directory of checkout.
@@ -160,7 +162,7 @@ usage() {
 }
 
 OPTIND=1
-while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
+while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 	case $opt in
 		c) skip_copying="true" ;; # Skip copying files into the package directory
 		z) skip_zipfile="true" ;; # Skip creating a zip file
@@ -186,6 +188,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 			nolib="true"
 			skip_externals="true"
 			;;
+		S) split="true" ;; # Split TOC
 		g) # Set the game type or version
 			OPTARG="${OPTARG,,}"
 			case "$OPTARG" in
@@ -849,6 +852,11 @@ if [ -f "$pkgmeta_file" ]; then
 							enable_nolib_creation="true"
 						fi
 						;;
+					enable-toc-creation)
+						if [ "$yaml_value" = "yes" ]; then
+							split="true"
+						fi
+						;;
 					manual-changelog)
 						changelog=$yaml_value
 						manual_changelog="true"
@@ -1117,6 +1125,16 @@ shopt -u nocasematch
 if [[ ${#toc_paths[@]} -eq 0 ]]; then
 	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
 	exit 1
+fi
+
+if [[ -n "$split" ]]; then
+	if [[ ${#toc_paths[@]} -gt 1 ]]; then
+		echo "You enabled creating TOC files but already have multiple TOC files: ${toc_paths[*]}" >&2
+		exit 1
+	fi
+	if [[ ${#toc_versions[@]} -lt 2 ]]; then
+		split= # Nothing to do
+	fi
 fi
 
 if [[ -z "$game_version" ]]; then
@@ -1594,6 +1612,53 @@ copy_directory_tree() {
 	fi
 }
 
+create_tocs() {
+	local srcfile="$1"
+	local dstdir=${srcfile#$topdir/}
+	dstdir="$pkgdir/$dstdir"
+	dstdir=${dstdir%/*}
+	local name=${srcfile##*/}
+	name=${name%.toc}
+
+	start_group "Creating TOC files from ${srcfile#$topdir/}:" "toc"
+
+	local file toc_version filters
+	for type in "${!toc_versions[@]}"; do
+		toc_version=${toc_versions[$type]}
+		case $type in
+			retail) file="$name-Mainline.toc" ;;
+			bcc) file="$name-BCC.toc" ;;
+			classic) file="$name-Classic.toc" ;;
+			*) file="$name-${type}.toc" # debug fallback
+		esac
+
+		echo "  $file [$toc_version]"
+
+		filters="vcs_filter"
+		filters+="|do_not_package_filter toc"
+		[[ -n "$nolib" ]] && filters+="|toc_filter no-lib-strip true"
+		filters+="|toc_filter debug true"
+		filters+="|toc_filter alpha $([[ "$file_type" != "alpha" ]] && echo "true")"
+		filters+="|toc_filter retail $([[ "$type" != "retail" ]] && echo "true")"
+		filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
+		filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
+		filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
+		filters+="|toc_interface_filter $toc_version"
+		filters+="|line_ending_filter"
+
+		eval < "$srcfile" "$filters" > "$dstdir/$file"
+	done
+
+	# Have a specific TOCs for each game type? don't need the fallback
+	if [[ ${#toc_versions[@]} -eq 3 ]]; then
+		local file="$name.toc"
+		echo "  Removing $file"
+		rm -f "$dstdir/$file"
+	fi
+
+	end_group "toc"
+}
+
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
 	[ "$file_type" != "alpha" ] && cdt_args+="a"
@@ -1603,6 +1668,20 @@ if [ -z "$skip_copying" ]; then
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
+
+	# XXX this should be in copy_directory_tree proper and display similar to localization
+	if [[ -n "$split" ]]; then
+		( # oh look, a subshell! totally not doing this because I'm too lazy to make things play nice
+			toc_versions=()
+			shopt -s globstar
+			for file in "$topdir"/**/*.toc; do
+				if [[ -z "$ignore" ]] || ! match_pattern "${file#$topdir/}" "$ignore"; then
+					do_toc "$file" # <- things
+					create_tocs "$file"
+				fi
+			done
+		)
+	fi
 fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
