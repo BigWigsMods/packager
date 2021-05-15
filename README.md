@@ -131,7 +131,7 @@ Supported keywords and when the code block will run:
   file.
 - `no-lib-strip`: _(not supported in Lua files)_ in any build other than a
   *nolib* build.
-- `retail`,`version-retail`,`version-classic`,`version-bc`: based on game
+- `retail`,`version-retail`,`version-classic`,`version-bcc`: based on game
   version.
 
 `do-not-package` is a bit special. Everything between the tags, including the
@@ -204,8 +204,8 @@ on the build type:
 
 `{classic}` has some additional magic:
 
-1. It will show as the non-retail build type, so either `-classic` or `-bc`.
-2. It will not be shown if "-classic" or "-bc" is in the project version.
+1. It will show as the non-retail build type, so either `-classic` or `-bcc`.
+2. It will not be shown if "-classic" or "-bcc" is in the project version.
 3. If it is included in the file name (it is by default) and #2 does not apply,
    it will also be appended to the file label (i.e., the name shown on
    CurseForge).
@@ -225,7 +225,7 @@ version.
 ## Interface: 90005
 ## Interface-Retail: 90005
 ## Interface-Classic: 11306
-## Interface-BC: 20501
+## Interface-BCC: 20501
 ```
 
 You specify what version of the game you're targeting with the `-g` switch. You

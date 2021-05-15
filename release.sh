@@ -66,7 +66,7 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
-declare -A game_flavors=( ["retail"]="mainline" ["classic"]="classic" ["bc"]="bcc" )
+declare -A game_flavors=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" )
 declare -A game_versions
 toc_version=
 
@@ -86,7 +86,7 @@ escape_substr() {
 filename_filter() {
 	local classic alpha beta invalid
 	[ -n "$skip_invalid" ] && invalid="&" || invalid="_"
-	if [[ "$game_type" != "retail" ]] && [[ "$game_type" != "classic" || "${si_project_version,,}" != *"-classic"* ]] && [[ "$game_type" != "bc" || "${si_project_version,,}" != *"-bc"* ]]; then
+	if [[ "$game_type" != "retail" ]] && [[ "$game_type" != "classic" || "${si_project_version,,}" != *"-classic"* ]] && [[ "$game_type" != "bcc" || "${si_project_version,,}" != *"-bcc"* ]]; then
 		# only append the game type if the tag doesn't include it
 		classic="-$game_type"
 	fi
@@ -184,9 +184,17 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		g) # Set the game type or version
 			OPTARG="${OPTARG,,}"
 			case "$OPTARG" in
-				retail|classic|bc) game_type="$OPTARG" ;; # game_version from toc
+				retail|classic|bcc) game_type="$OPTARG" ;; # game_version from toc
 				mainline) game_type="retail" ;;
-				bcc) game_type="bc" ;;
+				bc)
+					echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
+					echo "" >&2
+					echo "The \"bc\" game type has been changed to \"bcc\" to match Blizzard." >&2
+					echo "This affects TOC interface lines (Interface-BC -> Interface-BCC) and" >&2
+					echo "build keywords (version-bc -> version-bcc)." >&2
+					echo "" >&2
+					exit 1
+					;;
 				*)
 					# Set game version (x.y.z)
 					# Build game type set from the last value if a list
@@ -200,7 +208,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 						if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
 							game_type="classic"
 						elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
-							game_type="bc"
+							game_type="bcc"
 						else
 							game_type="retail"
 						fi
@@ -972,7 +980,7 @@ if [[ -n "$toc_version" && -z "$game_type" ]]; then
 	# toc -> game type
 	case $toc_version in
 		113*) game_type="classic" ;;
-		205*) game_type="bc" ;;
+		205*) game_type="bcc" ;;
 		*) game_type="retail"
 	esac
 else
@@ -988,7 +996,7 @@ else
 	# Check for other interface lines
 	if [[ -z "$toc_version" ]] || \
 		 [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || \
-		 [[ "$game_type" == "bc" && "$toc_version" != "205"* ]] || \
+		 [[ "$game_type" == "bcc" && "$toc_version" != "205"* ]] || \
 		 [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]
 	then
 		toc_version="$game_type_toc_version"
@@ -996,7 +1004,7 @@ else
 			# Check @non-@ blocks
 			case $game_type in
 				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
-				bc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+				bcc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
 			root_toc_version="$toc_version"
@@ -1457,11 +1465,11 @@ copy_directory_tree() {
 							if [ -n "$_cdt_classic" ]; then
 								_cdt_filters+="|lua_filter retail"
 								_cdt_filters+="|lua_filter version-retail"
-								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|lua_filter version-bc"
-								[ "$_cdt_classic" = "bc" ] && _cdt_filters+="|lua_filter version-classic"
+								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|lua_filter version-bcc"
+								[ "$_cdt_classic" = "bcc" ] && _cdt_filters+="|lua_filter version-classic"
 							else
 								_cdt_filters+="|lua_filter version-classic"
-								_cdt_filters+="|lua_filter version-bc"
+								_cdt_filters+="|lua_filter version-bcc"
 							fi
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
@@ -1473,11 +1481,11 @@ copy_directory_tree() {
 							if [ -n "$_cdt_classic" ]; then
 								_cdt_filters+="|xml_filter retail"
 								_cdt_filters+="|xml_filter version-retail"
-								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|xml_filter version-bc"
-								[ "$_cdt_classic" = "bc" ] && _cdt_filters+="|xml_filter version-classic"
+								[ "$_cdt_classic" = "classic" ] && _cdt_filters+="|xml_filter version-bcc"
+								[ "$_cdt_classic" = "bcc" ] && _cdt_filters+="|xml_filter version-classic"
 							else
 								_cdt_filters+="|xml_filter version-classic"
-								_cdt_filters+="|xml_filter version-bc"
+								_cdt_filters+="|xml_filter version-bcc"
 							fi
 							;;
 						*.toc)
@@ -1487,8 +1495,8 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
 							_cdt_filters+="|toc_filter retail ${_cdt_classic:+true}"
 							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
-							_cdt_filters+="|toc_filter version-classic $([[ -z "$_cdt_classic" || "$_cdt_classic" == "bc" ]] && echo "true")"
-							_cdt_filters+="|toc_filter version-bc $([[ -z "$_cdt_classic" || "$_cdt_classic" == "classic" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-classic $([[ -z "$_cdt_classic" || "$_cdt_classic" == "bcc" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-bcc $([[ -z "$_cdt_classic" || "$_cdt_classic" == "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
@@ -2154,7 +2162,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [[ "${file_name}" == *"{game-type}"* ]] || [[ "$game_type" != "retail" && "${file_name}" == *"{classic}"* ]]; then
 		# append the game-type for clarity
 		archive_label="$archive_version-$game_type"
-		if [[ "$game_type" == "classic" && "${project_version,,}" == *"-classic"* ]] || [[ "$game_type" == "bc" && "${project_version,,}" == *"-bc"* ]]; then
+		if [[ "$game_type" == "classic" && "${project_version,,}" == *"-classic"* ]] || [[ "$game_type" == "bcc" && "${project_version,,}" == *"-bcc"* ]]; then
 			# this is mostly for BigWigs projects that tag classic separately (eg, v10-classic)
 			# to prevent the extra -classic without changing all our workflows
 			archive_label="$archive_version"
@@ -2255,7 +2263,7 @@ if [ -z "$skip_zipfile" ]; then
 				case $game_type in
 					retail) _cf_game_type_id=517 ;;
 					classic) _cf_game_type_id=67408 ;;
-					bc) _cf_game_type_id=73246 ;;
+					bcc) _cf_game_type_id=73246 ;;
 				esac
 				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
 				_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
@@ -2420,7 +2428,11 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -n "$upload_wago" ] ; then
 		_wago_support_property=""
 		for type in "${!game_versions[@]}"; do
-			_wago_support_property+="\"supported_${type}_patch\": \"${game_versions[$type]}\", "
+			if [[ "$type" == "bcc" ]]; then
+				_wago_support_property+="\"supported_bc_patch\": \"${game_versions[$type]}\", "
+			else
+				_wago_support_property+="\"supported_${type}_patch\": \"${game_versions[$type]}\", "
+			fi
 		done
 
 		_wago_stability="$file_type"
