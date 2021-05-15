@@ -34,9 +34,11 @@ __release.sh__ uses the TOC file to determine the package name for the project.
 You can also set the CurseForge project id (`-p`), the WoWInterface addon
 id (`-w`) or the Wago project id (`-a`) by adding the following to the TOC file:
 
-    ## X-Curse-Project-ID: 1234
-    ## X-WoWI-ID: 5678
-    ## X-Wago-ID: he54k6bL
+```toc
+## X-Curse-Project-ID: 1234
+## X-WoWI-ID: 5678
+## X-Wago-ID: he54k6bL
+```
 
 Your CurseForge project id can be found on the addon page in the "About Project"
 side box.
@@ -219,10 +221,12 @@ multiple `## Interface-Type:` lines in your TOC file.  Only one `## Interface:`
 line will be included in the packaged TOC file based on the targeted game
 version.
 
-    ## Interface: 90005
-    ## Interface-Retail: 90005
-    ## Interface-Classic: 11306
-    ## Interface-BC: 20501
+```toc
+## Interface: 90005
+## Interface-Retail: 90005
+## Interface-Classic: 11306
+## Interface-BC: 20501
+```
 
 You specify what version of the game you're targeting with the `-g` switch. You
 can use a specific version (`release.sh -g 1.13.6`) or you can use the game type
@@ -251,24 +255,26 @@ The recommended way to include __release.sh__ in a project is to:
 
 ## Usage
 
-    Usage: release.sh [options]
-      -c               Skip copying files into the package directory.
-      -d               Skip uploading.
-      -e               Skip checkout of external repositories.
-      -l               Skip @localization@ keyword replacement.
-      -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
-      -o               Keep existing package directory, overwriting its contents.
-      -s               Create a stripped-down "nolib" package.
-      -u               Use Unix line-endings.
-      -z               Skip zip file creation.
-      -t topdir        Set top-level directory of checkout.
-      -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
-      -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
-      -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
-      -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
-      -g game-version  Set the game version to use for uploading.
-      -m pkgmeta.yaml  Set the pkgmeta file to use.
-      -n package-name  Set the package zip file name. Use "-n help" for more info.
+```text
+Usage: release.sh [options]
+  -c               Skip copying files into the package directory.
+  -d               Skip uploading.
+  -e               Skip checkout of external repositories.
+  -l               Skip @localization@ keyword replacement.
+  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
+  -o               Keep existing package directory, overwriting its contents.
+  -s               Create a stripped-down "nolib" package.
+  -u               Use Unix line-endings.
+  -z               Skip zip file creation.
+  -t topdir        Set top-level directory of checkout.
+  -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
+  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
+  -w wowi-id       Set the addon id used on WoWInterface for uploading. (Use 0 to unset the TOC value)
+  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
+  -g game-version  Set the game version to use for uploading.
+  -m pkgmeta.yaml  Set the pkgmeta file to use.
+  -n package-name  Set the package zip file name. Use "-n help" for more info.
+```
 
 ### Uploading
 
