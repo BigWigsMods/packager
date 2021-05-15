@@ -16,6 +16,18 @@ use that as the current version number.  It will search back through parent
 commits for the previous tag and generate a changelog containing the commits
 since that tag.
 
+## Building with GitHub Actions
+
+For a full example workflow, please check out the [wiki page](https://github.com/BigWigsMods/packager/wiki/GitHub-Actions-workflow).
+
+### Example using [options](#Usage)
+
+```yaml
+- uses: BigWigsMods/packager@v1
+  with:
+    args: -g classic -m .pkgmeta-classic
+```
+
 ## Customizing the build
 
 __release.sh__ uses the TOC file to determine the package name for the project.
