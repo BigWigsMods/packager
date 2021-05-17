@@ -1474,8 +1474,9 @@ copy_directory_tree() {
 	_cdt_unchanged_patterns=
 	_cdt_classic=
 	_cdt_external=
+	_cdt_split=
 	OPTIND=1
-	while getopts :adi:lnpu:c:e _cdt_opt "$@"; do
+	while getopts :adi:lnpu:c:eS _cdt_opt "$@"; do
 		# shellcheck disable=2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
@@ -1489,6 +1490,7 @@ copy_directory_tree() {
 			u)	_cdt_unchanged_patterns=$OPTARG ;;
 			c)	_cdt_classic=$OPTARG ;;
 			e)	_cdt_external="true" ;;
+			S)	_cdt_split="true" ;;
 		esac
 	done
 	shift $((OPTIND - 1))
@@ -1603,6 +1605,44 @@ copy_directory_tree() {
 
 					echo "  Copying: $file"
 					eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$file"
+
+					# Create game type specific TOCs
+					if [[ $file == *".toc" && -n $_cdt_split ]]; then
+						local toc_version new_file
+						# This uses version info from the main TOC file
+						# Reparsing seems a bit much when they should be the same
+						for type in "${!toc_versions[@]}"; do
+							toc_version=${toc_versions[$type]}
+							new_file=${file%.toc}
+							case $type in
+								retail) new_file+="-Mainline.toc" ;;
+								classic) new_file+="-Classic.toc" ;;
+								bcc) new_file+="-BCC.toc" ;;
+							esac
+
+							echo "    Creating $new_file [$toc_version]"
+
+							_cdt_filters="vcs_filter"
+							_cdt_filters+="|do_not_package_filter toc"
+							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
+							_cdt_filters+="|toc_filter debug true"
+							_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
+							_cdt_filters+="|toc_filter retail $([[ "$type" != "retail" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
+							_cdt_filters+="|toc_interface_filter $toc_version" # XXX the whole root_toc thing needs to be reworked so this is safe if structured differently
+							_cdt_filters+="|line_ending_filter"
+
+							eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$new_file"
+						done
+
+						# The fallback will never be used if you have a TOC for each game type
+						if [[ ${#toc_versions[@]} -eq 3 ]]; then
+							echo "    Removing $file (redundant)"
+							rm -f "$_cdt_destdir/$file"
+						fi
+					fi
 				fi
 			fi
 		fi
@@ -1612,76 +1652,16 @@ copy_directory_tree() {
 	fi
 }
 
-create_tocs() {
-	local srcfile="$1"
-	local dstdir=${srcfile#$topdir/}
-	dstdir="$pkgdir/$dstdir"
-	dstdir=${dstdir%/*}
-	local name=${srcfile##*/}
-	name=${name%.toc}
-
-	start_group "Creating TOC files from ${srcfile#$topdir/}:" "toc"
-
-	local file toc_version filters
-	for type in "${!toc_versions[@]}"; do
-		toc_version=${toc_versions[$type]}
-		case $type in
-			retail) file="$name-Mainline.toc" ;;
-			bcc) file="$name-BCC.toc" ;;
-			classic) file="$name-Classic.toc" ;;
-			*) file="$name-${type}.toc" # debug fallback
-		esac
-
-		echo "  $file [$toc_version]"
-
-		filters="vcs_filter"
-		filters+="|do_not_package_filter toc"
-		[[ -n "$nolib" ]] && filters+="|toc_filter no-lib-strip true"
-		filters+="|toc_filter debug true"
-		filters+="|toc_filter alpha $([[ "$file_type" != "alpha" ]] && echo "true")"
-		filters+="|toc_filter retail $([[ "$type" != "retail" ]] && echo "true")"
-		filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
-		filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
-		filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
-		filters+="|toc_interface_filter $toc_version"
-		filters+="|line_ending_filter"
-
-		eval < "$srcfile" "$filters" > "$dstdir/$file"
-	done
-
-	# Have a specific TOCs for each game type? don't need the fallback
-	if [[ ${#toc_versions[@]} -eq 3 ]]; then
-		local file="$name.toc"
-		echo "  Removing $file"
-		rm -f "$dstdir/$file"
-	fi
-
-	end_group "toc"
-}
-
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
 	[ "$file_type" != "alpha" ] && cdt_args+="a"
 	[ -z "$skip_localization" ] && cdt_args+="l"
 	[ -n "$nolib" ] && cdt_args+="n"
+	[ -n "$split" ] && cdt_args+="S"
 	[[ -n "$game_type" && "$game_type" != "retail" ]] && cdt_args+=" -c $game_type"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
-
-	# XXX this should be in copy_directory_tree proper and display similar to localization
-	if [[ -n "$split" ]]; then
-		( # oh look, a subshell! totally not doing this because I'm too lazy to make things play nice
-			toc_versions=()
-			shopt -s globstar
-			for file in "$topdir"/**/*.toc; do
-				if [[ -z "$ignore" ]] || ! match_pattern "${file#$topdir/}" "$ignore"; then
-					do_toc "$file" # <- things
-					create_tocs "$file"
-				fi
-			done
-		)
-	fi
 fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
