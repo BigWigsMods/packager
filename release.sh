@@ -1123,7 +1123,12 @@ if [[ -n "$split" ]]; then
 fi
 
 if [[ -z "$game_version" ]]; then
-	game_version=$( IFS=',' ; echo "${game_versions[*]}" )
+	if [[ -n "$game_type" ]]; then
+		game_version="${game_versions[$game_type]}"
+		game_versions=([$game_type]=$game_version)
+	else
+		game_version=$( IFS=',' ; echo "${game_versions[*]}" )
+	fi
 fi
 
 # Set the game type when we only have one game version
@@ -1145,10 +1150,12 @@ if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
 (
-	if [[ ${#game_versions[@]} -gt 1 ]]; then
+	if [[ -n "$game_type" ]]; then
+		[[ "$game_type" = "retail" ]] && version="retail " || version="non-retail version-${game_type} "
+	elif [[ ${#game_versions[@]} -gt 1 ]]; then
 		version="multi-version "
 	else
-		[[ "$game_type" = "retail" ]] && version="retail " || version="non-retail version-${game_type} "
+		version="wtf "
 	fi
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
 	echo "Build type: ${version}${alpha} non-debug${nolib:+ nolib}"
