@@ -1382,8 +1382,9 @@ copy_directory_tree() {
 	_cdt_do_not_package=
 	_cdt_unchanged_patterns=
 	_cdt_classic=
+	_cdt_external=
 	OPTIND=1
-	while getopts :adi:lnpu:c: _cdt_opt "$@"; do
+	while getopts :adi:lnpu:c:e _cdt_opt "$@"; do
 		# shellcheck disable=2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
@@ -1396,13 +1397,14 @@ copy_directory_tree() {
 			p)	_cdt_do_not_package="true" ;;
 			u)	_cdt_unchanged_patterns=$OPTARG ;;
 			c)	_cdt_classic=$OPTARG ;;
+			e)	_cdt_external="true" ;;
 		esac
 	done
 	shift $((OPTIND - 1))
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	if [ -z "$_external_dir" ]; then
+	if [ -z "$_cdt_external" ]; then
 		start_group "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
 	else # don't nest groups
 		echo "Copying files into ${_cdt_destdir#$topdir/}:"
@@ -1497,7 +1499,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
 							_cdt_filters+="|toc_filter version-classic $([[ -z "$_cdt_classic" || "$_cdt_classic" == "bcc" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ -z "$_cdt_classic" || "$_cdt_classic" == "classic" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter"
+							[ -z "$_cdt_external" ] && _cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
@@ -1663,7 +1665,7 @@ checkout_external() {
 		fi
 		# If a .pkgmeta file is present, process it for an "ignore" list.
 		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir"
-		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+		copy_directory_tree -dnpe -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
