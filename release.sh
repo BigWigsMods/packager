@@ -2591,7 +2591,7 @@ if [ -z "$skip_zipfile" ]; then
 						-H "Authorization: token $github_token" \
 						"$_gh_metadata_url"
 				) && {
-					_gh_metadata=$( jq -s '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_previous_metadata} ${_gh_metadata}" )
+					jq -sc '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_previous_metadata} ${_gh_metadata}" > "$versionfile"
 				} || {
 					echo "Warning: Unable to update release.json ($?)"
 				}
