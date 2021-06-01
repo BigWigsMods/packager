@@ -2438,18 +2438,19 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$upload_curseforge" ]; then
+		_cf_game_version_id=
+		_cf_game_version=
 		_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
 		if [ -n "$_cf_versions" ]; then
-			_cf_game_version="$game_version"
-			if [ -n "$_cf_game_version" ]; then
+			if [ -n "$game_version" ]; then
 				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null )
 				if [ -n "$_cf_game_version_id" ]; then
 					# and now the reverse, since an invalid version will just be dropped
 					_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | join(",")' 2>/dev/null )
 				fi
 			fi
-			if [[ -z "$_cf_game_version_id" ]]; then
-				case ${game_type} in
+			if [ -z "$_cf_game_version_id" ]; then
+				case $game_type in
 					retail) _cf_game_type_id=517 ;;
 					classic) _cf_game_type_id=67408 ;;
 					bcc) _cf_game_type_id=73246 ;;
@@ -2457,7 +2458,7 @@ if [ -z "$skip_zipfile" ]; then
 				esac
 				_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
 				_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
-				if [[ -n "$game_version" ]]; then
+				if [ -n "$game_version" ]; then
 					echo "WARNING: No CurseForge game version match, defaulting to \"$_cf_game_version\"" >&2
 				fi
 			fi
@@ -2533,30 +2534,12 @@ if [ -z "$skip_zipfile" ]; then
 		_wowi_game_version=
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
-			# Multiple versions, match on game version
-			if [[ "$game_version" == *","* ]]; then
+			if [ -n "$game_version" ]; then
 				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.id as $x | $v | index($x)) | .id) | join(",")' 2>/dev/null )
-			else
-				_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg v "$game_version" '.[] | select(.id == $v and .default == true) | .id' 2>/dev/null )
-				if [ -z "$_wowi_game_version" ]; then
-					_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg v "$game_version" '.[] | select(.id == $v) | .id' 2>/dev/null )
-				fi
 			fi
-			# # TOC matching
-			# _wowi_toc_version=$( IFS=',' ; echo "${game_type_interface[*]}" )
-			# if [ -z "$_wowi_game_version" ]; then
-			# 	_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc "$toc_version" '.[] | select(.interface == $toc and .default == true) | .id' 2>/dev/null )
-			# fi
-			# if [ -z "$_wowi_game_version" ]; then
-			# 	_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc "$toc_version" 'map(select(.interface == $toc))[0] | .id // empty' 2>/dev/null )
-			# fi
-			# # Handle delayed support (probably don't really need this anymore)
-			# if [ -z "$_wowi_game_version" ] && [ "$game_type" != "retail" ]; then
-			# 	_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc $((toc_version - 1)) '.[] | select(.interface == $toc) | .id' 2>/dev/null )
-			# fi
 			if [ -z "$_wowi_game_version" ]; then
 				_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
-				if [[ -n "$game_version" ]]; then
+				if [ -n "$game_version" ]; then
 					echo "WARNING: No WoWInterface game version match, defaulting to \"$_wowi_game_version\"" >&2
 				fi
 			fi
