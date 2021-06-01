@@ -67,12 +67,13 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
-declare -A game_flavors=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" )
-declare -A game_versions=()
-declare -A game_version_interfaces=()
-declare -A toc_versions=()
-declare -A toc_paths=()
-declare -A root_toc_versions=()
+declare -A game_flavor=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" )
+
+declare -A game_type_version=()       # type -> version
+declare -A game_type_interface=()     # type -> toc
+declare -A si_game_type_interface=()  # type -> toc (last file)
+declare -A toc_interfaces=()          # path -> all toc interface values (: delim)
+declare -A toc_root_interface=()      # path -> base interface value
 
 # Script return code
 exit_code=0
@@ -222,14 +223,14 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 							game_type="retail"
 						fi
 						# Only one version per game type is allowed
-						if [ -n "${game_versions[$game_type]}" ]; then
+						if [ -n "${game_type_version[$game_type]}" ]; then
 							echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
 							usage
 							exit 1
 						fi
-						game_versions[$game_type]="$i"
+						game_type_version[$game_type]="$i"
 					done
-					if [[ ${#game_versions[@]} -gt 1 ]]; then
+					if [[ ${#game_type_version[@]} -gt 1 ]]; then
 						unset game_type
 					fi
 					game_version="$OPTARG"
@@ -997,8 +998,8 @@ do_toc() {
 		205*) toc_game_type="bcc" ;;
 		*) toc_game_type="retail"
 	esac
-	toc_versions=()
-	[[ -n "$toc_game_type" ]] && toc_versions["$toc_game_type"]="$toc_version"
+	si_game_type_interface=()
+	[[ -n "$toc_game_type" ]] && si_game_type_interface["$toc_game_type"]="$toc_version"
 
 	root_toc_version="$toc_version"
 
@@ -1025,7 +1026,7 @@ do_toc() {
 			echo "$toc_name is missing an interface version." >&2
 			exit 1
 		fi
-		local toc_file_game_type="${game_flavors[${BASH_REMATCH[1],,}]}"
+		local toc_file_game_type="${game_flavor[${BASH_REMATCH[1],,}]}"
 		if [[ "$toc_file_game_type" != "$toc_game_type" ]]; then
 			echo "$toc_name has an interface version ($toc_version) that is not compatible with \"$toc_file_game_type\"." >&2
 			exit 1
@@ -1034,14 +1035,14 @@ do_toc() {
 		# Fallback
 		local game_type_toc_version
 		# Save the game type interface values
-		for type in "${!game_flavors[@]}"; do
+		for type in "${!game_flavor[@]}"; do
 			game_type_toc_version=$( awk 'tolower($0) ~ /^## interface-'${type}':/ { print $NF; exit }' <<< "$toc_file" )
 			if [[ -n "$game_type_toc_version" ]]; then
-				toc_versions[$type]="$game_type_toc_version"
+				si_game_type_interface[$type]="$game_type_toc_version"
 			fi
 		done
 		# Use the game type if set, otherwise default to retail
-		game_type_toc_version="${toc_versions[${game_type:-retail}]}"
+		game_type_toc_version="${si_game_type_interface[${game_type:-retail}]}"
 
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
@@ -1073,28 +1074,28 @@ do_toc() {
 		fi
 
 		# Don't overwrite a specific version
-		if [[ -z "${toc_versions[$toc_game_type]}" ]]; then
-			toc_versions[$toc_game_type]="$toc_version"
+		if [[ -z "${si_game_type_interface[$toc_game_type]}" ]]; then
+			si_game_type_interface[$toc_game_type]="$toc_version"
 		fi
 	fi
-	root_toc_versions[$toc_path]="$root_toc_version"
-	toc_paths[$toc_path]=$( IFS=':' ; echo "${toc_versions[*]}" )
+	toc_root_interface[$toc_path]="$root_toc_version"
+	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface[*]}" )
 }
 
 set_build_version() {
 	local toc_game_type toc_version
 
 	if [[ -z "$game_version" ]]; then
-		if [[ ${#toc_paths[@]} -eq 1 ]]; then
-			local path="${!toc_paths[*]}"
-			local root_toc_version="${root_toc_versions[$path]}"
+		if [[ ${#toc_interfaces[@]} -eq 1 ]]; then
+			local path="${!toc_interfaces[*]}"
+			local root_toc_version="${toc_root_interface[$path]}"
 			declare -a versions
 
 			if [[ -z "$game_type" && -n "$root_toc_version" ]]; then
 				# no -g so just use the base interface value
 				versions=("$root_toc_version")
 			else
-				IFS=':' read -ra versions <<< "${toc_paths[$path]}"
+				IFS=':' read -ra versions <<< "${toc_interfaces[$path]}"
 			fi
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
@@ -1103,16 +1104,16 @@ set_build_version() {
 					*) toc_game_type="retail"
 				esac
 				if [[ -n $toc_game_type ]]; then
-					game_version_interfaces[$toc_game_type]=$toc_version
-					game_versions[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
+					game_type_interface[$toc_game_type]=$toc_version
+					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
 				fi
 			done
 		else
-			for path in "${!toc_paths[@]}"; do
-				toc_version=${toc_paths[$path]}
+			for path in "${!toc_interfaces[@]}"; do
+				toc_version=${toc_interfaces[$path]}
 				if [[ "$toc_version" == *":"* ]]; then
 					# Mixing multiple tocs and multiple versions... use the base interface version
-					toc_version=${root_toc_versions[$path]}
+					toc_version=${toc_root_interface[$path]}
 				fi
 				case $toc_version in
 					113*) toc_game_type="classic" ;;
@@ -1120,23 +1121,23 @@ set_build_version() {
 					*) toc_game_type="retail"
 				esac
 				if [[ -n $toc_game_type ]]; then
-					game_version_interfaces[$toc_game_type]=$toc_version
-					game_versions[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
+					game_type_interface[$toc_game_type]=$toc_version
+					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
 				fi
 			done
 		fi
 
 		if [[ -n "$game_type" ]]; then
-			game_version="${game_versions[$game_type]}"
-			game_versions=([$game_type]=$game_version)
+			game_version="${game_type_version[$game_type]}"
+			game_type_version=([$game_type]=$game_version)
 		else
-			game_version=$( IFS=',' ; echo "${game_versions[*]}" )
+			game_version=$( IFS=',' ; echo "${game_type_version[*]}" )
 		fi
 	fi
 
 	# Set the game type when we only have one game version
-	if [[ -z "$game_type" && ${#game_versions[@]} -eq 1 ]]; then
-		game_type="${!game_versions[*]}"
+	if [[ -z "$game_type" && ${#game_type_version[@]} -eq 1 ]]; then
+		game_type="${!game_type_version[*]}"
 	fi
 }
 
@@ -1162,28 +1163,28 @@ for toc in "$topdir"{,/"$package"}/"$package"{,-Mainline,-Classic,-BCC}.toc; do
 done
 shopt -u nocasematch
 
-if [[ ${#toc_paths[@]} -eq 0 ]]; then
+if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
 	exit 1
 fi
 
 if [[ -n "$split" ]]; then
-	if [[ ${#toc_paths[@]} -gt 1 ]]; then
+	if [[ ${#toc_interfaces[@]} -gt 1 ]]; then
 		echo "Creating TOC files is enabled but there are already multiple TOC files:" >&2
-		for path in "${!toc_paths[@]}"; do
+		for path in "${!toc_interfaces[@]}"; do
 			echo "  ${path##$topdir/}" >&2
 		done
 		exit 1
 	fi
-	if [[ "${toc_paths[*]}" != *":"* ]]; then
-		echo "Creating TOC files is enabled but there is only one TOC interface version: ${toc_paths[*]}" >&2
+	if [[ "${toc_interfaces[*]}" != *":"* ]]; then
+		echo "Creating TOC files is enabled but there is only one TOC interface version: ${toc_interfaces[*]}" >&2
 		exit 1
 	fi
 fi
 
 set_build_version
 
-if [[ ${#game_versions[@]} -eq 0 ]]; then
+if [[ ${#game_type_version[@]} -eq 0 ]]; then
 	echo "There was a problem setting the build version? Awkward." >&2
 	exit 1
 fi
@@ -1204,7 +1205,7 @@ fi
 (
 	if [[ -n "$game_type" ]]; then
 		[[ "$game_type" = "retail" ]] && version="retail " || version="non-retail version-${game_type} "
-	elif [[ ${#game_versions[@]} -gt 1 ]]; then
+	elif [[ ${#game_type_version[@]} -gt 1 ]]; then
 		version="multi-version "
 	fi
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
@@ -1636,7 +1637,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
 							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_classic" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_classic" != "bcc" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter '${toc_versions[${game_type:- }]}' '${root_toc_versions["$_cdt_srcdir/$file"]}'"
+							_cdt_filters+="|toc_interface_filter '${si_game_type_interface[${game_type:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
@@ -1655,8 +1656,8 @@ copy_directory_tree() {
 						local toc_version new_file
 						# This uses version info from the main TOC file
 						# Reparsing seems a bit much when they should be the same
-						for type in "${!toc_versions[@]}"; do
-							toc_version=${toc_versions[$type]}
+						for type in "${!si_game_type_interface[@]}"; do
+							toc_version=${si_game_type_interface[$type]}
 							new_file=${file%.toc}
 							case $type in
 								retail) new_file+="-Mainline.toc" ;;
@@ -1675,14 +1676,14 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter '$toc_version' '${root_toc_versions["$_cdt_srcdir/$file"]}'"
+							_cdt_filters+="|toc_interface_filter '$toc_version' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
 							_cdt_filters+="|line_ending_filter"
 
 							eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$new_file"
 						done
 
 						# The fallback will never be used if you have a TOC for each game type
-						if [[ ${#toc_versions[@]} -eq 3 ]]; then
+						if [[ ${#si_game_type_interface[@]} -eq 3 ]]; then
 							echo "    Removing $file (redundant)"
 							rm -f "$_cdt_destdir/$file"
 						fi
@@ -2532,7 +2533,7 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 			fi
 			# # TOC matching
-			# _wowi_toc_version=$( IFS=',' ; echo "${game_version_interfaces[*]}" )
+			# _wowi_toc_version=$( IFS=',' ; echo "${game_type_interface[*]}" )
 			# if [ -z "$_wowi_game_version" ]; then
 			# 	_wowi_game_version=$( echo "$_wowi_versions" | jq -r --arg toc "$toc_version" '.[] | select(.interface == $toc and .default == true) | .id' 2>/dev/null )
 			# fi
@@ -2618,11 +2619,11 @@ if [ -z "$skip_zipfile" ]; then
 	# Upload to Wago
 	if [ -n "$upload_wago" ] ; then
 		_wago_support_property=""
-		for type in "${!game_versions[@]}"; do
+		for type in "${!game_type_version[@]}"; do
 			if [[ "$type" == "bcc" ]]; then
-				_wago_support_property+="\"supported_bc_patch\": \"${game_versions[$type]}\", "
+				_wago_support_property+="\"supported_bc_patch\": \"${game_type_version[$type]}\", "
 			else
-				_wago_support_property+="\"supported_${type}_patch\": \"${game_versions[$type]}\", "
+				_wago_support_property+="\"supported_${type}_patch\": \"${game_type_version[$type]}\", "
 			fi
 		done
 
@@ -2729,15 +2730,15 @@ if [ -z "$skip_zipfile" ]; then
 		}
 
 		_gh_metadata='{ "filename": "'"$archive_name"'", "nolib": false, "metadata": ['
-		for type in "${!game_versions[@]}"; do
-			_gh_metadata+='{ "flavor": "'"${game_flavors[$type]}"'", "interface": '"${game_version_interfaces[$type]}"' },'
+		for type in "${!game_type_version[@]}"; do
+			_gh_metadata+='{ "flavor": "'"${game_flavor[$type]}"'", "interface": '"${game_type_interface[$type]}"' },'
 		done
 		_gh_metadata=${_gh_metadata%,}
 		_gh_metadata+='] }'
 		if [ -f "$nolib_archive" ]; then
 			_gh_metadata+=',{ "filename": "'"$nolib_archive_name"'", "nolib": true, "metadata": ['
-			for type in "${!game_versions[@]}"; do
-				_gh_metadata+='{ "flavor": "'"${game_flavors[$type]}"'", "interface": '"${game_version_interfaces[$type]}"' },'
+			for type in "${!game_type_version[@]}"; do
+				_gh_metadata+='{ "flavor": "'"${game_flavor[$type]}"'", "interface": '"${game_type_interface[$type]}"' },'
 			done
 			_gh_metadata=${_gh_metadata%,}
 			_gh_metadata+='] }'
