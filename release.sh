@@ -2412,24 +2412,13 @@ if [ -z "$skip_zipfile" ]; then
 	### Deploy the zipfile.
 	###
 
-	upload_curseforge=$( [[ -z "$skip_upload" && -z "$skip_cf_upload" && -n "$slug" && -n "$cf_token" && -n "$project_site" ]] && echo true )
-	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
-	upload_wago=$( [[ -z "$skip_upload" && -n "$wagoid" && -n "$wago_token" ]] && echo true )
-	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
+	# Upload to CurseForge.
+	upload_curseforge() {
+		if [[ -n "$skip_cf_upload" || -z "$slug" || -z "$cf_token" || -z "$project_site" ]]; then
+			return 0
+		fi
 
-	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" || -n "$upload_wago" ]] && ! hash jq &>/dev/null; then
-		echo "Skipping upload because \"jq\" was not found."
-		echo
-		upload_curseforge=
-		upload_wowinterface=
-		upload_wago=
-		upload_github=
-		exit_code=1
-	fi
-
-	if [ -n "$upload_curseforge" ]; then
-		_cf_game_version_id=
-		_cf_game_version=
+		local _cf_game_version_id _cf_game_version _cf_versions
 		_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
 		if [ -n "$_cf_versions" ]; then
 			if [ -n "$game_version" ]; then
@@ -2458,13 +2447,14 @@ if [ -z "$skip_zipfile" ]; then
 			echo
 			echo "Skipping upload to CurseForge."
 			echo
-			upload_curseforge=
 			exit_code=1
+			return 0
 		fi
-	fi
 
-	# Upload to CurseForge.
-	if [ -n "$upload_curseforge" ]; then
+		local _cf_payload _cf_payload_relations
+		local resultfile result
+		local return_code=0
+
 		_cf_payload=$( cat <<-EOF
 		{
 		  "displayName": "$archive_label",
@@ -2498,30 +2488,37 @@ if [ -z "$skip_zipfile" ]; then
 				302)
 					echo "Error! ($result)"
 					# don't need to ouput the redirect page
-					exit_code=1
+					return_code=1
 					;;
 				404)
 					echo "Error! No project for \"$slug\" found."
-					exit_code=1
+					return_code=1
 					;;
 				*)
 					echo "Error! ($result)"
 					if [ -s "$resultfile" ]; then
 						echo "$(<"$resultfile")"
 					fi
-					exit_code=1
+					return_code=1
 					;;
 			esac
 		} || {
-			exit_code=1
+			return_code=1
 		}
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
-	fi
 
-	if [ -n "$upload_wowinterface" ]; then
-		_wowi_game_version=
+		return $return_code
+	}
+
+	# Upload tags to WoWInterface.
+	upload_wowinterface() {
+		if [[ -z "$tag" || -z "$addonid" || -z "$wowi_token" ]]; then
+			return 0
+		fi
+
+		local _wowi_game_version _wowi_versions
 		_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
 		if [ -n "$_wowi_versions" ]; then
 			if [ -n "$game_version" ]; then
@@ -2539,14 +2536,14 @@ if [ -z "$skip_zipfile" ]; then
 			echo
 			echo "Skipping upload to WoWInterface."
 			echo
-			upload_wowinterface=
 			exit_code=1
+			return 1
 		fi
-	fi
 
-	# Upload tags to WoWInterface.
-	if [ -n "$upload_wowinterface" ]; then
-		_wowi_args=()
+		declare -a _wowi_args
+		local resultfile result
+		local return_code=0
+
 		if [ -f "$wowi_changelog" ]; then
 			_wowi_args+=("-F changelog=<$wowi_changelog")
 		elif [ -n "$manual_changelog" ] || [ "$wowi_markup" = "markdown" ]; then
@@ -2577,41 +2574,62 @@ if [ -z "$skip_zipfile" ]; then
 					;;
 				401)
 					echo "Error! No addon for id \"$addonid\" found or you do not have permission to upload files."
-					exit_code=1
+					return_code=1
 					;;
 				403)
 					echo "Error! Incorrect api key or you do not have permission to upload files."
-					exit_code=1
+					return_code=1
 					;;
 				*)
 					echo "Error! ($result)"
 					if [ -s "$resultfile" ]; then
 						echo "$(<"$resultfile")"
 					fi
-					exit_code=1
+					return_code=1
 					;;
 			esac
 		} || {
-			exit_code=1
+			return_code=1
 		}
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
-	fi
+
+		return $return_code
+	}
 
 	# Upload to Wago
-	if [ -n "$upload_wago" ] ; then
+	upload_wago() {
+		if [[ -z "$wagoid" || -z "$wago_token" ]]; then
+			return 0
+		fi
+
+		local _wago_versions
+		_wago_versions=$( curl -s https://addons.wago.io/api/data/game | jq -c '.patches' 2>/dev/null )
+		if [ -z "$_wago_versions" ]; then
+			echo "Error fetching game version info from https://addons.wago.io/api/data/game"
+			echo
+			echo "Skipping upload to Wago."
+			echo
+			exit_code=1
+			return 1
+		fi
+
+		local _wago_payload _wago_support_property _wago_stability
+		local resultfile result version
+		local return_code=0
+
 		_wago_support_property=""
 		for type in "${!game_type_version[@]}"; do
-			if [[ "$type" == "bcc" ]]; then
-				_wago_support_property+="\"supported_bc_patch\": \"${game_type_version[$type]}\", "
-			else
-				_wago_support_property+="\"supported_${type}_patch\": \"${game_type_version[$type]}\", "
-			fi
+			version=${game_type_version[$type]}
+			[[ "$type" == "bcc" ]] && type="bc"
+			# if jq -e --arg t "$type" --arg v "$version" '.[$t] | index($v)' <<< "$_wago_versions" &>/dev/null; then
+				_wago_support_property+="\"supported_${type}_patch\": \"${version}\", "
+			# fi
 		done
 
 		_wago_stability="$file_type"
-		if [ "$file_type" = "release" ]; then
+		if [[ "$file_type" == "release" ]]; then
 			_wago_stability="stable"
 		fi
 
@@ -2640,77 +2658,89 @@ if [ -z "$skip_zipfile" ]; then
 				302)
 					echo "Error! ($result)"
 					# don't need to ouput the redirect page
-					exit_code=1
+					return_code=1
 					;;
 				404)
 					echo "Error! No Wago project for id \"$wagoid\" found."
-					exit_code=1
+					return_code=1
 					;;
 				*)
 					echo "Error! ($result)"
 					if [ -s "$resultfile" ]; then
 						echo "$(<"$resultfile")"
 					fi
-					exit_code=1
+					return_code=1
 					;;
 			esac
 		} || {
-			exit_code=1
+			return_code=1
 		}
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
-	fi
+
+		return $return_code
+	}
 
 	# Create a GitHub Release for tags and upload the zipfile as an asset.
-	if [ -n "$upload_github" ]; then
-		upload_github_asset() {
-			_ghf_release_id=$1
-			_ghf_file_name=$2
-			_ghf_file_path=$3
-			_ghf_resultfile="$releasedir/gh_asset_result.json"
-			_ghf_content_type="application/${_ghf_file_name##*.}" # zip or json
+	upload_github_asset() {
+		local asset_id result return_code=0
+		local _ghf_release_id=$1
+		local _ghf_file_name=$2
+		local _ghf_file_path=$3
+		local _ghf_resultfile="$releasedir/gh_asset_result.json"
+		local _ghf_content_type="application/${_ghf_file_name##*.}" # zip or json
 
-			# check if an asset exists and delete it (editing a release)
-			asset_id=$( curl -sS \
-					-H "Accept: application/vnd.github.v3+json" \
-					-H "Authorization: token $github_token" \
-					"https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" \
-				| jq --arg file "$_ghf_file_name"  '.[] | select(.name? == $file) | .id'
-			)
-			if [ -n "$asset_id" ]; then
-				curl -s \
-					-X DELETE \
-					-H "Accept: application/vnd.github.v3+json" \
-					-H "Authorization: token $github_token" \
-					"https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
-			fi
+		# check if an asset exists and delete it (editing a release)
+		asset_id=$( curl -sS \
+				-H "Accept: application/vnd.github.v3+json" \
+				-H "Authorization: token $github_token" \
+				"https://api.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets" \
+			| jq --arg file "$_ghf_file_name"  '.[] | select(.name? == $file) | .id'
+		)
+		if [ -n "$asset_id" ]; then
+			curl -s \
+				-X DELETE \
+				-H "Accept: application/vnd.github.v3+json" \
+				-H "Authorization: token $github_token" \
+				"https://api.github.com/repos/$project_github_slug/releases/assets/$asset_id" &>/dev/null
+		fi
 
-			echo -n "Uploading $_ghf_file_name... "
-			result=$( curl -sS --retry 3 --retry-delay 10 \
-					-w "%{http_code}" -o "$_ghf_resultfile" \
-					-H "Accept: application/vnd.github.v3+json" \
-					-H "Authorization: token $github_token" \
-					-H "Content-Type: $_ghf_content_type" \
-					--data-binary "@$_ghf_file_path" \
-					"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name"
-			) && {
-				if [ "$result" = "201" ]; then
-					echo "Success!"
-				else
-					echo "Error ($result)"
-					if [ -s "$_ghf_resultfile" ]; then
-						echo "$(<"$_ghf_resultfile")"
-					fi
-					exit_code=1
+		echo -n "Uploading $_ghf_file_name... "
+		result=$( curl -sS --retry 3 --retry-delay 10 \
+				-w "%{http_code}" -o "$_ghf_resultfile" \
+				-H "Accept: application/vnd.github.v3+json" \
+				-H "Authorization: token $github_token" \
+				-H "Content-Type: $_ghf_content_type" \
+				--data-binary "@$_ghf_file_path" \
+				"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name"
+		) && {
+			if [ "$result" = "201" ]; then
+				echo "Success!"
+			else
+				echo "Error ($result)"
+				if [ -s "$_ghf_resultfile" ]; then
+					echo "$(<"$_ghf_resultfile")"
 				fi
-			} || {
-				exit_code=1
-			}
-
-			rm -f "$_ghf_resultfile" 2>/dev/null
-			return 0
+				return_code=1
+			fi
+		} || {
+			return_code=1
 		}
+
+		rm -f "$_ghf_resultfile" 2>/dev/null
+
+		return $return_code
+	}
+
+	upload_github() {
+		if [[ -z "$tag" || -z "$project_github_slug" || -z "$github_token" ]]; then
+			return 0
+		fi
+
+		local _gh_metadata _gh_previous_metadata _gh_payload _gh_release_url
+		local release_id versionfile resultfile result
+		local return_code=0
 
 		_gh_metadata='{ "filename": "'"$archive_name"'", "nolib": false, "metadata": ['
 		for type in "${!game_type_version[@]}"; do
@@ -2766,7 +2796,7 @@ if [ -z "$skip_zipfile" ]; then
 						-H "Authorization: token $github_token" \
 						"$_gh_metadata_url"
 				) && {
-					jq -sc '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_previous_metadata} ${_gh_metadata}" > "$versionfile"
+					jq -sc '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_metadata} ${_gh_previous_metadata}" > "$versionfile"
 				} || {
 					echo "Warning: Unable to update release.json ($?)"
 				}
@@ -2798,15 +2828,31 @@ if [ -z "$skip_zipfile" ]; then
 				if [ -s "$resultfile" ]; then
 					echo "$(<"$resultfile")"
 				fi
-				exit_code=1
+				return_code=1
 			fi
 		} || {
-			exit_code=1
+			return_code=1
 		}
+		echo
 
 		rm -f "$resultfile" 2>/dev/null
 		[ -z "$CI" ] && rm -f "$versionfile" 2>/dev/null
-		echo
+
+		return $return_code
+	}
+
+	if ! hash jq &>/dev/null; then
+		# echo "Skipping upload because \"jq\" was not found."
+		# echo
+		skip_upload=1
+		# exit_code=1
+	fi
+
+	if [[ -z "$skip_upload" ]]; then
+		retry upload_curseforge || exit_code=1
+		upload_wowinterface || exit_code=1
+		upload_wago || exit_code=1
+		upload_github || exit_code=1
 	fi
 fi
 
