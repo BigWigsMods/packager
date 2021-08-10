@@ -1648,6 +1648,18 @@ checkout_external() {
 		fi
 		set_info_hg "$_cqe_checkout_dir"
 		echo "Checked out r$si_project_revision"
+	elif [ "$_external_type" = "zip" ]; then
+		echo "Fetching archive $_external_uri"
+		local _zipfile="$_cqe_checkout_dir/file.zip"
+		curl -sSL --retry 3 --retry-delay 10 "$_external_uri" -o "$_zipfile" || return 1
+		unzip -qq "$_zipfile" -d "$_cqe_checkout_dir"
+		rm -f "$_zipfile"
+		# Strip top-level dir with same name as lib if present.
+		local _tldir="$_cqe_checkout_dir/$(basename "$_external_dir")"
+		if [ -d "$_tldir" ]; then
+			find "$_tldir" -mindepth 1 -maxdepth 1 | xargs mv -t "$_cqe_checkout_dir"
+			rmdir "$_tldir"
+		fi
 	else
 		echo "Unknown external: $_external_uri" >&2
 		return 1
@@ -1706,6 +1718,11 @@ process_external() {
 			svn:*)
 				# just in case
 				external_type="svn"
+				;;
+			*.zip)
+				if [ -z "$external_type" ]; then
+					external_type="zip"
+				fi
 				;;
 			*)
 				if [ -z "$external_type" ]; then
