@@ -963,27 +963,6 @@ if [[ ! -f "$topdir/$toc_path" && -f "$topdir/$package/$toc_path" ]]; then
 	toc_path="$package/$toc_path"
 fi
 
-# Use distinct TOC file if it exists
-if [[ "$game_type" == "classic" ]]; then
-	if [[ -f "$topdir/$package-Classic.toc" ]]; then
-		toc_path="$package-Classic.toc"
-	elif [[ ! -f "$topdir/$package-Classic.toc" && -f "$topdir/$package/$package-Classic.toc" ]]; then
-		toc_path="$package/$package-Classic.toc"
-	fi
-elif [[ "$game_type" == "bcc" ]]; then
-	if [[ -f "$topdir/$package-BCC.toc" ]]; then
-		toc_path="$package-BCC.toc"
-	elif [[ ! -f "$topdir/$package-BCC.toc" && -f "$topdir/$package/$package-BCC.toc" ]]; then
-		toc_path="$package/$package-BCC.toc"
-	fi
-elif [[ "$game_type" == "retail" ]]; then
-	if [[ -f "$topdir/$package-Mainline.toc" ]]; then
-		toc_path="$package-Mainline.toc"
-	elif [[ ! -f "$topdir/$package-Mainline.toc" && -f "$topdir/$package/$package-Mainline.toc" ]]; then
-		toc_path="$package/$package-Mainline.toc"
-	fi
-fi
-
 if [[ ! -f "$topdir/$toc_path" ]]; then
 	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
 	exit 1
