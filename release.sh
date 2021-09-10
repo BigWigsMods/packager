@@ -951,12 +951,13 @@ if [[ -z "$package" ]]; then
 		exit 1
 	fi
 	package=${package%.toc}
-	if [[ $package =~ ^(.*)-(Mainline|Classic|BCC)$ ]]; then
+	if [[ $package =~ ^(.*)[_-](Mainline|Classic|Vanilla|BCC|TBC)$ ]]; then
 		package="${BASH_REMATCH[1]}"
+		toc_path="${BASH_REMATCH[0]}.toc"
+	else
+		toc_path="$package.toc"
 	fi
 fi
-
-toc_path="$package.toc"
 
 # Handle having the main addon in a sub dir
 if [[ ! -f "$topdir/$toc_path" && -f "$topdir/$package/$toc_path" ]]; then
@@ -1499,7 +1500,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
 							_cdt_filters+="|toc_filter version-classic $([[ -z "$_cdt_classic" || "$_cdt_classic" == "bcc" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ -z "$_cdt_classic" || "$_cdt_classic" == "classic" ]] && echo "true")"
-							[[ -z "$_cdt_external" && ! $file =~ -(Mainline|Classic|BCC).toc$ ]] && _cdt_filters+="|toc_interface_filter"
+							[[ -z "$_cdt_external" && ! $file =~ [_-](Mainline|Classic|Vanilla|BCC|TBC).toc$ ]] && _cdt_filters+="|toc_interface_filter"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
