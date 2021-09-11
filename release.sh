@@ -67,7 +67,7 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
-declare -A game_flavor=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" )
+declare -A game_flavor=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" )
 
 declare -A game_type_version=()       # type -> version
 declare -A game_type_interface=()     # type -> toc
@@ -1020,7 +1020,7 @@ do_toc() {
 		fi
 	fi
 
-	if [[ ${toc_name,,} =~ -(mainline|classic|bcc)\.toc$ ]]; then
+	if [[ ${toc_name} =~ -(Mainline|Classic|Vanilla|BCC|TBC)\.toc$ ]]; then
 		# Flavored
 		if [[ -z "$toc_version" ]]; then
 			echo "$toc_name is missing an interface version." >&2
@@ -1149,20 +1149,18 @@ if [[ -z "$package" ]]; then
 		exit 1
 	fi
 	package=${package%.toc}
-	if [[ $package =~ ^(.*)([-_]([Mm]ainline|[Cc]lassic|[Bb][Cc][Cc]))$ ]]; then
+	if [[ $package =~ ^(.*)([-_](Mainline|Classic|Vanilla|BCC|TBC))$ ]]; then
 		echo "Ambiguous addon name. No fallback TOC file or addon name includes an expansion suffix (${BASH_REMATCH[2]}). Set 'package-as' in .pkgmeta" >&2
 		exit 1
 	fi
 fi
 
 # Parse the main addon's TOC file(s)
-shopt -s nocasematch
-for toc in "$topdir"{,/"$package"}/"$package"{,-Mainline,-Classic,-BCC}.toc; do
+for toc in "$topdir"{,/"$package"}/"$package"{,[-_]Mainline,[-_]Classic,[-_]Vanilla,[-_]BCC,[-_]TBC}.toc; do
 	if [[ -f "$toc" ]]; then
 		do_toc "$toc" "true"
 	fi
 done
-shopt -u nocasematch
 
 if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 	echo "Could not find an addon TOC file. In another directory? Make sure it matches the 'package-as' in .pkgmeta" >&2
