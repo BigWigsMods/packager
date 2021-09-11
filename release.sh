@@ -1159,14 +1159,15 @@ set_build_version() {
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
-	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | head -n1 )
+	package=$( cd "$topdir" && find *.toc -maxdepth 0 | sort -dr 2>/dev/null | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
 		exit 1
 	fi
 	package=${package%.toc}
-	if [[ $package =~ ^(.*)-([Mm]ainline|[Cc]lassic|[Bb][Cc][Cc])$ ]]; then
-		package="${BASH_REMATCH[1]}"
+	if [[ $package =~ ^(.*)([-_]([Mm]ainline|[Cc]lassic|[Bb][Cc][Cc]))$ ]]; then
+		echo "Ambiguous addon name. No fallback TOC file or addon name includes an expansion suffix (${BASH_REMATCH[2]}). Set 'package-as' in .pkgmeta" >&2
+		exit 1
 	fi
 fi
 
