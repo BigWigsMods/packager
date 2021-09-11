@@ -998,7 +998,10 @@ fi
 do_toc() {
 	local toc_file toc_version toc_game_type root_toc_version
 	local toc_path="$1"
-	local do_set_info="$2"
+	local package_name="$2"
+
+	[[ -z $package_name ]] && return 0
+
 	local toc_name=${toc_path##*/}
 
 	toc_file=$(
@@ -1019,7 +1022,7 @@ do_toc() {
 
 	root_toc_version="$toc_version"
 
-	if [[ -n "$do_set_info" ]]; then
+	if [[ -n "$package_name" ]]; then
 		# Get the title of the project for using in the changelog.
 		if [ -z "$project" ]; then
 			project=$( awk '/^## Title:/ { print $0; exit }' <<< "$toc_file" | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
@@ -1036,7 +1039,7 @@ do_toc() {
 		fi
 	fi
 
-	if [[ ${toc_name} =~ -(Mainline|Classic|Vanilla|BCC|TBC)\.toc$ ]]; then
+	if [[ ${toc_name} =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC)\.toc$ ]]; then
 		# Flavored
 		if [[ -z "$toc_version" ]]; then
 			echo "$toc_name is missing an interface version." >&2
@@ -1174,7 +1177,7 @@ fi
 # Parse the main addon's TOC file(s)
 for toc in "$topdir"{,/"$package"}/"$package"{,[-_]Mainline,[-_]Classic,[-_]Vanilla,[-_]BCC,[-_]TBC}.toc; do
 	if [[ -f "$toc" ]]; then
-		do_toc "$toc" "true"
+		do_toc "$toc" "$package"
 	fi
 done
 
@@ -1605,7 +1608,7 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
+				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml" || [[ "$file" == *".toc" && -z "$package" ]]; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
@@ -1643,7 +1646,7 @@ copy_directory_tree() {
 							fi
 							;;
 						*.toc)
-							do_toc "$_cdt_srcdir/$file"
+							do_toc "$_cdt_srcdir/$file" "$package"
 							_cdt_filters+="|do_not_package_filter toc"
 							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
 							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
@@ -1852,6 +1855,7 @@ checkout_external() {
 		# the only way to convert slug->id would be to scrape the project page :\
 		slug= #$_external_slug
 		project_site=
+		package=
 		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
 			project_site="https://wow.curseforge.com"
 		fi
