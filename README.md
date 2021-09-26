@@ -273,7 +273,30 @@ Usage: release.sh [options]
   -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
   -g game-version  Set the game version to use for uploading.
   -m pkgmeta.yaml  Set the pkgmeta file to use.
-  -n package-name  Set the package zip file name. Use "-n help" for more info.
+  -n "{template}"  Set the package zip file name and upload label. Use "-n help" for more info.
+```
+
+```text
+Usage: release.sh -n "{template}"
+  Set the package zip file name and upload file label. There are several string
+  substitutions you can use to include version control and build type infomation in
+  the file name and upload label.
+
+  The default file name is "{package-name}-{project-version}{nolib}{classic}".
+  The default upload label is "{project-version}{classic}{nolib}".
+
+  To set both, seperate with a ":", i.e, "{file template}:{label template}".
+  If either side of the ":" is blank, the default will be used. Not including a ":"
+  will set the file name template, leaving upload label as default.
+
+  Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
+          {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
+          {project-version}{game-type}{release-type}
+
+  Flags:  {alpha}{beta}{nolib}{classic}
+
+  Tokens are always replaced with their value. Flags are shown prefixed with a dash
+  depending on the build type.
 ```
 
 ### Uploading

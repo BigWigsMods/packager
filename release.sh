@@ -54,7 +54,8 @@ pkgmeta_file=
 game_version=
 game_type=
 file_type=
-file_name="{package-name}-{project-version}{nolib}{classic}"
+file_template="{package-name}-{project-version}{nolib}{classic}"
+label_template="{project-version}{classic}{nolib}"
 
 wowi_markup="bbcode"
 
@@ -150,7 +151,7 @@ usage() {
 	  -a wago-id       Set the project id used on Wago Addons for uploading. (Use 0 to unset the TOC value)
 	  -g game-version  Set the game version to use for uploading.
 	  -m pkgmeta.yaml  Set the pkgmeta file to use.
-	  -n package-name  Set the package zip file name. Use "-n help" for more info.
+	  -n "{template}"  Set the package zip file name and upload label. Use "-n help" for more info.
 	EOF
 }
 
@@ -234,28 +235,43 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 		n) # Set the package file name
 			if [ "$OPTARG" = "help" ]; then
 				cat <<-'EOF' >&2
-				Set the package zip file name. There are several string substitutions you can
-				use to include version control and build type infomation in the file name.
+				Usage: release.sh [options]
+				  Set the package zip file name and upload file label. There are several string
+				  substitutions you can use to include version control and build type infomation in
+				  the file name and upload label.
 
-				The default file name is "{package-name}-{project-version}{nolib}{classic}".
+				  The default file name is "{package-name}-{project-version}{nolib}{classic}".
+				  The default upload label is "{project-version}{classic}{nolib}".
 
-				Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
-				        {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
-				        {project-version}{game-type}{release-type}
+				  To set both, seperate with a ":", i.e, "{file template}:{label template}".
+				  If either side of the ":" is blank, the default will be used.Not including a ":"
+				  will set the file name template, leaving upload label as default.
 
-				Flags:  {alpha}{beta}{nolib}{classic}
+				  Tokens: {package-name}{project-revision}{project-hash}{project-abbreviated-hash}
+				          {project-author}{project-date-iso}{project-date-integer}{project-timestamp}
+				          {project-version}{game-type}{release-type}
 
-				Tokens are always replaced with their value. Flags are shown prefixed with a dash
-				depending on the build type.
+				  Flags:  {alpha}{beta}{nolib}{classic}
+
+				  Tokens are always replaced with their value. Flags are shown prefixed with a dash
+				  depending on the build type.
 				EOF
 				exit 0
 			fi
-			file_name="$OPTARG"
-			if skip_invalid=true filename_filter "$file_name" | grep -q '[{}]'; then
-				tokens=$( skip_invalid=true filename_filter "$file_name" | sed -e '/^[^{]*{\|}[^{]*{\|}[^{]*/s//}{/g' -e 's/^}\({.*}\){$/\1/' )
+			if skip_invalid=true filename_filter "$OPTARG" | grep -q '[{}]'; then
+				tokens=$( skip_invalid=true filename_filter "$OPTARG" | sed -e '/^[^{]*{\|}[^{]*{\|}[^{]*/s//}{/g' -e 's/^}\({.*}\){$/\1/' )
 				echo "Invalid argument for option \"-n\" - Invalid substitutions: $tokens" >&2
 				exit 1
 			fi
+			file_template=${OPTARG%%:*}
+			if [ -z "$file_template" ]; then
+				file_template="{package-name}-{project-version}{nolib}{classic}"
+			fi
+			label_template=${OPTARG##*:}
+			if [ -z "$label_template" ]; then
+				label_template="{project-version}{classic}{nolib}"
+			fi
+			#"{package-name}-{project-version}{nolib}{classic}:{project-version}{classic}{nolib}"
 			;;
 		:)
 			echo "Option \"-$OPTARG\" requires an argument." >&2
@@ -2158,42 +2174,36 @@ fi
 ###
 
 if [ -z "$skip_zipfile" ]; then
-	archive_version="$project_version"
-	archive_name="$( filename_filter "$file_name" ).zip"
-	archive_label="$archive_version"
-	if [[ "${file_name}" == *"{game-type}"* ]] || [[ "$game_type" != "retail" && "${file_name}" == *"{classic}"* ]]; then
-		# append the game-type for clarity
-		archive_label="$archive_version-$game_type"
-		if [[ "$game_type" == "classic" && "${project_version,,}" == *"-classic"* ]] || [[ "$game_type" == "bcc" && "${project_version,,}" == *"-bcc"* ]]; then
-			# this is mostly for BigWigs projects that tag classic separately (eg, v10-classic)
-			# to prevent the extra -classic without changing all our workflows
-			archive_label="$archive_version"
-		fi
-	fi
+	archive_version="$project_version" # XXX used for wowi version. should probably switch to label, but the game type gets added on by default :\
+	archive_label="$( filename_filter "$label_template" )"
+	archive_name="$( filename_filter "$file_template" ).zip"
 	archive="$releasedir/$archive_name"
+
+	nolib_archive_version="${project_version}-nolib"
+	nolib_archive_label="$( nolib=true filename_filter "$archive_label" )"
+	nolib_archive_name="$( nolib=true filename_filter "$file_template" ).zip"
+	# someone didn't include {nolib} and they're forcing nolib creation
+	if [ "$archive_label" = "$nolib_archive_label" ]; then
+		nolib_archive_label="${nolib_archive_label}-nolib"
+	fi
+	if [ "$archive_name" = "$nolib_archive_name" ]; then
+		nolib_archive_name="${nolib_archive_name#.zip}-nolib.zip"
+	fi
+	nolib_archive="$releasedir/$nolib_archive_name"
+
+	if [ -n "$nolib" ]; then
+		archive_version="$nolib_archive_version"
+		archive_label="$nolib_archive_label"
+		archive_name="$nolib_archive_name"
+		archive="$nolib_archive"
+		nolib_archive=
+	fi
 
 	if [ -n "$GITHUB_ACTIONS" ]; then
 		echo "::set-output name=archive_path::${archive}"
 	fi
 
-	nolib_archive_version="${project_version}-nolib"
-	nolib_archive_name="$( nolib=true filename_filter "$file_name" ).zip"
-	if [ "$archive_name" = "$nolib_archive_name" ]; then
-		# someone didn't include {nolib} and they're forcing nolib creation
-		nolib_archive_name="${nolib_archive_name#.zip}-nolib.zip"
-	fi
-	nolib_archive_label="${archive_label}-nolib"
-	nolib_archive="$releasedir/$nolib_archive_name"
-
-	if [ -n "$nolib" ]; then
-		archive_version="$nolib_archive_version"
-		archive_name="$nolib_archive_name"
-		archive_label="$nolib_archive_label"
-		archive="$nolib_archive"
-		nolib_archive=
-	fi
-
-	start_group "Creating archive: $archive_name" "archive"
+	start_group "Creating archive: $archive_name ($archive_label)" "archive"
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
@@ -2218,7 +2228,7 @@ if [ -z "$skip_zipfile" ]; then
 		# make the exclude paths relative to the release directory
 		nolib_exclude=${nolib_exclude//$releasedir\//}
 
-		start_group "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
+		start_group "Creating no-lib archive: $nolib_archive_name ($nolib_archive_label)" "archive.nolib"
 		if [ -f "$nolib_archive" ]; then
 			rm -f "$nolib_archive"
 		fi
