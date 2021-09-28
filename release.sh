@@ -995,7 +995,7 @@ toc_version="$root_toc_version"
 if [[ -n "$toc_version" && -z "$game_type" ]]; then
 	# toc -> game type
 	case $toc_version in
-		113*) game_type="classic" ;;
+		11[34]*) game_type="classic" ;;
 		205*) game_type="bcc" ;;
 		*) game_type="retail"
 	esac
@@ -1011,15 +1011,15 @@ else
 	fi
 	# Check for other interface lines
 	if [[ -z "$toc_version" ]] || \
-		 [[ "$game_type" == "classic" && "$toc_version" != "113"* ]] || \
+		 [[ "$game_type" == "classic" && ("$toc_version" != "113"* && "$toc_version" != "114"*) ]] || \
 		 [[ "$game_type" == "bcc" && "$toc_version" != "205"* ]] || \
-		 [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "205"*) ]]
+		 [[ "$game_type" == "retail" && ("$toc_version" == "113"* || "$toc_version" == "114"* || "$toc_version" == "205"*) ]]
 	then
 		toc_version="$game_type_toc_version"
 		if [[ -z "$toc_version" ]]; then
 			# Check @non-@ blocks
 			case $game_type in
-				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(11[34])/ { print $NF; exit }' ) ;;
 				bcc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after string replacements
