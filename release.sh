@@ -1066,7 +1066,7 @@ do_toc() {
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
 			case $toc_version in
-				113*) toc_game_type="classic" ;;
+				11[34]*) toc_game_type="classic" ;;
 				205*) toc_game_type="bcc" ;;
 				*) toc_game_type="retail"
 			esac
@@ -1118,7 +1118,7 @@ set_build_version() {
 			fi
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
-					113*) toc_game_type="classic" ;;
+					11[34]*) toc_game_type="classic" ;;
 					205*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
@@ -1135,7 +1135,7 @@ set_build_version() {
 					toc_version=${toc_root_interface[$path]}
 				fi
 				case $toc_version in
-					113*) toc_game_type="classic" ;;
+					11[34]*) toc_game_type="classic" ;;
 					205*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
