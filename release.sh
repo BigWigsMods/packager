@@ -1166,7 +1166,7 @@ if [[ -z "$package" ]]; then
 fi
 
 # Parse the main addon's TOC file(s)
-for toc in "$topdir"{,/"$package"}/"$package"{,[-_]Mainline,[-_]Classic,[-_]Vanilla,[-_]BCC,[-_]TBC}.toc; do
+for toc in "$topdir"{,/"$package"}/"$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
 	if [[ -f "$toc" ]]; then
 		do_toc "$toc" "$package"
 	fi
