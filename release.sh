@@ -1013,7 +1013,7 @@ do_toc() {
 	toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
 	case $toc_version in
 		"") toc_game_type= ;;
-		113*) toc_game_type="classic" ;;
+		11[34]*) toc_game_type="classic" ;;
 		205*) toc_game_type="bcc" ;;
 		*) toc_game_type="retail"
 	esac
@@ -1066,7 +1066,7 @@ do_toc() {
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
 			case $toc_version in
-				113*) toc_game_type="classic" ;;
+				11[34]*) toc_game_type="classic" ;;
 				205*) toc_game_type="bcc" ;;
 				*) toc_game_type="retail"
 			esac
@@ -1076,7 +1076,7 @@ do_toc() {
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && "$toc_game_type" != "$game_type" ]]; then
 			toc_game_type="$game_type"
 			case $toc_game_type in
-				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(113)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(11[34])/ { print $NF; exit }' ) ;;
 				bcc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after replacements
@@ -1118,7 +1118,7 @@ set_build_version() {
 			fi
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
-					113*) toc_game_type="classic" ;;
+					11[34]*) toc_game_type="classic" ;;
 					205*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
@@ -1135,7 +1135,7 @@ set_build_version() {
 					toc_version=${toc_root_interface[$path]}
 				fi
 				case $toc_version in
-					113*) toc_game_type="classic" ;;
+					11[34]*) toc_game_type="classic" ;;
 					205*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
