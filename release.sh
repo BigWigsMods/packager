@@ -197,15 +197,6 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 			case "$OPTARG" in
 				retail|classic|bcc) game_type="$OPTARG" ;; # game_version from toc
 				mainline) game_type="retail" ;;
-				bc)
-					echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
-					echo "" >&2
-					echo "The \"bc\" game type has been changed to \"bcc\" to match Blizzard." >&2
-					echo "This affects TOC interface lines (Interface-BC -> Interface-BCC) and" >&2
-					echo "build keywords (version-bc -> version-bcc)." >&2
-					echo "" >&2
-					exit 1
-					;;
 				*)
 					# Set game version (x.y.z)
 					# Build game type set from the last value if a list
