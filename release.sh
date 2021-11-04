@@ -1700,7 +1700,7 @@ copy_directory_tree() {
 				fi
 			fi
 		fi
-	done
+	done || exit 1 # actually exit if we end with an error
 	if [ -z "$_external_dir" ]; then
 		end_group "copy"
 	fi
