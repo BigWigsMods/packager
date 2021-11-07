@@ -1322,7 +1322,7 @@ localization_filter() {
 					_ul_lang=${_ul_lang:0:4}
 					_ul_lang=${_ul_lang%%\"*}
 				else
-					echo "    Warning! No locale set, using enUS." >&2
+					echo "    Warning! No locale set, using enUS." >&3
 				fi
 				# Generate a URL parameter string from the localization parameters.
 				# https://authors.curseforge.com/knowledge-base/projects/529-api
@@ -1354,7 +1354,7 @@ localization_filter() {
 							if [ "$_ul_value" = "concat" ]; then # concat with /
 								_ul_url_params="${_ul_url_params}&concatenante-subnamespaces=true"
 							elif [ "$_ul_value" = "subtable" ]; then
-								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Include each full subnamespace, comma delimited." >&2
+								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported. Include each full subnamespace, comma delimited." >&3
 							fi
 							;;
 						key)
@@ -1377,11 +1377,11 @@ localization_filter() {
 							;;
 						namespace-delimiter)
 							if [ "$_ul_value" != "/" ]; then
-								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported." >&2
+								echo "    ($_ul_lang) Warning! ${_ul_key}=\"${_ul_value}\" is not supported." >&3
 							fi
 							;;
 						prefix-values)
-							echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported." >&2
+							echo "    ($_ul_lang) Warning! \"${_ul_key}\" is not supported." >&3
 							;;
 						same-key-is-true)
 							if [ "$_ul_value" = "true" ]; then
@@ -1398,7 +1398,7 @@ localization_filter() {
 				done
 
 				if [ -z "$_cdt_localization" ] || [ -z "$localization_url" ]; then
-					echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&2
+					echo "    Skipping localization (${_ul_lang}${_ul_namespace})" >&3
 
 					# If the line isn't a TOC entry, print anything before the keyword.
 					if [[ $_ul_line != "## "* ]]; then
@@ -1410,7 +1410,7 @@ localization_filter() {
 					fi
 				else
 					_ul_url="${localization_url}?lang=${_ul_lang}${_ul_url_params}"
-					echo "    Adding ${_ul_lang}${_ul_namespace}" >&2
+					echo "    Adding ${_ul_lang}${_ul_namespace}" >&3
 
 					if [ -z "$_ul_singlekey" ]; then
 						# Write text that preceded the substitution.
@@ -1470,6 +1470,7 @@ toc_interface_filter() {
 			sed -e $'1s/^\xEF\xBB\xBF//' -e '1i\
 ## Interface: '"$toc_version" -e '/^## Interface-/d'
 		fi
+		echo "    Set Interface to ${toc_version}" >&3
 	else # cleanup
 		sed -e $'1s/^\xEF\xBB\xBF//' -e '/^## Interface-/d'
 	fi
@@ -1658,7 +1659,7 @@ copy_directory_tree() {
 					set_info_file "$_cdt_srcdir/$file"
 
 					echo "  Copying: $file"
-					eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$file"
+					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file"
 
 					# Create game type specific TOCs
 					if [[ $file == *".toc" && -n $_cdt_split ]]; then
@@ -1688,7 +1689,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_interface_filter '$toc_version' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
 							_cdt_filters+="|line_ending_filter"
 
-							eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$new_file"
+							eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$new_file"
 						done
 
 						# The fallback will never be used if you have a TOC for each game type
