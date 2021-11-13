@@ -1098,15 +1098,8 @@ set_build_version() {
 	if [[ -z "$game_version" ]]; then
 		if [[ ${#toc_interfaces[@]} -eq 1 ]]; then
 			local path="${!toc_interfaces[*]}"
-			local root_toc_version="${toc_root_interface[$path]}"
 			declare -a versions
-
-			if [[ -z "$game_type" && -n "$root_toc_version" ]]; then
-				# no -g so just use the base interface value
-				versions=("$root_toc_version")
-			else
-				IFS=':' read -ra versions <<< "${toc_interfaces[$path]}"
-			fi
+			IFS=':' read -ra versions <<< "${toc_interfaces[$path]}"
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
 					11[34]*) toc_game_type="classic" ;;
