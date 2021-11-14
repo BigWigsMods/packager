@@ -1170,6 +1170,12 @@ if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 	exit 1
 fi
 
+# CurseForge still requires a fallback TOC file
+if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdir/$package/$package.toc" ]]; then
+	echo "CurseForge requires a \"$package.toc\" file to exist." >&2
+	exit 1
+fi
+
 if [[ -n "$split" ]]; then
 	if [[ ${#toc_interfaces[@]} -gt 1 ]]; then
 		echo "Creating TOC files is enabled but there are already multiple TOC files:" >&2
@@ -1686,10 +1692,10 @@ copy_directory_tree() {
 						done
 
 						# The fallback will never be used if you have a TOC for each game type
-						if [[ ${#si_game_type_interface[@]} -eq 3 ]]; then
-							echo "    Removing $file (redundant)"
-							rm -f "$_cdt_destdir/$file"
-						fi
+						# if [[ ${#si_game_type_interface[@]} -eq 3 ]]; then
+						# 	echo "    Removing $file (redundant)"
+						# 	rm -f "$_cdt_destdir/$file"
+						# fi
 					fi
 				fi
 			fi
