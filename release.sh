@@ -1669,9 +1669,9 @@ copy_directory_tree() {
 							toc_version=${si_game_type_interface[$type]}
 							new_file=${file%.toc}
 							case $type in
-								retail) new_file+="-Mainline.toc" ;;
-								classic) new_file+="-Classic.toc" ;;
-								bcc) new_file+="-BCC.toc" ;;
+								retail) new_file+="_Mainline.toc" ;;
+								classic) new_file+="_Vanilla.toc" ;;
+								bcc) new_file+="_TBC.toc" ;;
 							esac
 
 							echo "    Creating $new_file [$toc_version]"
