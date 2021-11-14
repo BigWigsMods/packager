@@ -68,7 +68,7 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
-declare -A game_flavor=( ["retail"]="mainline" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" )
+declare -A game_flavor=( ["retail"]="retail" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" )
 
 declare -A game_type_version=()       # type -> version
 declare -A game_type_interface=()     # type -> toc
@@ -223,7 +223,7 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 						game_type_version[$game_type]="$i"
 					done
 					if [[ ${#game_type_version[@]} -gt 1 ]]; then
-						unset game_type
+						game_type=
 					fi
 					game_version="$OPTARG"
 			esac
@@ -1048,6 +1048,7 @@ do_toc() {
 		for type in "${!game_flavor[@]}"; do
 			game_type_toc_version=$( awk 'tolower($0) ~ /^## interface-'${type}':/ { print $NF; exit }' <<< "$toc_file" )
 			if [[ -n "$game_type_toc_version" ]]; then
+				type="${game_flavor[$type]}"
 				si_game_type_interface[$type]="$game_type_toc_version"
 			fi
 		done
@@ -1134,7 +1135,7 @@ set_build_version() {
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
-	package=$( cd "$topdir" && find *.toc -maxdepth 0 | sort -dr 2>/dev/null | head -n1 )
+	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | sort -dr | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
 		exit 1
@@ -2731,19 +2732,23 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		local _gh_metadata _gh_previous_metadata _gh_payload _gh_release_url
-		local release_id versionfile resultfile result
+		local release_id versionfile resultfile result flavor
 		local return_code=0
 
 		_gh_metadata='{ "filename": "'"$archive_name"'", "nolib": false, "metadata": ['
 		for type in "${!game_type_version[@]}"; do
-			_gh_metadata+='{ "flavor": "'"${game_flavor[$type]}"'", "interface": '"${game_type_interface[$type]}"' },'
+			flavor="${game_flavor[$type]}"
+			[[ $flavor == "retail" ]] && flavor="mainline"
+			_gh_metadata+='{ "flavor": "'"${flavor}"'", "interface": '"${game_type_interface[$type]}"' },'
 		done
 		_gh_metadata=${_gh_metadata%,}
 		_gh_metadata+='] }'
 		if [ -f "$nolib_archive" ]; then
 			_gh_metadata+=',{ "filename": "'"$nolib_archive_name"'", "nolib": true, "metadata": ['
 			for type in "${!game_type_version[@]}"; do
-				_gh_metadata+='{ "flavor": "'"${game_flavor[$type]}"'", "interface": '"${game_type_interface[$type]}"' },'
+				flavor="${game_flavor[$type]}"
+				[[ $flavor == "retail" ]] && flavor="mainline"
+				_gh_metadata+='{ "flavor": "'"${flavor}"'", "interface": '"${game_type_interface[$type]}"' },'
 			done
 			_gh_metadata=${_gh_metadata%,}
 			_gh_metadata+='] }'
