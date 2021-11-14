@@ -206,7 +206,7 @@ while getopts ":celLzusop:dw:a:r:t:g:m:n:" opt; do
 							usage
 							exit 1
 						fi
-						if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
+						if [[ ${BASH_REMATCH[1]} == "1" && (${BASH_REMATCH[2]} == "13" || ${BASH_REMATCH[2]} == "14") ]]; then
 							game_type="classic"
 						elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
 							game_type="bcc"
