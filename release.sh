@@ -1192,7 +1192,7 @@ fi
 
 set_build_version
 
-if [[ ${#game_type_version[@]} -eq 0 ]]; then
+if [[ -z "$game_version" ]]; then
 	echo "There was a problem setting the build version? Awkward." >&2
 	exit 1
 fi
