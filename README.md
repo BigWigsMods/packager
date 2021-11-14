@@ -28,6 +28,27 @@ For a full example workflow, please check out the [wiki page](https://github.com
     args: -g classic -m .pkgmeta-classic
 ```
 
+### What's new with v2
+
+Support for multiple TOC files and multiple versions required completely
+reworking how the game version and game type was handled.  The multiple build
+workflow that has become common for people that support multiple game types
+should continue to work as before, but I felt like it would be good to bump
+the version number so anyone explicitly using a v1 tag won't experience any
+surprises.
+
+So what does this mean for you?
+
+1. You only need to build a file once!  Just create [multiple TOC files](https://wowpedia.fandom.com/wiki/TOC_format#Multiple_client_flavors),
+   one for each supported game type, and game versions will be set from them on
+   upload.  So if you've already been dabbling with multiple tocs and/or
+   multiple versions, you no longer need to manually set the versions via `-g`
+   or on the website.
+2. If you are using multiple `## Interface-Type` lines in your TOC file, you can
+   now use the `-S` option to automatically generate game type specific TOC
+   files based on your existing preproccessing logic.  You will still need to
+   merge `.pkgmeta` files if your old workflow used a different file per build.
+
 ## Customizing the build
 
 __release.sh__ uses the TOC file to determine the package name for the project.
