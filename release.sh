@@ -1093,46 +1093,34 @@ do_toc() {
 }
 
 set_build_version() {
-	local toc_game_type toc_version
+	local toc_game_type version
 
 	if [[ -z "$game_version" ]]; then
-		if [[ ${#toc_interfaces[@]} -eq 1 ]]; then
-			local path="${!toc_interfaces[*]}"
+		for path in "${!toc_interfaces[@]}"; do
+			if [[ -z "$split" && -z "$game_type" ]]; then
+				# no split and no game type means we should use the root interface value
+				# (blows up if one isn't set? should)
+				version="${toc_root_interface[$path]}"
+			else
+				version="${toc_interfaces[$path]}"
+			fi
 			declare -a versions
-			IFS=':' read -ra versions <<< "${toc_interfaces[$path]}"
+			IFS=':' read -ra versions <<< "$version"
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
 					11[34]*) toc_game_type="classic" ;;
 					205*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
-				if [[ -n $toc_game_type ]]; then
-					game_type_interface[$toc_game_type]=$toc_version
+				if [[ -z $game_type || $game_type == "$toc_game_type" ]]; then
+					game_type_interface[$toc_game_type]="$toc_version"
 					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
 				fi
 			done
-		else
-			for path in "${!toc_interfaces[@]}"; do
-				toc_version=${toc_interfaces[$path]}
-				if [[ "$toc_version" == *":"* ]]; then
-					# Mixing multiple tocs and multiple versions... use the base interface version
-					toc_version=${toc_root_interface[$path]}
-				fi
-				case $toc_version in
-					11[34]*) toc_game_type="classic" ;;
-					205*) toc_game_type="bcc" ;;
-					*) toc_game_type="retail"
-				esac
-				if [[ -n $toc_game_type ]]; then
-					game_type_interface[$toc_game_type]=$toc_version
-					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
-				fi
-			done
-		fi
+		done
 
 		if [[ -n "$game_type" ]]; then
 			game_version="${game_type_version[$game_type]}"
-			game_type_version=([$game_type]=$game_version)
 		else
 			game_version=$( IFS=',' ; echo "${game_type_version[*]}" )
 		fi
@@ -1193,7 +1181,7 @@ fi
 set_build_version
 
 if [[ -z "$game_version" ]]; then
-	echo "There was a problem setting the build version? Awkward." >&2
+	echo "There was a problem setting the build version. Do you have a base \"# Interface:\" line in your TOC files?" >&2
 	exit 1
 fi
 
