@@ -43,11 +43,22 @@ So what does this mean for you?
    one for each supported game type, and game versions will be set from them on
    upload.  So if you've already been dabbling with multiple tocs and/or
    multiple versions, you no longer need to manually set the versions via `-g`
-   or on the website.
+   or on the CurseForge website.
 2. If you are using multiple `## Interface-Type` lines in your TOC file, you can
    now use the `-S` option to automatically generate game type specific TOC
    files based on your existing preproccessing logic.  You will still need to
    merge `.pkgmeta` files if your old workflow used a different file per build.
+3. If you use build type keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
+   for controlling what code blocks execute based on the build version, in a
+   multi-version build, everything will get commented out since no specific
+   version is being targeted.
+
+   For a multi-version build, you should switch keyword usage to plain old lua
+   control statements.  Fortunately, there are builtin constants you can use for
+   this.  `WOW_PROJECT_ID` is what game version you are currently running and
+   can be checked against `WOW_PROJECT_MAINLINE`, `WOW_PROJECT_CLASSIC`, and
+   `WOW_PROJECT_BURNING_CRUSADE_CLASSIC` (e.g., `if WOW_PROJECT_ID ==
+   WOW_PROJECT_MAINLINE then ... end`).
 
 ## Customizing the build
 
