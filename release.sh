@@ -1518,7 +1518,7 @@ copy_directory_tree() {
 	_cdt_external=
 	_cdt_split=
 	OPTIND=1
-	while getopts :adi:lnpu:c:eS _cdt_opt "$@"; do
+	while getopts :adi:lnpu:g:eS _cdt_opt "$@"; do
 		# shellcheck disable=2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
@@ -1530,7 +1530,7 @@ copy_directory_tree() {
 			n)	_cdt_nolib="true" ;;
 			p)	_cdt_do_not_package="true" ;;
 			u)	_cdt_unchanged_patterns=$OPTARG ;;
-			c)	_cdt_classic=$OPTARG ;;
+			g)	_cdt_gametype=$OPTARG ;;
 			e)	_cdt_external="true" ;;
 			S)	_cdt_split="true" ;;
 		esac
@@ -1599,15 +1599,9 @@ copy_directory_tree() {
 							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
-							if [ -n "$_cdt_classic" ]; then
-								_cdt_filters+="|lua_filter retail"
-								_cdt_filters+="|lua_filter version-retail"
-								[ "$_cdt_classic" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
-								[ "$_cdt_classic" != "classic" ] && _cdt_filters+="|lua_filter version-classic"
-							else
-								_cdt_filters+="|lua_filter version-classic"
-								_cdt_filters+="|lua_filter version-bcc"
-							fi
+							[ "$_cdt_gametype" != "retail" ] && _cdt_filters+="|lua_filter version-retail|lua_filter retail"
+							[ "$_cdt_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic"
+							[ "$_cdt_gametype" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
@@ -1615,15 +1609,9 @@ copy_directory_tree() {
 							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
-							if [ -n "$_cdt_classic" ]; then
-								_cdt_filters+="|xml_filter retail"
-								_cdt_filters+="|xml_filter version-retail"
-								[ "$_cdt_classic" != "bcc" ] && _cdt_filters+="|xml_filter version-bcc"
-								[ "$_cdt_classic" != "classic" ] && _cdt_filters+="|xml_filter version-classic"
-							else
-								_cdt_filters+="|xml_filter version-classic"
-								_cdt_filters+="|xml_filter version-bcc"
-							fi
+							[ "$_cdt_gametype" != "retail" ] && _cdt_filters+="|xml_filter version-retail|xml_filter retail"
+							[ "$_cdt_gametype" != "classic" ] && _cdt_filters+="|xml_filter version-classic"
+							[ "$_cdt_gametype" != "bcc" ] && _cdt_filters+="|xml_filter version-bcc"
 							;;
 						*.toc)
 							do_toc "$_cdt_srcdir/$file" "$package"
@@ -1631,10 +1619,10 @@ copy_directory_tree() {
 							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
 							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
 							_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
-							_cdt_filters+="|toc_filter retail ${_cdt_classic:+true}"
-							_cdt_filters+="|toc_filter version-retail ${_cdt_classic:+true}"
-							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_classic" != "classic" ]] && echo "true")"
-							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_classic" != "bcc" ]] && echo "true")"
+							_cdt_filters+="|toc_filter retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_gametype" != "classic" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
 							_cdt_filters+="|toc_interface_filter '${si_game_type_interface[${game_type:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
@@ -1655,8 +1643,8 @@ copy_directory_tree() {
 						# This uses version info from the main TOC file
 						# Reparsing seems a bit much when they should be the same
 						for type in "${!si_game_type_interface[@]}"; do
-							toc_version=${si_game_type_interface[$type]}
-							new_file=${file%.toc}
+							toc_version="${si_game_type_interface[$type]}"
+							new_file="${file%.toc}"
 							case $type in
 								retail) new_file+="_Mainline.toc" ;;
 								classic) new_file+="_Vanilla.toc" ;;
@@ -1701,7 +1689,7 @@ if [ -z "$skip_copying" ]; then
 	[ -z "$skip_localization" ] && cdt_args+="l"
 	[ -n "$nolib" ] && cdt_args+="n"
 	[ -n "$split" ] && cdt_args+="S"
-	[[ -n "$game_type" && "$game_type" != "retail" ]] && cdt_args+=" -c $game_type"
+	[ -n "$game_type" ] && cdt_args+=" -g $game_type"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
 	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
