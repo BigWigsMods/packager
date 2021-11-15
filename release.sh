@@ -1514,7 +1514,7 @@ copy_directory_tree() {
 	_cdt_nolib=
 	_cdt_do_not_package=
 	_cdt_unchanged_patterns=
-	_cdt_classic=
+	_cdt_gametype=
 	_cdt_external=
 	_cdt_split=
 	OPTIND=1
