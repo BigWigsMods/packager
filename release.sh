@@ -70,11 +70,11 @@ fi
 # Game versions for uploading
 declare -A game_flavor=( ["retail"]="retail" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" )
 
-declare -A game_type_version=()       # type -> version
-declare -A game_type_interface=()     # type -> toc
-declare -A si_game_type_interface=()  # type -> toc (last file)
-declare -A toc_interfaces=()          # path -> all toc interface values (: delim)
-declare -A toc_root_interface=()      # path -> base interface value
+declare -A game_type_version=()           # type -> version
+declare -A si_game_type_interface_all=()  # type -> toc (last file)
+declare -A si_game_type_interface=()      # type -> game type toc (last file)
+declare -A toc_interfaces=()              # path -> all toc interface values (: delim)
+declare -A toc_root_interface=()          # path -> base interface value
 
 # Script return code
 exit_code=0
@@ -1008,8 +1008,8 @@ do_toc() {
 		205*) toc_game_type="bcc" ;;
 		*) toc_game_type="retail"
 	esac
-	si_game_type_interface=()
-	[[ -n "$toc_game_type" ]] && si_game_type_interface["$toc_game_type"]="$toc_version"
+	si_game_type_interface_all=()
+	[[ -n "$toc_game_type" ]] && si_game_type_interface_all["$toc_game_type"]="$toc_version"
 
 	root_toc_version="$toc_version"
 
@@ -1050,10 +1050,11 @@ do_toc() {
 			if [[ -n "$game_type_toc_version" ]]; then
 				type="${game_flavor[$type]}"
 				si_game_type_interface[$type]="$game_type_toc_version"
+				si_game_type_interface_all[$type]="$game_type_toc_version"
 			fi
 		done
 		# Use the game type if set, otherwise default to retail
-		game_type_toc_version="${si_game_type_interface[${game_type:-retail}]}"
+		game_type_toc_version="${si_game_type_interface_all[${game_type:-retail}]}"
 
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
@@ -1085,12 +1086,12 @@ do_toc() {
 		fi
 
 		# Don't overwrite a specific version
-		if [[ -z "${si_game_type_interface[$toc_game_type]}" ]]; then
-			si_game_type_interface[$toc_game_type]="$toc_version"
+		if [[ -z "${si_game_type_interface_all[$toc_game_type]}" ]]; then
+			si_game_type_interface_all[$toc_game_type]="$toc_version"
 		fi
 	fi
 	toc_root_interface[$toc_path]="$root_toc_version"
-	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface[*]}" )
+	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface_all[*]}" )
 }
 
 set_build_version() {
@@ -1616,6 +1617,14 @@ copy_directory_tree() {
 							;;
 						*.toc)
 							do_toc "$_cdt_srcdir/$file" "$package"
+							# Process the fallback TOC file according to it's base interface version
+							if [[ $file == "$package.toc" && -z $_cdt_gametype ]]; then
+								case ${toc_root_interface["$_cdt_srcdir/$file"]} in
+									11[34]*) _cdt_gametype="classic" ;;
+									205*) _cdt_gametype="bcc" ;;
+									*) _cdt_gametype="retail"
+								esac
+							fi
 							_cdt_filters+="|do_not_package_filter toc"
 							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
 							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
@@ -1624,7 +1633,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_gametype" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter '${si_game_type_interface[${game_type:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
+							_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
 							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
@@ -1651,6 +1660,7 @@ copy_directory_tree() {
 					# Create game type specific TOCs
 					if [[ $file == *".toc" && -n $_cdt_split ]]; then
 						local toc_version new_file
+						local root_toc_version="${toc_root_interface["$_cdt_srcdir/$file"]}"
 						for type in "${!si_game_type_interface[@]}"; do
 							toc_version="${si_game_type_interface[$type]}"
 							new_file="${file%.toc}"
@@ -1671,15 +1681,15 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter '$toc_version' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
+							_cdt_filters+="|toc_interface_filter '$toc_version' '$root_toc_version'"
 							_cdt_filters+="|line_ending_filter"
 
 							eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$new_file"
 						done
 
-						# The fallback will never be used if you have a TOC for each game type
-						# if [[ ${#si_game_type_interface[@]} -eq 3 ]]; then
-						# 	echo "    Removing $file (redundant)"
+						# Remove the fallback TOC file if it doesn't have an interface value or if you a TOC file for each game type
+						# if [[ -z $root_toc_version || ${#si_game_type_interface[@]} -eq 3 ]]; then
+						# 	echo "    Removing $file"
 						# 	rm -f "$_cdt_destdir/$file"
 						# fi
 					fi
