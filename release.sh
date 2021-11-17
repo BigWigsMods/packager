@@ -1432,18 +1432,19 @@ localization_filter() {
 }
 
 lua_filter() {
-	local level
-	case $1 in
-		alpha) level="=" ;;
-		debug) level="==" ;;
-		retail|version-*) level="====" ;;
-		*) level="==="
+	local keyword="$1"
+	local width
+	case $keyword in
+		alpha) width="=" ;;
+		debug) width="==" ;;
+		retail|version-*) width="====" ;;
+		*) width="==="
 	esac
 	sed \
-		-e "s/--@$1@/--[${level}[@$1@/g" \
-		-e "s/--@end-$1@/--@end-$1@]${level}]/g" \
-		-e "s/--\[===\[@non-$1@/--@non-$1@/g" \
-		-e "s/--@end-non-$1@\]===\]/--@end-non-$1@/g"
+		-e "s/--@${keyword}@/--[${width}[@${keyword}@/g" \
+		-e "s/--@end-${keyword}@/--@end-${keyword}@]${width}]/g" \
+		-e "s/--\[===\[@non-${keyword}@/--@non-${keyword}@/g" \
+		-e "s/--@end-non-${keyword}@\]===\]/--@end-non-${keyword}@/g"
 }
 
 toc_interface_filter() {
