@@ -1636,13 +1636,21 @@ copy_directory_tree() {
 					set_info_file "$_cdt_srcdir/$file"
 
 					echo "  Copying: $file"
+
+					# Make sure we're not causing any surprises
+					if [[ -z $_cdt_gametype && ( $file == *".lua" || $file == *".xml" || ( $file == *".toc" && $file != "$package.toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\)@' "$_cdt_srcdir/$file"; then
+						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
+						echo "           These should be replaced with lua conditional statements:" >&2
+						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\)@' "$_cdt_srcdir/$file" | sed 's/^/           /' >&2
+						echo "           See: https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID"
+						exit 1
+					fi
+
 					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file"
 
 					# Create game type specific TOCs
 					if [[ $file == *".toc" && -n $_cdt_split ]]; then
 						local toc_version new_file
-						# This uses version info from the main TOC file
-						# Reparsing seems a bit much when they should be the same
 						for type in "${!si_game_type_interface[@]}"; do
 							toc_version="${si_game_type_interface[$type]}"
 							new_file="${file%.toc}"
