@@ -374,9 +374,10 @@ unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
-	# shellcheck disable=1090
+	# shellcheck disable=1090,1091
 	. "$topdir/.env"
 elif [ -f ".env" ]; then
+	# shellcheck disable=1091
 	. ".env"
 fi
 [ -z "$cf_token" ] && cf_token=$CF_API_KEY
@@ -1046,7 +1047,7 @@ do_toc() {
 		local game_type_toc_version
 		# Save the game type interface values
 		for type in "${!game_flavor[@]}"; do
-			game_type_toc_version=$( awk 'tolower($0) ~ /^## interface-'${type}':/ { print $NF; exit }' <<< "$toc_file" )
+			game_type_toc_version=$( awk 'tolower($0) ~ /^## interface-'"$type"':/ { print $NF; exit }' <<< "$toc_file" )
 			if [[ -n "$game_type_toc_version" ]]; then
 				type="${game_flavor[$type]}"
 				si_game_type_interface[$type]="$game_type_toc_version"
@@ -1116,7 +1117,7 @@ set_build_version() {
 				esac
 				if [[ -z $game_type || $game_type == "$toc_game_type" ]]; then
 					game_type_interface[$toc_game_type]="$toc_version"
-					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" ${toc_version:0:1} ${toc_version:1:2} ${toc_version:3:2} )
+					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" "${toc_version:0:1}" "${toc_version:1:2}" "${toc_version:3:2}" )
 				fi
 			done
 		done
@@ -2017,9 +2018,9 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 			wait -n
 			for i in ${!external_pids[*]}; do
 				pid=${external_pids[i]}
-				if ! kill -0 $pid 2>/dev/null; then
+				if ! kill -0 "$pid" 2>/dev/null; then
 					_external_output="$releasedir/.$pid.externalout"
-					if ! wait $pid; then
+					if ! wait "$pid"; then
 						_external_error=1
 						# wrap each line with a bright red color code
 						awk '{ printf "\033[01;31m%s\033[0m\n", $0 }' "$_external_output"
@@ -2814,7 +2815,7 @@ if [ -z "$skip_zipfile" ]; then
 				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
 				-d @- \
-				$_gh_release_url
+				"$_gh_release_url"
 		) && {
 			if [ "$result" = "200" ] || [ "$result" = "201" ]; then # edited || created
 				if [ -z "$release_id" ]; then
