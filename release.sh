@@ -1163,7 +1163,7 @@ fi
 
 # CurseForge still requires a fallback TOC file
 if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdir/$package/$package.toc" ]]; then
-	echo "CurseForge requires a \"$package.toc\" file to exist." >&2
+	echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
 	exit 1
 fi
 
