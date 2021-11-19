@@ -2477,13 +2477,13 @@ if [ -z "$skip_zipfile" ]; then
 
 		echo "Uploading $archive_name ($_cf_game_version $file_type) to $project_site/projects/$slug"
 		resultfile="$releasedir/cf_result.json"
-		result=$( echo "$_cf_payload" | curl -sS --retry 3 --retry-delay 10 \
+		if result=$( echo "$_cf_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "x-api-token: $cf_token" \
 				-F "metadata=<-" \
 				-F "file=@$archive" \
 				"$project_site/api/projects/$slug/upload-file"
-		) && {
+		); then
 			case $result in
 				200) echo "Success!" ;;
 				302)
@@ -2503,9 +2503,9 @@ if [ -z "$skip_zipfile" ]; then
 					return_code=1
 					;;
 			esac
-		} || {
+		else
 			return_code=1
-		}
+		fi
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
@@ -2556,7 +2556,7 @@ if [ -z "$skip_zipfile" ]; then
 
 		echo "Uploading $archive_name ($_wowi_game_version) to https://www.wowinterface.com/downloads/info$addonid"
 		resultfile="$releasedir/wi_result.json"
-		result=$( curl -sS --retry 3 --retry-delay 10 \
+		if result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "x-api-token: $wowi_token" \
 				-F "id=$addonid" \
@@ -2565,7 +2565,7 @@ if [ -z "$skip_zipfile" ]; then
 				"${_wowi_args[@]}" \
 				-F "updatefile=@$archive" \
 				"https://api.wowinterface.com/addons/update"
-		) && {
+		); then
 			case $result in
 				202)
 					echo "Success!"
@@ -2589,9 +2589,9 @@ if [ -z "$skip_zipfile" ]; then
 					return_code=1
 					;;
 			esac
-		} || {
+		else
 			return_code=1
-		}
+		fi
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
@@ -2646,14 +2646,14 @@ if [ -z "$skip_zipfile" ]; then
 
 		echo "Uploading $archive_name ($game_version $file_type) to Wago"
 		resultfile="$releasedir/wago_result.json"
-		result=$( echo "$_wago_payload" | curl -sS --retry 3 --retry-delay 10 \
+		if result=$( echo "$_wago_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "authorization: Bearer $wago_token" \
 				-H "accept: application/json" \
 				-F "metadata=<-" \
 				-F "file=@$archive" \
 				"https://addons.wago.io/api/projects/$wagoid/version"
-		) && {
+		); then
 			case $result in
 				200|201) echo "Success!" ;;
 				302)
@@ -2673,9 +2673,9 @@ if [ -z "$skip_zipfile" ]; then
 					return_code=1
 					;;
 			esac
-		} || {
+		else
 			return_code=1
-		}
+		fi
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
@@ -2708,14 +2708,14 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 
 		echo -n "Uploading $_ghf_file_name... "
-		result=$( curl -sS --retry 3 --retry-delay 10 \
+		if result=$( curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$_ghf_resultfile" \
 				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
 				-H "Content-Type: $_ghf_content_type" \
 				--data-binary "@$_ghf_file_path" \
 				"https://uploads.github.com/repos/$project_github_slug/releases/$_ghf_release_id/assets?name=$_ghf_file_name"
-		) && {
+		); then
 			if [ "$result" = "201" ]; then
 				echo "Success!"
 			else
@@ -2725,9 +2725,9 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 				return_code=1
 			fi
-		} || {
+		else
 			return_code=1
-		}
+		fi
 
 		rm -f "$_ghf_resultfile" 2>/dev/null
 
@@ -2796,27 +2796,27 @@ if [ -z "$skip_zipfile" ]; then
 				| jq -r '.[] | select(.name? == "release.json") | .url // empty'
 			)
 			if [ -n "$_gh_metadata_url" ]; then
-				_gh_previous_metadata=$( curl -sSL --fail \
+				if _gh_previous_metadata=$( curl -sSL --fail \
 						-H "Accept: application/octet-stream" \
 						-H "Authorization: token $github_token" \
 						"$_gh_metadata_url"
-				) && {
+				); then
 					jq -sc '.[0].releases + .[1].releases | unique_by(.filename) | { releases: [.[]] }' <<< "${_gh_metadata} ${_gh_previous_metadata}" > "$versionfile"
-				} || {
+				else
 					echo "Warning: Unable to update release.json ($?)"
-				}
+				fi
 			fi
 		else
 			echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 			_gh_release_url="https://api.github.com/repos/$project_github_slug/releases"
 		fi
-		result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
+		if result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
 				-w "%{http_code}" -o "$resultfile" \
 				-H "Accept: application/vnd.github.v3+json" \
 				-H "Authorization: token $github_token" \
 				-d @- \
 				"$_gh_release_url"
-		) && {
+		); then
 			if [ "$result" = "200" ] || [ "$result" = "201" ]; then # edited || created
 				if [ -z "$release_id" ]; then
 					release_id=$( jq '.id' < "$resultfile" )
@@ -2835,9 +2835,9 @@ if [ -z "$skip_zipfile" ]; then
 				fi
 				return_code=1
 			fi
-		} || {
+		else
 			return_code=1
-		}
+		fi
 		echo
 
 		rm -f "$resultfile" 2>/dev/null
