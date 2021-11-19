@@ -1619,7 +1619,7 @@ copy_directory_tree() {
 						*.toc)
 							do_toc "$_cdt_srcdir/$file" "$package"
 							# Process the fallback TOC file according to it's base interface version
-							if [[ $file == "$package.toc" && -z $_cdt_gametype ]]; then
+							if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
 								case ${toc_root_interface["$_cdt_srcdir/$file"]} in
 									11[34]*) _cdt_gametype="classic" ;;
 									205*) _cdt_gametype="bcc" ;;
@@ -1648,7 +1648,7 @@ copy_directory_tree() {
 					echo "  Copying: $file"
 
 					# Make sure we're not causing any surprises
-					if [[ -z $_cdt_gametype && ( $file == *".lua" || $file == *".xml" || ( $file == *".toc" && $file != "$package.toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\)@' "$_cdt_srcdir/$file"; then
+					if [[ -z $_cdt_gametype && ( $file == *".lua" || $file == *".xml" || $file == *".toc" ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\)@' "$_cdt_srcdir/$file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
 						echo "           These should be replaced with lua conditional statements:" >&2
 						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\)@' "$_cdt_srcdir/$file" | sed 's/^/             /' >&2
