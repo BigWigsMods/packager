@@ -71,6 +71,7 @@ fi
 declare -A game_flavor=( ["retail"]="retail" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" )
 
 declare -A game_type_version=()           # type -> version
+declare -A game_type_interface=()         # type -> toc
 declare -A si_game_type_interface_all=()  # type -> toc (last file)
 declare -A si_game_type_interface=()      # type -> game type toc (last file)
 declare -A toc_interfaces=()              # path -> all toc interface values (: delim)
