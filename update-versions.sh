@@ -11,5 +11,5 @@ for v in $variants; do
 done
 
 for v in $variants; do
-    find . -type f -name "*-$v.toc" | xargs sed -i -E -e "s/## *Interface:.*/## Interface: ${!v}/i"
+    find . -type f -name "*-$v.toc" -print0 | xargs -0 -I % sh -c "echo 'Updating %'; sed -i -E -e \"s/## *Interface:.*/## Interface: ${!v}/i\" %"
 done
