@@ -1,5 +1,5 @@
 #! /bin/bash
-# LPGL v3 (c) 2022 MooreaTv <moorea@ymail.com>
+# Find your multi toc and update them
 
 # shellcheck source=interfaces.txt
 source "$(dirname "${BASH_SOURCE[0]}")/interfaces.txt"
