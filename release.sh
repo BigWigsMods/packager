@@ -76,6 +76,7 @@ declare -A si_game_type_interface_all=()  # type -> toc (last file)
 declare -A si_game_type_interface=()      # type -> game type toc (last file)
 declare -A toc_interfaces=()              # path -> all toc interface values (: delim)
 declare -A toc_root_interface=()          # path -> base interface value
+declare -A root_paths=()                  # path -> directory name
 
 # Script return code
 exit_code=0
@@ -935,6 +936,12 @@ if [ -f "$pkgmeta_file" ]; then
 										;;
 								esac
 								;;
+							move-folders)
+								# Save project root directories
+								if [[ $yaml_value != *"/"* ]]; then
+									root_paths["$topdir/$yaml_value"]="$yaml_value"
+								fi
+								;;
 						esac
 						;;
 				esac
@@ -1151,11 +1158,16 @@ if [[ -z "$package" ]]; then
 	fi
 fi
 
+# Add the project root
+root_paths["$topdir"]="$package"
+
 # Parse the main addon's TOC file(s)
-for toc in "$topdir"{,/"$package"}/"$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
-	if [[ -f "$toc" ]]; then
-		do_toc "$toc" "$package"
-	fi
+for path in "${!root_paths[@]}"; do
+	for toc in "$path/${root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
+		if [[ -f "$toc" ]]; then
+			do_toc "$toc" "${root_paths[$path]}"
+		fi
+	done
 done
 
 if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
@@ -1170,13 +1182,13 @@ if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdi
 fi
 
 if [[ -n "$split" ]]; then
-	if [[ ${#toc_interfaces[@]} -gt 1 ]]; then
-		echo "Creating TOC files is enabled but there are already multiple TOC files:" >&2
-		for path in "${!toc_interfaces[@]}"; do
-			echo "  ${path##$topdir/}" >&2
-		done
-		exit 1
-	fi
+	# if [[ ${#toc_interfaces[@]} -gt 1 ]]; then
+	# 	echo "Creating TOC files is enabled but there are already multiple TOC files:" >&2
+	# 	for path in "${!toc_interfaces[@]}"; do
+	# 		echo "  ${path##$topdir/}" >&2
+	# 	done
+	# 	exit 1
+	# fi
 	if [[ "${toc_interfaces[*]}" != *":"* ]]; then
 		echo "Creating TOC files is enabled but there is only one TOC interface version: ${toc_interfaces[*]}" >&2
 		exit 1
@@ -1593,7 +1605,7 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml" || [[ "$file" == *".toc" && -z "$package" ]]; then
+				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
@@ -1619,25 +1631,28 @@ copy_directory_tree() {
 							[ "$_cdt_gametype" != "bcc" ] && _cdt_filters+="|xml_filter version-bcc"
 							;;
 						*.toc)
-							do_toc "$_cdt_srcdir/$file" "$package"
-							# Process the fallback TOC file according to it's base interface version
-							if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
-								case ${toc_root_interface["$_cdt_srcdir/$file"]} in
-									11*) _cdt_gametype="classic" ;;
-									20*) _cdt_gametype="bcc" ;;
-									*) _cdt_gametype="retail"
-								esac
+							# We only care about processing project TOC files
+							if [[ -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
+								do_toc "$_cdt_srcdir/$file" "${root_paths["$_cdt_srcdir/$file"]}"
+								# Process the fallback TOC file according to it's base interface version
+								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
+									case ${toc_root_interface["$_cdt_srcdir/$file"]} in
+										11*) _cdt_gametype="classic" ;;
+										20*) _cdt_gametype="bcc" ;;
+										*) _cdt_gametype="retail"
+									esac
+								fi
+								_cdt_filters+="|do_not_package_filter toc"
+								[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
+								_cdt_filters+="|toc_filter debug ${_cdt_debug}"
+								_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
+								_cdt_filters+="|toc_filter retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
+								_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
+								_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_gametype" != "classic" ]] && echo "true")"
+								_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
+								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
+								[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							fi
-							_cdt_filters+="|do_not_package_filter toc"
-							[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
-							_cdt_filters+="|toc_filter debug ${_cdt_debug}"
-							_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
-							_cdt_filters+="|toc_filter retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
-							_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_gametype" != "retail" ]] && echo "true")"
-							_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_gametype" != "classic" ]] && echo "true")"
-							_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
-							_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
-							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
 							;;
 					esac
 
