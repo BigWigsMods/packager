@@ -23,9 +23,9 @@ For a full example workflow, please check out the [wiki page](https://github.com
 ### Example using [options](#Usage)
 
 ```yaml
-- uses: BigWigsMods/packager@v1
+- uses: BigWigsMods/packager@v2
   with:
-    args: -g classic -m .pkgmeta-classic
+    args: -p 1234 -w 5678 -a he54k6bL
 ```
 
 ### What's new with v2
@@ -56,9 +56,9 @@ So what does this mean for you?
    the base interface value as it's version.
 
    ```toc
-   ## Interface: 90105
+   ## Interface: 90200
    ## Interface-Classic: 11402
-   ## Interface-BCC: 20502
+   ## Interface-BCC: 20503
    ```
 
    Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
@@ -257,37 +257,59 @@ on the build type:
 
 ## Building for multiple game versions
 
-__release.sh__ needs to know what version of World of Warcraft the package is
-targeting.  This is normally automatically detected using the `## Interface:`
-line of the addon's TOC file.
+__release.sh__ automatically detects what game version(s) the addon supports.
+You only need to run a build once and the file will be tagged with the
+appropriate versions when uploaded.
 
-If your addon supports both retail and classic in the same branch, you can use
-multiple `## Interface-Type:` lines in your TOC file.  Only one `## Interface:`
-line will be included in the packaged TOC file based on the targeted game
-version.
+### Multiple TOC files
+
+You can create [multiple TOC files](https://wowpedia.fandom.com/wiki/TOC_format#Multiple_client_flavors),
+one for each supported game type, and __release.sh__ will use them to set the
+build's game version.
+
+If you have already been dabbling with multiple TOC files and/or multiple
+versions, you no longer need to manually set the versions via `-g` or on the
+CurseForge website.
+
+**Note:** CurseForge still requires that a fallback TOC file exists (the TOC
+file with the same name as the addon directory). So if you support all three
+game types, you may as well leave the fallback TOC file as one of the game types
+instead of creating three game type specific ones.
+
+### Single TOC file
+
+If you are using multiple `## Interface-Type` lines in a single TOC file, you
+can now use the `-S` command line option or add `enable-toc-creation: yes` to
+your `.pkgmeta` file to automatically generate game type specific TOC files
+based on your existing preprocessing logic.  The fallback TOC file will use
+the base interface value as it's version.
 
 ```toc
-## Interface: 90005
-## Interface-Retail: 90005
-## Interface-Classic: 11306
-## Interface-BCC: 20501
+## Interface: 90200
+## Interface-Classic: 11402
+## Interface-BCC: 20503
 ```
 
-You specify what version of the game you're targeting with the `-g` switch. You
-can use a specific version (`release.sh -g 1.13.6`) or you can use the game type
-(`release.sh -g classic`).  Using a game type will set the game version based on
-the appropriate TOC `## Interface` value.
+Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
+`MyAddon_TBC.toc`, and `MyAddon.toc` (retail).
 
-You can also set multiple specific versions as a comma delimited list using the
-`-g` switch (`release.sh -g 1.13.6,2.5.1,9.0.5`).  This will still only build
-one package, with the the last version listed used as the target version for
-the build.
+If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
+for controlling what code blocks execute based on the build version, you
+need to switch to plain old Lua control statements.  Fortunately, there are
+some [constants](https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID) set by
+Blizzard you can use for this.  If you use these keywords in xml files, you
+will have to reorganize your includes in the appropriate TOC files.
 
-**Setting multiple versions is not recommended!** The addon will always be
-marked "Out of date" in-game for versions that do not match the TOC interface
-value for the last version set. So even if you don't need any special file
-processing, it will always be best to run the packager multiple times so the TOC
-interface value is correct for each game version.
+### Single game version
+
+As the game officially supports multiple game versions now, manually setting the
+version should be considered deprecated and only be used if the game version is
+not being detected correctly.
+
+You can specify what version of the game you're targeting with the `-g` switch.
+You can use a specific version (`release.sh -g 1.14.2`), a list (`release.sh -g "9.2.0,1.14.2"`)
+or the game type (`release.sh -g classic`).  Using a game type will set the game
+version based on the appropriate TOC `## Interface` value.
 
 ## Building locally
 
