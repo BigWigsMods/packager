@@ -222,6 +222,7 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 							exit 1
 						fi
 						game_type_version[$game_type]="$i"
+						game_type_interface[$game_type]=$( printf "%d%02d%02d" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" )
 					done
 					if [[ ${#game_type_version[@]} -gt 1 ]]; then
 						game_type=
