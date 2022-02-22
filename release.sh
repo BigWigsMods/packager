@@ -208,9 +208,9 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 							usage
 							exit 1
 						fi
-						if [[ ${BASH_REMATCH[1]} == "1" && (${BASH_REMATCH[2]} == "13" || ${BASH_REMATCH[2]} == "14") ]]; then
+						if [[ ${BASH_REMATCH[1]} == "1" ]]; then
 							game_type="classic"
-						elif [[ ${BASH_REMATCH[1]} == "2" && ${BASH_REMATCH[2]} == "5" ]]; then
+						elif [[ ${BASH_REMATCH[1]} == "2" ]]; then
 							game_type="bcc"
 						else
 							game_type="retail"
@@ -1006,8 +1006,8 @@ do_toc() {
 	toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
 	case $toc_version in
 		"") toc_game_type= ;;
-		11[34]*) toc_game_type="classic" ;;
-		205*) toc_game_type="bcc" ;;
+		11*) toc_game_type="classic" ;;
+		20*) toc_game_type="bcc" ;;
 		*) toc_game_type="retail"
 	esac
 	si_game_type_interface_all=()
@@ -1061,8 +1061,8 @@ do_toc() {
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
 			case $toc_version in
-				11[34]*) toc_game_type="classic" ;;
-				205*) toc_game_type="bcc" ;;
+				11*) toc_game_type="classic" ;;
+				20*) toc_game_type="bcc" ;;
 				*) toc_game_type="retail"
 			esac
 		fi
@@ -1071,8 +1071,8 @@ do_toc() {
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && "$toc_game_type" != "$game_type" ]]; then
 			toc_game_type="$game_type"
 			case $toc_game_type in
-				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(11[34])/ { print $NF; exit }' ) ;;
-				bcc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(205)/ { print $NF; exit }' ) ;;
+				classic) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(11)/ { print $NF; exit }' ) ;;
+				bcc) toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk '/#[[:blank:]]*## Interface:[[:blank:]]*(20)/ { print $NF; exit }' ) ;;
 			esac
 			# This becomes the actual interface version after replacements
 			root_toc_version="$toc_version"
@@ -1112,8 +1112,8 @@ set_build_version() {
 			IFS=':' read -ra versions <<< "$version"
 			for toc_version in "${versions[@]}"; do
 				case $toc_version in
-					11[34]*) toc_game_type="classic" ;;
-					205*) toc_game_type="bcc" ;;
+					11*) toc_game_type="classic" ;;
+					20*) toc_game_type="bcc" ;;
 					*) toc_game_type="retail"
 				esac
 				if [[ -z $game_type || $game_type == "$toc_game_type" ]]; then
@@ -1622,8 +1622,8 @@ copy_directory_tree() {
 							# Process the fallback TOC file according to it's base interface version
 							if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
 								case ${toc_root_interface["$_cdt_srcdir/$file"]} in
-									11[34]*) _cdt_gametype="classic" ;;
-									205*) _cdt_gametype="bcc" ;;
+									11*) _cdt_gametype="classic" ;;
+									20*) _cdt_gametype="bcc" ;;
 									*) _cdt_gametype="retail"
 								esac
 							fi
