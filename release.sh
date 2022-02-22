@@ -2742,7 +2742,7 @@ upload_github() {
 		return 0
 	fi
 
-	local _gh_metadata _gh_previous_metadata _gh_payload _gh_release_url
+	local _gh_metadata _gh_previous_metadata _gh_payload _gh_release_url _gh_method
 	local release_id versionfile resultfile result flavor
 	local return_code=0
 
@@ -2789,7 +2789,8 @@ upload_github() {
 	)
 	if [ -n "$release_id" ]; then
 		echo "Updating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
-		_gh_release_url="-X PATCH https://api.github.com/repos/$project_github_slug/releases/$release_id"
+		_gh_release_url="https://api.github.com/repos/$project_github_slug/releases/$release_id"
+		_gh_method="PATCH"
 
 		# combine version info
 		_gh_metadata_url=$( curl -sS \
@@ -2812,11 +2813,13 @@ upload_github() {
 	else
 		echo "Creating GitHub release: https://github.com/$project_github_slug/releases/tag/$tag"
 		_gh_release_url="https://api.github.com/repos/$project_github_slug/releases"
+		_gh_method="POST"
 	fi
 	if result=$( echo "$_gh_payload" | curl -sS --retry 3 --retry-delay 10 \
 			-w "%{http_code}" -o "$resultfile" \
 			-H "Accept: application/vnd.github.v3+json" \
 			-H "Authorization: token $github_token" \
+			-X "$_gh_method" \
 			-d @- \
 			"$_gh_release_url"
 	); then
