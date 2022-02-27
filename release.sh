@@ -759,6 +759,7 @@ changelog=
 changelog_markup="text"
 enable_nolib_creation=
 ignore=
+unchanged=
 contents=
 nolib_exclude=
 wowi_gen_changelog="true"
@@ -798,7 +799,7 @@ parse_ignore() {
 				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
 				# Get the YAML list item.
 				yaml_listitem "$yaml_line"
-				if [ "$pkgmeta_phase" = "ignore" ]; then
+				if [[ "$pkgmeta_phase" == "ignore" || "$pkgmeta_phase" == "plain-copy" ]]; then
 					pattern=$yaml_item
 					if [ -d "$checkpath/$pattern" ]; then
 						pattern="$copypath$pattern/*"
@@ -808,10 +809,18 @@ parse_ignore() {
 					else
 						pattern="$copypath$pattern"
 					fi
-					if [ -z "$ignore" ]; then
-						ignore="$pattern"
-					else
-						ignore="$ignore:$pattern"
+					if [[ "$pkgmeta_phase" == "ignore" ]]; then
+						if [ -z "$ignore" ]; then
+							ignore="$pattern"
+						else
+							ignore="$ignore:$pattern"
+						fi
+					elif [[ "$pkgmeta_phase" == "plain-copy" ]]; then
+						if [ -z "$unchanged" ]; then
+							unchanged="$pattern"
+						else
+							unchanged="$unchanged:$pattern"
+						fi
 					fi
 				fi
 				;;
@@ -901,6 +910,20 @@ if [ -f "$pkgmeta_file" ]; then
 									ignore="$pattern"
 								else
 									ignore="$ignore:$pattern"
+								fi
+								;;
+							plain-copy)
+								pattern=$yaml_item
+								if [ -d "$topdir/$pattern" ]; then
+									pattern="$pattern/*"
+								elif [ ! -f "$topdir/$pattern" ]; then
+									# doesn't exist so match both a file and a path
+									pattern="$pattern:$pattern/*"
+								fi
+								if [ -z "$unchanged" ]; then
+									unchanged="$pattern"
+								else
+									unchanged="$unchanged:$pattern"
 								fi
 								;;
 							tools-used)
@@ -1579,25 +1602,24 @@ copy_directory_tree() {
 	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
 		file=${file#./}
 		if [ -f "$_cdt_srcdir/$file" ]; then
-			# Check if the file should be ignored.
-			skip_copy=
+			_cdt_skip_copy=
+			_cdt_only_copy=
 			# Prefix external files with the relative pkgdir path
 			_cdt_check_file=$file
 			if [ -n "${_cdt_destdir#$pkgdir}" ]; then
 				_cdt_check_file="${_cdt_destdir#$pkgdir/}/$file"
 			fi
 			# Skip files matching the colon-separated "ignored" shell wildcard patterns.
-			if [ -z "$skip_copy" ] && match_pattern "$_cdt_check_file" "$_cdt_ignored_patterns"; then
-				skip_copy="true"
+			if match_pattern "$_cdt_check_file" "$_cdt_ignored_patterns"; then
+				_cdt_skip_copy="true"
 			fi
 			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
-			unchanged=
-			if [ -n "$skip_copy" ] && match_pattern "$file" "$_cdt_unchanged_patterns"; then
-				skip_copy=
-				unchanged="true"
+			if match_pattern "$file" "$_cdt_unchanged_patterns"; then
+				_cdt_skip_copy=
+				_cdt_only_copy="true"
 			fi
 			# Copy unskipped files into $_cdt_destdir.
-			if [ -n "$skip_copy" ]; then
+			if [ -n "$_cdt_skip_copy" ]; then
 				echo "  Ignoring: $file"
 			else
 				dir=${file%/*}
@@ -1605,7 +1627,7 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
+				if [ -n "$_cdt_only_copy" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
@@ -1728,12 +1750,20 @@ if [ -z "$skip_copying" ]; then
 	[ -n "$split" ] && cdt_args+="S"
 	[ -n "$game_type" ] && cdt_args+=" -g $game_type"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
-	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
+	if [ -n "$changelog" ]; then
+		if [ -z "$unchanged" ]; then
+			unchanged="$changelog"
+		else
+			unchanged="$unchanged:$changelog"
+		fi
+	fi
+	[ -n "$unchanged" ] && cdt_args+=" -u \"$unchanged\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
 fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
 ignore=
+unchanged=
 parse_ignore "$pkgmeta_file"
 
 ###
@@ -1864,9 +1894,9 @@ checkout_external() {
 		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
 			project_site="https://wow.curseforge.com"
 		fi
-		# If a .pkgmeta file is present, process it for an "ignore" list.
+		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
 		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir"
-		copy_directory_tree -dnpe -i "$ignore" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+		copy_directory_tree -dnpe -i "$ignore" -u "$unchanged" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
 	)
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
