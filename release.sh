@@ -76,7 +76,7 @@ declare -A si_game_type_interface_all=()  # type -> toc (last file)
 declare -A si_game_type_interface=()      # type -> game type toc (last file)
 declare -A toc_interfaces=()              # path -> all toc interface values (: delim)
 declare -A toc_root_interface=()          # path -> base interface value
-declare -A root_paths=()                  # path -> directory name
+declare -A toc_root_paths=()              # path -> directory name
 
 # Script return code
 exit_code=0
@@ -939,7 +939,7 @@ if [ -f "$pkgmeta_file" ]; then
 							move-folders)
 								# Save project root directories
 								if [[ $yaml_value != *"/"* ]]; then
-									root_paths["$topdir/$yaml_value"]="$yaml_value"
+									toc_root_paths["$topdir/$yaml_value"]="$yaml_value"
 								fi
 								;;
 						esac
@@ -1159,13 +1159,13 @@ if [[ -z "$package" ]]; then
 fi
 
 # Add the project root
-root_paths["$topdir"]="$package"
+toc_root_paths["$topdir"]="$package"
 
 # Parse the main addon's TOC file(s)
-for path in "${!root_paths[@]}"; do
-	for toc in "$path/${root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
-		if [[ -f "$toc" ]]; then
-			do_toc "$toc" "${root_paths[$path]}"
+for path in "${!toc_root_paths[@]}"; do
+	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
+		if [[ -f "$toc_path" ]]; then
+			do_toc "$toc_path" "${toc_root_paths[$path]}"
 		fi
 	done
 done
@@ -1633,7 +1633,7 @@ copy_directory_tree() {
 						*.toc)
 							# We only care about processing project TOC files
 							if [[ -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
-								do_toc "$_cdt_srcdir/$file" "${root_paths["$_cdt_srcdir/$file"]}"
+								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_srcdir/$file"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
 									case ${toc_root_interface["$_cdt_srcdir/$file"]} in
