@@ -1614,7 +1614,7 @@ copy_directory_tree() {
 				_cdt_skip_copy="true"
 			fi
 			# Never skip files that match the colon-separated "unchanged" shell wildcard patterns.
-			if match_pattern "$file" "$_cdt_unchanged_patterns"; then
+			if match_pattern "$_cdt_check_file" "$_cdt_unchanged_patterns"; then
 				_cdt_skip_copy=
 				_cdt_only_copy="true"
 			fi
