@@ -1633,7 +1633,7 @@ copy_directory_tree() {
 						*.toc)
 							# We only care about processing project TOC files
 							if [[ -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
-								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_srcdir/$file"]}"
+								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_srcdir"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
 									case ${toc_root_interface["$_cdt_srcdir/$file"]} in
@@ -1676,7 +1676,7 @@ copy_directory_tree() {
 					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file"
 
 					# Create game type specific TOCs
-					if [[ $file == *".toc" && -n $_cdt_split ]]; then
+					if [[ -n $_cdt_split && -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
 						local toc_version new_file
 						local root_toc_version="${toc_root_interface["$_cdt_srcdir/$file"]}"
 						for type in "${!si_game_type_interface[@]}"; do
