@@ -961,8 +961,9 @@ if [ -f "$pkgmeta_file" ]; then
 								;;
 							move-folders)
 								# Save project root directories
+								_mf_path="${yaml_key#*/}" # strip the package name
 								if [[ $yaml_value != *"/"* ]]; then
-									toc_root_paths["$topdir/$yaml_value"]="$yaml_value"
+									toc_root_paths["$topdir/$_mf_path"]="$yaml_value"
 								fi
 								;;
 						esac
@@ -1041,6 +1042,7 @@ do_toc() {
 		20*) toc_game_type="bcc" ;;
 		*) toc_game_type="retail"
 	esac
+	si_game_type_interface=()
 	si_game_type_interface_all=()
 	[[ -n "$toc_game_type" ]] && si_game_type_interface_all["$toc_game_type"]="$toc_version"
 
@@ -1655,7 +1657,8 @@ copy_directory_tree() {
 						*.toc)
 							# We only care about processing project TOC files
 							if [[ -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
-								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_srcdir"]}"
+								_cdt_toc_dir="$_cdt_srcdir/${file%/*}"
+								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_toc_dir"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
 									case ${toc_root_interface["$_cdt_srcdir/$file"]} in
