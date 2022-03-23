@@ -754,6 +754,7 @@ fi
 
 # Variables set via .pkgmeta.
 package=
+project=
 manual_changelog=
 changelog=
 changelog_markup="text"
@@ -961,8 +962,8 @@ if [ -f "$pkgmeta_file" ]; then
 								;;
 							move-folders)
 								# Save project root directories
-								_mf_path="${yaml_key#*/}" # strip the package name
 								if [[ $yaml_value != *"/"* ]]; then
+									_mf_path="${yaml_key#*/}" # strip the package name
 									toc_root_paths["$topdir/$_mf_path"]="$yaml_value"
 								fi
 								;;
@@ -1183,10 +1184,27 @@ if [[ -z "$package" ]]; then
 	fi
 fi
 
-# Add the project root
-toc_root_paths["$topdir"]="$package"
+# Parse the project root TOC file for info first
+for toc_path in "$topdir/$package"{,"/$package"}{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
+	if [[ -f "$toc_path" ]]; then
+		if [ -z "$project" ]; then
+			project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+		fi
+		if [ -z "$slug" ]; then
+			slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
+		fi
+		if [ -z "$addonid" ]; then
+			addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
+		fi
+		if [ -z "$wagoid" ]; then
+			wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+		fi
+		# Add the root TOC file for interface parsing
+		toc_root_paths["${toc_path%/*}"]="$package"
+	fi
+done
 
-# Parse the main addon's TOC file(s)
+# Parse move-folder TOC files
 for path in "${!toc_root_paths[@]}"; do
 	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
 		if [[ -f "$toc_path" ]]; then
