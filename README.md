@@ -218,7 +218,7 @@ The lines with `#@keyword@` and `#@end-keyword@` get removed, as well as every
 line in-between.
 
 The lines with `#@non-keyword@` and `#@end-non-keyword@` get removed, as well as
-removing a '# ' at the beginning of each line in-between.
+removing a '# ' (note the space) at the beginning of each line in-between.
 
 ### Changing the file name
 
