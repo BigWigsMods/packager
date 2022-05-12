@@ -884,17 +884,17 @@ parse_ignore() {
 			continue
 		fi
 		# Strip any trailing CR character.
-		yaml_line=${yaml_line%$carriage_return}
+		yaml_line="${yaml_line%"$carriage_return"}"
 
 		case $yaml_line in
 			[!\ ]*:*)
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
 				# Set the $pkgmeta_phase for stateful processing.
-				pkgmeta_phase=$yaml_key
+				pkgmeta_phase="$yaml_key"
 				;;
 			[\ ]*"- "*)
-				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				yaml_line="${yaml_line#"${yaml_line%%[! ]*}"}" # trim leading whitespace
 				# Get the YAML list item.
 				yaml_listitem "$yaml_line"
 				if [[ "$pkgmeta_phase" == "ignore" || "$pkgmeta_phase" == "plain-copy" ]] && [[ $yaml_item == "$sub_path"* ]]; then
@@ -943,14 +943,14 @@ if [ -f "$pkgmeta_file" ]; then
 			continue
 		fi
 		# Strip any trailing CR character.
-		yaml_line=${yaml_line%$carriage_return}
+		yaml_line="${yaml_line%"$carriage_return"}"
 
 		case $yaml_line in
 			[!\ ]*:*)
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
 				# Set the $pkgmeta_phase for stateful processing.
-				pkgmeta_phase=$yaml_key
+				pkgmeta_phase="$yaml_key"
 
 				case $yaml_key in
 					enable-nolib-creation)
@@ -967,14 +967,14 @@ if [ -f "$pkgmeta_file" ]; then
 						license=$yaml_value
 						;;
 					manual-changelog)
-						changelog=$yaml_value
+						changelog="$yaml_value"
 						manual_changelog="true"
 						;;
 					changelog-title)
 						project="$yaml_value"
 						;;
 					package-as)
-						package=$yaml_value
+						package="$yaml_value"
 						;;
 					wowi-create-changelog)
 						if [ "$yaml_value" = "no" ]; then
@@ -1021,12 +1021,12 @@ if [ -f "$pkgmeta_file" ]; then
 							manual-changelog)
 								case $yaml_key in
 									filename)
-										changelog=$yaml_value
+										changelog="$yaml_value"
 										manual_changelog="true"
 										;;
 									markup-type)
 										if [ "$yaml_value" = "markdown" ] || [ "$yaml_value" = "html" ]; then
-											changelog_markup=$yaml_value
+											changelog_markup="$yaml_value"
 										else
 											changelog_markup="text"
 										fi
@@ -1865,14 +1865,14 @@ parse_ignore "$pkgmeta_file"
 
 # Checkout the external into a ".checkout" subdirectory of the final directory.
 checkout_external() {
-	_external_dir=$1
-	_external_uri=$2
-	_external_tag=$3
-	_external_type=$4
+	local _external_dir="$1"
+	local _external_uri="$2"
+	local _external_tag="$3"
+	local _external_type="$4"
 	# shellcheck disable=SC2034
-	_external_slug=$5 # unused until we can easily fetch the project id
-	_external_checkout_type=$6
-	_external_path=$7
+	local _external_slug="$5" # unused until we can easily fetch the project id
+	local _external_checkout_type="$6"
+	local _external_path="$7"
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	if [[ -d $_cqe_checkout_dir ]]; then
@@ -2109,7 +2109,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 			continue
 		fi
 		# Strip any trailing CR character.
-		yaml_line=${yaml_line%$carriage_return}
+		yaml_line="${yaml_line%"$carriage_return"}"
 
 		case $yaml_line in
 			[!\ ]*:*)
@@ -2118,10 +2118,10 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 				# Split $yaml_line into a $yaml_key, $yaml_value pair.
 				yaml_keyvalue "$yaml_line"
 				# Set the $pkgmeta_phase for stateful processing.
-				pkgmeta_phase=$yaml_key
+				pkgmeta_phase="$yaml_key"
 				;;
 			" "*)
-				yaml_line=${yaml_line#"${yaml_line%%[! ]*}"} # trim leading whitespace
+				yaml_line="${yaml_line#"${yaml_line%%[! ]*}"}" # trim leading whitespace
 				case $yaml_line in
 					"- "*)
 						;;
@@ -2131,30 +2131,30 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 						case $pkgmeta_phase in
 							externals)
 								case $yaml_key in
-									url) external_uri=$yaml_value ;;
+									url) external_uri="$yaml_value" ;;
 									tag)
-										external_tag=$yaml_value
-										external_checkout_type=$yaml_key
+										external_tag="$yaml_value"
+										external_checkout_type="$yaml_key"
 										;;
 									branch)
-										external_tag=$yaml_value
-										external_checkout_type=$yaml_key
+										external_tag="$yaml_value"
+										external_checkout_type="$yaml_key"
 										;;
 									commit)
-										external_tag=$yaml_value
-										external_checkout_type=$yaml_key
+										external_tag="$yaml_value"
+										external_checkout_type="$yaml_key"
 										;;
-									type) external_type=$yaml_value ;;
-									curse-slug) external_slug=$yaml_value ;;
-									path) external_path=$yaml_value ;;
+									type) external_type="$yaml_value" ;;
+									curse-slug) external_slug="$yaml_value" ;;
+									path) external_path="$yaml_value" ;;
 									*)
 										# Started a new external, so checkout any queued externals.
 										process_external
 
-										external_dir=$yaml_key
+										external_dir="$yaml_key"
 										nolib_exclude="$nolib_exclude $pkgdir/$external_dir/*"
 										if [ -n "$yaml_value" ]; then
-											external_uri=$yaml_value
+											external_uri="$yaml_value"
 											# Immediately checkout this fully-specified external.
 											process_external
 										fi
