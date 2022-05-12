@@ -27,6 +27,12 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
+# Global shellcheck excludes:
+#   SC2295: Expansions inside ${..} need to be quoted separately, otherwise they will match as a pattern.
+#   SC2030: Modification of var is local (to subshell caused by pipeline).
+#   SC2031: var was modified in a subshell. That change might be lost.
+# shellcheck disable=SC2295,SC2030,SC2031
+
 ## USER OPTIONS
 
 # Secrets for uploading
@@ -377,10 +383,10 @@ unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
-	# shellcheck disable=1090,1091
+	# shellcheck disable=SC1090,SC1091
 	. "$topdir/.env"
 elif [ -f ".env" ]; then
-	# shellcheck disable=1091
+	# shellcheck disable=SC1091
 	. ".env"
 fi
 [ -z "$cf_token" ] && cf_token=$CF_API_KEY
@@ -542,6 +548,7 @@ set_info_svn() {
 				# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
 				_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
 				_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
+				# shellcheck disable=SC2001
 				_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
 
 				if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
@@ -711,7 +718,7 @@ match_pattern() {
 	while [ -n "$_mp_list" ]; do
 		_mp_pattern=${_mp_list%%:*}
 		_mp_list=${_mp_list#*:}
-		# shellcheck disable=2254
+		# shellcheck disable=SC2254
 		case $_mp_file in
 			$_mp_pattern)
 				return 0
@@ -994,6 +1001,7 @@ elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
 	IFS=$'\n'
+	# shellcheck disable=SC1003
 	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- | tr '\\' '/' ); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore/*"
@@ -1172,6 +1180,7 @@ set_build_version() {
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
+	# shellcheck disable=SC2035
 	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | sort -dr | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
@@ -1374,6 +1383,7 @@ localization_filter() {
 				# Generate a URL parameter string from the localization parameters.
 				# https://authors.curseforge.com/knowledge-base/projects/529-api
 				_ul_url_params=""
+				# shellcheck disable=SC2086
 				set -- ${_ul_params}
 				for _ul_param; do
 					_ul_key=${_ul_param%%=*}
@@ -1579,7 +1589,7 @@ copy_directory_tree() {
 	_cdt_split=
 	OPTIND=1
 	while getopts :adi:lnpu:g:eS _cdt_opt "$@"; do
-		# shellcheck disable=2220
+		# shellcheck disable=SC2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
 			d)	_cdt_debug="true" ;;
@@ -1811,7 +1821,7 @@ checkout_external() {
 	_external_uri=$2
 	_external_tag=$3
 	_external_type=$4
-	# shellcheck disable=2034
+	# shellcheck disable=SC2034
 	_external_slug=$5 # unused until we can easily fetch the project id
 	_external_checkout_type=$6
 
@@ -2443,6 +2453,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
+	# shellcheck disable=SC2086
 	( cd "$releasedir" && zip -X -r "$archive" $contents )
 
 	if [ ! -f "$archive" ]; then
@@ -2469,6 +2480,7 @@ if [ -z "$skip_zipfile" ]; then
 			rm -f "$nolib_archive"
 		fi
 		# set noglob so each nolib_exclude path gets quoted instead of expanded
+		# shellcheck disable=SC2086
 		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
