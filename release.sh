@@ -1219,9 +1219,19 @@ if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 fi
 
 # CurseForge still requires a fallback TOC file
-if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdir/$package/$package.toc" ]]; then
-	echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
-	exit 1
+if [[ -n "$slug" && "$slug" -gt 0 ]]; then
+	find_fallback_toc() {
+		for path in "${!toc_root_paths[@]}"; do
+			if [[ -f "$path/$package.toc" ]]; then
+				return 0
+			fi
+		done
+		return 1
+	}
+	if ! find_fallback_toc; then
+		echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
+		exit 1
+	fi
 fi
 
 if [[ -n "$split" ]]; then
