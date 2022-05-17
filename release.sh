@@ -27,6 +27,12 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
+# Global shellcheck excludes:
+#   SC2295: Expansions inside ${..} need to be quoted separately, otherwise they will match as a pattern.
+#   SC2030: Modification of var is local (to subshell caused by pipeline).
+#   SC2031: var was modified in a subshell. That change might be lost.
+# shellcheck disable=SC2295,SC2030,SC2031
+
 ## USER OPTIONS
 
 # Secrets for uploading
@@ -380,10 +386,10 @@ unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
-	# shellcheck disable=1090,1091
+	# shellcheck disable=SC1090,SC1091
 	. "$topdir/.env"
 elif [ -f ".env" ]; then
-	# shellcheck disable=1091
+	# shellcheck disable=SC1091
 	. ".env"
 fi
 [ -z "$cf_token" ] && cf_token=$CF_API_KEY
@@ -545,6 +551,7 @@ set_info_svn() {
 				# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
 				_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
 				_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
+				# shellcheck disable=SC2001
 				_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
 
 				if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
@@ -714,7 +721,7 @@ match_pattern() {
 	while [ -n "$_mp_list" ]; do
 		_mp_pattern=${_mp_list%%:*}
 		_mp_list=${_mp_list#*:}
-		# shellcheck disable=2254
+		# shellcheck disable=SC2254
 		case $_mp_file in
 			$_mp_pattern)
 				return 0
@@ -997,6 +1004,7 @@ elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
 	IFS=$'\n'
+	# shellcheck disable=SC1003
 	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- | tr '\\' '/' ); do
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore/*"
@@ -1023,6 +1031,8 @@ fi
 ###
 ### Process TOC file
 ###
+
+fallback_toc_file=
 
 do_toc() {
 	local toc_file toc_version toc_game_type root_toc_version
@@ -1052,23 +1062,6 @@ do_toc() {
 	[[ -n "$toc_game_type" ]] && si_game_type_interface_all["$toc_game_type"]="$toc_version"
 
 	root_toc_version="$toc_version"
-
-	if [[ -n "$package_name" ]]; then
-		# Get the title of the project for using in the changelog.
-		if [ -z "$project" ]; then
-			project=$( awk '/^## Title:/ { print $0; exit }' <<< "$toc_file" | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
-		fi
-		# Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
-		if [ -z "$slug" ]; then
-			slug=$( awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-		if [ -z "$addonid" ]; then
-			addonid=$( awk '/^## X-WoWI-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-		if [ -z "$wagoid" ]; then
-			wagoid=$( awk '/^## X-Wago-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-	fi
 
 	if [[ ${toc_name} =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath)\.toc$ ]]; then
 		# Flavored
@@ -1136,6 +1129,24 @@ do_toc() {
 	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface_all[*]}" )
 }
 
+set_toc_project_info() {
+	local toc_path="$1"
+	# Get the title of the addon for the changelog
+	if [ -z "$project" ]; then
+		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+	fi
+	# Get project IDs for uploading
+	if [ -z "$slug" ]; then
+		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
+	fi
+	if [ -z "$addonid" ]; then
+		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
+	fi
+	if [ -z "$wagoid" ]; then
+		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+	fi
+}
+
 set_build_version() {
 	local toc_game_type version
 
@@ -1179,6 +1190,7 @@ set_build_version() {
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
+	# shellcheck disable=SC2035
 	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | sort -dr | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
@@ -1191,30 +1203,26 @@ if [[ -z "$package" ]]; then
 	fi
 fi
 
-# Parse the project root TOC file for info first
-for toc_path in "$topdir/$package"{,"/$package"}{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath}.toc; do
+# Parse the project root TOC files for info first
+for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath}.toc; do
 	if [[ -f "$toc_path" ]]; then
-		if [ -z "$project" ]; then
-			project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
-		fi
-		if [ -z "$slug" ]; then
-			slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
-		fi
-		if [ -z "$addonid" ]; then
-			addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
-		fi
-		if [ -z "$wagoid" ]; then
-			wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
-		fi
-		# Add the root TOC file for interface parsing
-		toc_root_paths["${toc_path%/*}"]="$package"
+		set_toc_project_info "$toc_path"
+		toc_root_paths["$topdir"]="$package"
+	fi
+done
+# Also check other project root directories for the root TOC file
+for path in "${!toc_root_paths[@]}"; do
+	if [[ -f "$path/$package.toc" ]]; then
+		set_toc_project_info "$path/$package.toc"
+		fallback_toc_file="$path/$package.toc"
 	fi
 done
 
-# Parse move-folder TOC files
+# Parse project TOC files
 for path in "${!toc_root_paths[@]}"; do
 	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath}.toc; do
 		if [[ -f "$toc_path" ]]; then
+			set_toc_project_info "$toc_path"
 			do_toc "$toc_path" "${toc_root_paths[$path]}"
 		fi
 	done
@@ -1226,7 +1234,7 @@ if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 fi
 
 # CurseForge still requires a fallback TOC file
-if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdir/$package/$package.toc" ]]; then
+if [[ -n "$slug" && "$slug" -gt 0 && -z "$fallback_toc_file" ]]; then
 	echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
 	exit 1
 fi
@@ -1381,6 +1389,7 @@ localization_filter() {
 				# Generate a URL parameter string from the localization parameters.
 				# https://authors.curseforge.com/knowledge-base/projects/529-api
 				_ul_url_params=""
+				# shellcheck disable=SC2086
 				set -- ${_ul_params}
 				for _ul_param; do
 					_ul_key=${_ul_param%%=*}
@@ -1586,7 +1595,7 @@ copy_directory_tree() {
 	_cdt_split=
 	OPTIND=1
 	while getopts :adi:lnpu:g:eS _cdt_opt "$@"; do
-		# shellcheck disable=2220
+		# shellcheck disable=SC2220
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
 			d)	_cdt_debug="true" ;;
@@ -1824,7 +1833,7 @@ checkout_external() {
 	_external_uri=$2
 	_external_tag=$3
 	_external_type=$4
-	# shellcheck disable=2034
+	# shellcheck disable=SC2034
 	_external_slug=$5 # unused until we can easily fetch the project id
 	_external_checkout_type=$6
 
@@ -2456,6 +2465,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
+	# shellcheck disable=SC2086
 	( cd "$releasedir" && zip -X -r "$archive" $contents )
 
 	if [ ! -f "$archive" ]; then
@@ -2482,6 +2492,7 @@ if [ -z "$skip_zipfile" ]; then
 			rm -f "$nolib_archive"
 		fi
 		# set noglob so each nolib_exclude path gets quoted instead of expanded
+		# shellcheck disable=SC2086
 		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
