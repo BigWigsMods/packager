@@ -1029,6 +1029,8 @@ fi
 ### Process TOC file
 ###
 
+fallback_toc_file=
+
 do_toc() {
 	local toc_file toc_version toc_game_type root_toc_version
 	local toc_path="$1"
@@ -1056,23 +1058,6 @@ do_toc() {
 	[[ -n "$toc_game_type" ]] && si_game_type_interface_all["$toc_game_type"]="$toc_version"
 
 	root_toc_version="$toc_version"
-
-	if [[ -n "$package_name" ]]; then
-		# Get the title of the project for using in the changelog.
-		if [ -z "$project" ]; then
-			project=$( awk '/^## Title:/ { print $0; exit }' <<< "$toc_file" | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
-		fi
-		# Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
-		if [ -z "$slug" ]; then
-			slug=$( awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-		if [ -z "$addonid" ]; then
-			addonid=$( awk '/^## X-WoWI-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-		if [ -z "$wagoid" ]; then
-			wagoid=$( awk '/^## X-Wago-ID:/ { print $NF; exit }' <<< "$toc_file" )
-		fi
-	fi
 
 	if [[ ${toc_name} =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC)\.toc$ ]]; then
 		# Flavored
@@ -1138,6 +1123,24 @@ do_toc() {
 	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface_all[*]}" )
 }
 
+set_toc_project_info() {
+	local toc_path="$1"
+	# Get the title of the addon for the changelog
+	if [ -z "$project" ]; then
+		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+	fi
+	# Get project IDs for uploading
+	if [ -z "$slug" ]; then
+		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
+	fi
+	if [ -z "$addonid" ]; then
+		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
+	fi
+	if [ -z "$wagoid" ]; then
+		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+	fi
+}
+
 set_build_version() {
 	local toc_game_type version
 
@@ -1193,30 +1196,26 @@ if [[ -z "$package" ]]; then
 	fi
 fi
 
-# Parse the project root TOC file for info first
-for toc_path in "$topdir/$package"{,"/$package"}{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
+# Parse the project root TOC files for info first
+for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
 	if [[ -f "$toc_path" ]]; then
-		if [ -z "$project" ]; then
-			project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
-		fi
-		if [ -z "$slug" ]; then
-			slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
-		fi
-		if [ -z "$addonid" ]; then
-			addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
-		fi
-		if [ -z "$wagoid" ]; then
-			wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
-		fi
-		# Add the root TOC file for interface parsing
-		toc_root_paths["${toc_path%/*}"]="$package"
+		set_toc_project_info "$toc_path"
+		toc_root_paths["$topdir"]="$package"
+	fi
+done
+# Also check other project root directories for the root TOC file
+for path in "${!toc_root_paths[@]}"; do
+	if [[ -f "$path/$package.toc" ]]; then
+		set_toc_project_info "$path/$package.toc"
+		fallback_toc_file="$path/$package.toc"
 	fi
 done
 
-# Parse move-folder TOC files
+# Parse project TOC files
 for path in "${!toc_root_paths[@]}"; do
 	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC}.toc; do
 		if [[ -f "$toc_path" ]]; then
+			set_toc_project_info "$toc_path"
 			do_toc "$toc_path" "${toc_root_paths[$path]}"
 		fi
 	done
@@ -1228,7 +1227,7 @@ if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 fi
 
 # CurseForge still requires a fallback TOC file
-if [[ -n "$slug" && "$slug" -gt 0 && ! -f "$topdir/$package.toc" && ! -f "$topdir/$package/$package.toc" ]]; then
+if [[ -n "$slug" && "$slug" -gt 0 && -z "$fallback_toc_file" ]]; then
 	echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
 	exit 1
 fi
