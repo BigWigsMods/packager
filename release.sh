@@ -2501,29 +2501,39 @@ upload_curseforge() {
 
 	local _cf_game_version_id _cf_game_version _cf_versions
 	_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
-	if [ -n "$_cf_versions" ]; then
-		if [ -n "$game_version" ]; then
-			_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null )
-			if [ -n "$_cf_game_version_id" ]; then
-				# and now the reverse, since an invalid version will just be dropped
-				_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | sort | join(",")' 2>/dev/null )
-			fi
-		fi
-		if [ -z "$_cf_game_version_id" ]; then
-			case $game_type in
-				retail) _cf_game_type_id=517 ;;
-				classic) _cf_game_type_id=67408 ;;
-				bcc) _cf_game_type_id=73246 ;;
-				*) _cf_game_type_id=517 # retail fallback
+	if [[ -n $_cf_versions && $_cf_versions != *"errorMessage"* ]]; then
+		_cf_game_version_id=
+		_cf_game_version=
+		local version_name version_id game_id
+		for type in "classic" "bcc" "retail"; do  # sort order (last id is show as the version on the project's files page apparently)
+			version_name="${game_type_version[$type]}"
+			[[ -z $version_name ]] && continue
+			case $type in
+				classic) game_id=67408 ;;
+				bcc) game_id=73246 ;;
+				*) game_id=517
 			esac
-			_cf_game_version_id=$( echo "$_cf_versions" | jq -c --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | [.id]' 2>/dev/null )
-			_cf_game_version=$( echo "$_cf_versions" | jq -r --argjson v "$_cf_game_type_id" 'map(select(.gameVersionTypeID == $v)) | max_by(.id) | .name' 2>/dev/null )
-			if [ -n "$game_version" ]; then
-				echo "WARNING: No CurseForge game version match, defaulting to \"$_cf_game_version\"" >&2
+
+			# check the version
+			if ! jq -e --arg v "$version_name" 'map(select(.name == $v)) | length > 0' <<< "$_cf_versions" &>/dev/null; then
+				# no match, so grab the next highest version (try to avoid testing versions)
+				version_name=$( echo "$_cf_versions" | jq -r --arg v "$version_name" --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t and .name < $v)) | max_by(.id) | .name // empty' )
+				if [[ -z $version_name ]]; then
+					# no? just grab the highest version
+					version_name=$( echo "$_cf_versions" | jq -r --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t)) | max_by(.id) | .name' )
+				fi
+				echo "WARNING: No CurseForge game version match for \"${game_type_version[$type]}\", using \"$version_name\"" >&2
 			fi
-		fi
+			_cf_game_version+=",${version_name}"
+
+			# get the id
+			version_id=$( echo "$_cf_versions" | jq -r --arg v "$version_name" --argjson t "$game_id" '.[] | select(.gameVersionTypeID == $t and .name == $v) | .id' )
+			_cf_game_version_id+=",${version_id}"
+		done
+		_cf_game_version_id="[${_cf_game_version_id#,}]"
+		_cf_game_version="${_cf_game_version#,}"
 	fi
-	if [ -z "$_cf_game_version_id" ]; then
+	if [ -z "$_cf_game_version" ]; then
 		echo "Error fetching game version info from $project_site/api/game/versions"
 		echo
 		echo "Skipping upload to CurseForge."
@@ -2599,18 +2609,37 @@ upload_wowinterface() {
 		return 0
 	fi
 
-	local _wowi_game_version _wowi_versions
-	_wowi_versions=$( curl -s -H "x-api-token: $wowi_token" https://api.wowinterface.com/addons/compatible.json )
+	local _wowi_game_version _wowi_versions _wowi_versions_type
+	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json )
 	if [ -n "$_wowi_versions" ]; then
-		if [ -n "$game_version" ]; then
-			_wowi_game_version=$( echo "$_wowi_versions" | jq -r --argjson v "[\"${game_version//,/\",\"}\"]" 'map(select(.id as $x | $v | index($x)) | .id) | join(",")' 2>/dev/null )
-		fi
-		if [ -z "$_wowi_game_version" ]; then
-			_wowi_game_version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true) | .id' 2>/dev/null )
-			if [ -n "$game_version" ]; then
-				echo "WARNING: No WoWInterface game version match, defaulting to \"$_wowi_game_version\"" >&2
+		_wowi_game_version=
+		local version
+		for type in "${!game_type_version[@]}"; do
+			version="${game_type_version[$type]}"
+			# check the version
+			if ! jq -e --arg v "$version" 'map(select(.id == $v)) | length > 0' <<< "$_wowi_versions" &>/dev/null; then
+				# split out the versions that match the version we're checking against (to keep things more readable)
+				_wowi_versions_type=$( echo "$_wowi_versions" | jq -c --arg v "$version" 'map(select( (.id | .[:2]) == ($v | .[:2]) ))' )
+				if [[ $_wowi_versions_type == "[]" ]]; then
+					# retail default. the version doesn't match a classic version nor actual retail versions, but we fallback to retail
+					version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true ) | .id' )
+				else
+					# use the next highest version (try to avoid testing versions)
+					version=$( echo "$_wowi_versions_type" | jq -r --arg v "$version" 'map(select(.id < $v)) | max_by(.id) | .id // empty' )
+					if [[ -z $version ]]; then
+						if [[ $type == "retail" ]]; then # cheating
+							version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true ) | .id' )
+						else # just grab the highest version
+							version=$( echo "$_wowi_versions_type" | jq -r 'max_by(.id) | .id' )
+						fi
+					fi
+				fi
+				echo "WARNING: No WoWInterface game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
+				_wowi_versions_type=
 			fi
-		fi
+			_wowi_game_version+=",${version}"
+		done
+		_wowi_game_version="${_wowi_game_version#,}"
 	fi
 	if [ -z "$_wowi_game_version" ]; then
 		echo "Error fetching game version info from https://api.wowinterface.com/addons/compatible.json"
@@ -2621,7 +2650,7 @@ upload_wowinterface() {
 		return 1
 	fi
 
-	declare -a _wowi_args
+	local -a _wowi_args
 	local resultfile result
 	local return_code=0
 
@@ -2685,9 +2714,29 @@ upload_wago() {
 		return 0
 	fi
 
-	local _wago_versions
+	local _wago_support_property _wago_versions
 	_wago_versions=$( curl -s https://addons.wago.io/api/data/game | jq -c '.patches' 2>/dev/null )
-	if [ -z "$_wago_versions" ]; then
+	if [ -n "$_wago_versions" ]; then
+		_wago_support_property=
+		local version wago_type
+		for type in "${!game_type_version[@]}"; do
+			version="${game_type_version[$type]}"
+			wago_type="$type"
+			[[ "$wago_type" == "bcc" ]] && wago_type="bc"
+			# check the version
+			if ! jq -e --arg t "$wago_type" --arg v "$version" '.[$t] | index($v)' <<< "$_wago_versions" &>/dev/null; then
+				# no match, so grab the next highest version (try to avoid testing versions)
+				version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" --arg v "$version" '.[$t] | map(select(. < $v)) | max // empty' )
+				if [[ -z $version ]]; then
+					# just grab the highest version
+					version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" '.[$t] | max' )
+				fi
+				echo "WARNING: No Wago game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
+			fi
+			_wago_support_property+="\"supported_${wago_type}_patch\": \"${version}\", "
+		done
+	fi
+	if [ -z "$_wago_support_property" ]; then
 		echo "Error fetching game version info from https://addons.wago.io/api/data/game"
 		echo
 		echo "Skipping upload to Wago."
@@ -2696,18 +2745,9 @@ upload_wago() {
 		return 1
 	fi
 
-	local _wago_payload _wago_support_property _wago_stability
-	local resultfile result version
+	local _wago_payload _wago_stability
+	local resultfile result
 	local return_code=0
-
-	_wago_support_property=""
-	for type in "${!game_type_version[@]}"; do
-		version=${game_type_version[$type]}
-		[[ "$type" == "bcc" ]] && type="bc"
-		# if jq -e --arg t "$type" --arg v "$version" '.[$t] | index($v)' <<< "$_wago_versions" &>/dev/null; then
-			_wago_support_property+="\"supported_${type}_patch\": \"${version}\", "
-		# fi
-	done
 
 	_wago_stability="$file_type"
 	if [[ "$file_type" == "release" ]]; then
