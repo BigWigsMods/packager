@@ -45,7 +45,7 @@ So what does this mean for you?
    multiple versions, you no longer need to manually set the versions via `-g`
    or on the CurseForge website.
 
-   **Note:** CurseForge still requires that a fallback TOC file exists.  So if
+   __Note:__ CurseForge still requires that a fallback TOC file exists.  So if
    you support all three game types, you may as well leave the fallback TOC file
    as one of the game types instead of creating three game type specific ones.
 
@@ -128,7 +128,7 @@ You can also use a few directives for WoWInterface uploading.
   changelog in Markdown format to BBCode if you have [pandoc](http://pandoc.org/)
   installed; otherwise, the manual changelog will be used as-is.  If set to `no`
   when using a generated changelog, Markdown will be used instead of BBCode.
-  **Note**: Markdown support is experimental and needs to be requested on a
+  __Note:__: Markdown support is experimental and needs to be requested on a
   per-project basis.
 
 ### String replacements
@@ -175,7 +175,7 @@ Supported keywords and when the code block will run:
 - `debug`: never.  Code will only run when using an unpackaged source.
 - `do-not-package`: never.  Same as `debug` except removed from the packaged
   file.
-- `no-lib-strip`: _(not supported in Lua files)_ in any build other than a
+- `no-lib-strip`: *(not supported in Lua files)* in any build other than a
   *nolib* build.
 - `retail`,`version-retail`,`version-classic`,`version-bcc`: based on game
   version.
@@ -188,7 +188,7 @@ Lua files surrounding debugging functions and other code that end users should
 never see or execute.
 
 All keywords except `do-not-package` can be prefixed with `non-` to inverse the
-logic.  When doing this, the keywords should start and end a **block comment**
+logic.  When doing this, the keywords should start and end a __block comment__
 as shown below.
 
 More examples are available on the [wiki page](https://github.com/BigWigsMods/packager/wiki/Repository-Keyword-Substitutions#debug-replacements).
@@ -203,7 +203,7 @@ turn into `--@non-keyword@` and `--@end-non-keyword@`.
 
 #### In XML files
 
-**Note:** XML doesn't allow nested comments so make sure not to nest keywords.
+__Note:__ XML doesn't allow nested comments so make sure not to nest keywords.
 If you need to nest keywords, you can do so in the TOC instead.
 
 `<!--@keyword@-->` and `<!--@end-keyword@-->`  
@@ -272,7 +272,7 @@ If you have already been dabbling with multiple TOC files and/or multiple
 versions, you no longer need to manually set the versions via `-g` or on the
 CurseForge website.
 
-**Note:** CurseForge still requires that a fallback TOC file exists (the TOC
+__Note:__ CurseForge still requires that a fallback TOC file exists (the TOC
 file with the same name as the addon directory). So if you support all three
 game types, you may as well leave the fallback TOC file as one of the game types
 instead of creating three game type specific ones.
