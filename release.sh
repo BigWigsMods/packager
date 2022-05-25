@@ -2432,7 +2432,7 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive_label="${nolib_archive_label}-nolib"
 	fi
 	if [ "$archive_name" = "$nolib_archive_name" ]; then
-		nolib_archive_name="${nolib_archive_name#.zip}-nolib.zip"
+		nolib_archive_name="${nolib_archive_name%.zip}-nolib.zip"
 	fi
 	nolib_archive="$releasedir/$nolib_archive_name"
 
