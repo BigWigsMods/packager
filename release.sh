@@ -1001,8 +1001,8 @@ elif [ "$repository_type" = "svn" ]; then
 	# svn always being difficult.
 	OLDIFS=$IFS
 	IFS=$'\n'
-	# shellcheck disable=SC1003
-	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- | tr '\\' '/' ); do
+	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- ); do
+		_vcs_ignore="${_vcs_ignore//\\//}"
 		if [ -d "$topdir/$_vcs_ignore" ]; then
 			_vcs_ignore="$_vcs_ignore/*"
 		fi
@@ -1016,7 +1016,7 @@ elif [ "$repository_type" = "svn" ]; then
 elif [ "$repository_type" = "hg" ]; then
 	_vcs_ignore=$( hg --cwd "$topdir" status --ignored --unknown --no-status --print0 | tr '\0' ':' )
 	if [ -n "$_vcs_ignore" ]; then
-		_vcs_ignore=${_vcs_ignore:0:-1}
+		_vcs_ignore="${_vcs_ignore%:}"
 		if [ -z "$ignore" ]; then
 			ignore="$_vcs_ignore"
 		else
