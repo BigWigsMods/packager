@@ -2860,10 +2860,11 @@ upload_github() {
 	fi
 
 	local _gh_metadata _gh_previous_metadata _gh_payload _gh_release_url _gh_method
-	local release_id versionfile resultfile result flavor
+	local release_id versionfile resultfile result flavor title
 	local return_code=0
 
-	_gh_metadata='{ "filename": "'"$archive_name"'", "nolib": false, "metadata": ['
+	title=$( echo "$project" | jq --raw-input '.' )
+	_gh_metadata='{ "name": '"$title"', "version": "'"$project_version"'", "filename": "'"$archive_name"'", "nolib": false, "metadata": ['
 	for type in "${!game_type_version[@]}"; do
 		flavor="${game_flavor[$type]}"
 		[[ $flavor == "retail" ]] && flavor="mainline"
@@ -2872,7 +2873,7 @@ upload_github() {
 	_gh_metadata=${_gh_metadata%,}
 	_gh_metadata+='] }'
 	if [ -f "$nolib_archive" ]; then
-		_gh_metadata+=',{ "filename": "'"$nolib_archive_name"'", "nolib": true, "metadata": ['
+		_gh_metadata+=',{ "name": '"$title"', "version": "'"$project_version"'", "filename": "'"$nolib_archive_name"'", "nolib": true, "metadata": ['
 		for type in "${!game_type_version[@]}"; do
 			flavor="${game_flavor[$type]}"
 			[[ $flavor == "retail" ]] && flavor="mainline"
