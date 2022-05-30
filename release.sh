@@ -713,8 +713,9 @@ carriage_return=$( printf "\r" )
 
 # Returns 0 if $1 matches one of the colon-separated patterns in $2.
 match_pattern() {
-	_mp_file=$1
-	_mp_list="$2:"
+	local _mp_file="$1"
+	local _mp_list="$2:"
+	local _mp_pattern
 	while [ -n "$_mp_list" ]; do
 		_mp_pattern=${_mp_list%%:*}
 		_mp_list=${_mp_list#*:}
@@ -733,7 +734,7 @@ match_pattern() {
 declare -A yaml_bool=( ["yes"]="yes" ["true"]="yes" ["on"]="yes" ["false"]="no" ["off"]="no" ["no"]="no" )
 yaml_keyvalue() {
 	yaml_key=${1%%:*}
-	yaml_value=${1#$yaml_key:}
+	yaml_value=${1#"$yaml_key":}
 	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"} # trim leading whitespace
 	if [[ -n "$yaml_value" && -n "${yaml_bool[${yaml_value,,}]}" ]]; then # normalize booleans
 		yaml_value="${yaml_bool[$yaml_value]}"
@@ -768,7 +769,7 @@ changelog_markup="text"
 enable_nolib_creation=
 ignore=
 unchanged=
-contents=
+zip_root_dirs=()
 nolib_exclude=
 wowi_gen_changelog="true"
 wowi_archive="true"
@@ -1308,7 +1309,7 @@ if [ ! -d "$pkgdir" ]; then
 fi
 
 # Set the contents of the addon zipfile.
-contents="$package"
+zip_root_dirs+=("$package")
 
 ###
 ### Create filters for pass-through processing of files to replace repository keywords.
@@ -2392,7 +2393,7 @@ if [ -f "$pkgmeta_file" ]; then
 									fi
 									echo "Moving $yaml_key to $yaml_value"
 									mv -f "$srcdir"/* "$destdir" && rm -fr "$srcdir"
-									contents="$contents $yaml_value"
+									zip_root_dirs+=("$yaml_value")
 									# Check to see if the base source directory is empty
 									_mf_basedir="/${yaml_key%/*}"
 									while [[ -n "$_mf_basedir" && -z "$( ls -A "${releasedir}${_mf_basedir}" )" ]]; do
@@ -2453,8 +2454,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
-	# shellcheck disable=SC2086
-	( cd "$releasedir" && zip -X -r "$archive" $contents )
+	( cd "$releasedir" && zip -X -r "$archive" "${zip_root_dirs[@]}" )
 
 	if [ ! -f "$archive" ]; then
 		exit 1
@@ -2481,7 +2481,7 @@ if [ -z "$skip_zipfile" ]; then
 		fi
 		# set noglob so each nolib_exclude path gets quoted instead of expanded
 		# shellcheck disable=SC2086
-		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" $contents -x $nolib_exclude )
+		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" "${zip_root_dirs[@]}" -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
 			exit_code=1
