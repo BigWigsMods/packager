@@ -881,6 +881,7 @@ if [ -f "$pkgmeta_file" ]; then
 						;;
 					package-as)
 						package=$yaml_value
+						toc_root_paths["$topdir/$yaml_value/"]="$yaml_value"
 						;;
 					wowi-create-changelog)
 						if [ "$yaml_value" = "no" ]; then
