@@ -659,16 +659,17 @@ set_info_file() {
 
 			rm -f "$_sif_svninfo" 2>/dev/null
 		fi
-	elif [ "$si_repo_type" = "hg" ]; then
-		_si_file=${_si_file#si_repo_dir} # need the path relative to the checkout
+
+	elif [[ "$si_repo_type" = "hg" ]]; then
 		# Populate filter vars.
-		si_file_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
-		si_file_author=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{author}' "$_si_file" 2>/dev/null )
-		si_file_timestamp=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{date}' "$_si_file" 2>/dev/null | cut -d. -f1 )
+		si_file_hash=$( hg log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( hg log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
+		si_file_author=$( hg log --limit 1 --template '{author}' "$_si_file" 2>/dev/null )
+		si_file_timestamp=$( hg log --limit 1 --template '{date}' "$_si_file" 2>/dev/null | cut -d. -f1 )
 		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
 		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
-		si_file_revision=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
+		si_file_revision=$( hg log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
+
 	fi
 }
 
