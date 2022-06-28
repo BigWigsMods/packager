@@ -87,6 +87,20 @@ declare -A toc_root_paths=()              # path -> directory name
 # Script return code
 exit_code=0
 
+retry() {
+	local result=0
+	local count=1
+	while [[ "$count" -le 3 ]]; do
+		[[ "$result" -ne 0 ]] && {
+			echo -e "\033[01;31mRetrying (${count}/3)\033[0m" >&2
+		}
+		"$@" && { result=0 && break; } || result="$?"
+		count="$((count + 1))"
+		sleep 3
+	done
+	return "$result"
+}
+
 # Escape a string for use in sed substitutions.
 escape_substr() {
 	local s="$1"
@@ -375,11 +389,11 @@ if [ -n "$GITHUB_ACTIONS" ]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
+		unset check_tag
 	fi
 	start_group() { echo "##[group]$1"; }
 	end_group() { echo "##[endgroup]"; }
 fi
-unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
@@ -528,66 +542,63 @@ set_info_svn() {
 	si_repo_dir="$1"
 	si_repo_type="svn"
 
-	# Temporary file to hold results of "svn info".
-	_si_svninfo="${si_repo_dir}/.svn/release_sh_svninfo"
-	svn info -r BASE "$si_repo_dir" 2>/dev/null > "$_si_svninfo"
-
-	if [ -s "$_si_svninfo" ]; then
-		_si_root=$( awk '/^Repository Root:/ { print $3; exit }' < "$_si_svninfo" )
-		_si_url=$( awk '/^URL:/ { print $2; exit }' < "$_si_svninfo" )
-		_si_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_si_svninfo" )
-		si_repo_url=$_si_root
-
-		case ${_si_url#${_si_root}/} in
-			tags/*)
-				# Extract the tag from the URL.
-				si_tag=${_si_url#${_si_root}/tags/}
-				si_tag=${si_tag%%/*}
-				si_project_revision="$_si_revision"
-				;;
-			*)
-				# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
-				_si_tag_line=$( svn log --verbose --limit 1 "$_si_root/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
-				_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-				# shellcheck disable=SC2001
-				_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
-
-				if [ "$_si_tag_from_revision" = "$_si_revision" ]; then
-					si_tag="$_si_tag"
-					si_project_revision=$( svn info "$_si_root/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
-				else
-					# Set $si_project_revision to the highest revision of the project at the checkout path
-					si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
-				fi
-				;;
-		esac
-
-		if [ -n "$si_tag" ]; then
-			si_project_version="$si_tag"
-		else
-			si_project_version="r$si_project_revision"
-		fi
-
-		# Get the previous tag and it's revision
-		_si_limit=$((si_project_revision - 1))
-		_si_tag=$( svn log --verbose --limit 1 "$_si_root/tags" -r $_si_limit:1 2>/dev/null | awk '/^   A/ { print $0; exit }' | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-		if [ -n "$_si_tag" ]; then
-			si_previous_tag="$_si_tag"
-			si_previous_revision=$( svn info "$_si_root/tags/$_si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
-		fi
-
-		# Populate filter vars.
-		si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
-		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5; exit }' < "$_si_svninfo" )
-		si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T" )
-		si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
-		si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
-		# SVN repositories have no project hash.
-		si_project_hash=
-		si_project_abbreviated_hash=
-
-		rm -f "$_si_svninfo" 2>/dev/null
+	local _si_svninfo _si_url _si_revision _si_tag_line _si_tag _si_tag_from_revision _si_timestamp
+	_si_svninfo=$( retry svn info -r BASE "$si_repo_dir" 2>/dev/null )
+	if [[ -z "$_si_svninfo" ]]; then
+		echo "Unable to read svn repo at $si_repo_dir" >&2
+		exit 1
 	fi
+
+	si_repo_url=$( awk '/^Repository Root:/ { print $3; exit }' <<< "$_si_svninfo" )
+	_si_url=$( awk '/^URL:/ { print $2; exit }' <<< "$_si_svninfo" )
+	_si_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' <<< "$_si_svninfo" )
+
+	case ${_si_url#"${si_repo_url}"/} in
+		tags/*)
+			# Extract the tag from the URL.
+			si_tag=${_si_url#"${si_repo_url}"/tags/}
+			si_tag=${si_tag%%/*}
+			si_project_revision="$_si_revision"
+			;;
+		*)
+			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
+			_si_tag_line=$( retry svn log --verbose --limit 1 "$si_repo_url/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
+			_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
+			# shellcheck disable=SC2001
+			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
+
+			if [[ "$_si_tag_from_revision" == "$_si_revision" ]]; then
+				si_tag="$_si_tag"
+				si_project_revision=$( retry svn info "$si_repo_url/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
+			else
+				# Set $si_project_revision to the highest revision of the project at the checkout path
+				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
+			fi
+			;;
+	esac
+
+	if [[ -n "$si_tag" ]]; then
+		si_project_version="$si_tag"
+	else
+		si_project_version="r$si_project_revision"
+	fi
+
+	# Get the previous tag and it's revision
+	_si_tag=$( retry svn log --verbose --limit 1 "$si_repo_url/tags" -r $((si_project_revision - 1)):1 2>/dev/null | awk '/^   A/ { print $0; exit }' | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
+	if [[ -n "$_si_tag" ]]; then
+		si_previous_tag="$_si_tag"
+		si_previous_revision=$( retry svn info "$si_repo_url/tags/$_si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
+	fi
+
+	# Populate filter vars.
+	si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' <<< "$_si_svninfo" | cut -d" " -f4- )
+	_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5; exit }' <<< "$_si_svninfo" )
+	si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T" )
+	si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
+	si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
+	# SVN repositories have no project hash.
+	si_project_hash=
+	si_project_abbreviated_hash=
 }
 
 set_info_hg() {
@@ -641,23 +652,20 @@ set_info_file() {
 		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
 		si_file_revision=$( git -C "$_si_file_dir" rev-list --count "$si_file_hash" 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
 
-	elif [ "$si_repo_type" = "svn" ]; then
-		# Temporary file to hold results of "svn info".
-		_sif_svninfo="${si_repo_dir}/.svn/release_sh_svnfinfo"
-		svn info "$_si_file" 2>/dev/null > "$_sif_svninfo"
-		if [ -s "$_sif_svninfo" ]; then
+	elif [[ "$si_repo_type" = "svn" ]]; then
+		local _sif_svninfo _si_timestamp
+		_sif_svninfo=$( svn info "$_si_file" 2>/dev/null )
+		if [[ -n "$_sif_svninfo" ]]; then
 			# Populate filter vars.
-			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' < "$_sif_svninfo" )
-			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_sif_svninfo" | cut -d" " -f4- )
-			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_sif_svninfo" )
+			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' <<< "$_sif_svninfo" )
+			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' <<< "$_sif_svninfo" | cut -d" " -f4- )
+			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' <<< "$_sif_svninfo" )
 			si_file_timestamp=$( strtotime "$_si_timestamp" "%F %T %z" )
 			si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
 			si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
-			# SVN repositories have no project hash.
-			si_file_hash=
-			si_file_abbreviated_hash=
-
-			rm -f "$_sif_svninfo" 2>/dev/null
+			# Use the file checksum.
+			si_file_hash=$( awk '/^Checksum:/ { print $2; exit }' <<< "$_sif_svninfo" )
+			si_file_abbreviated_hash=${si_file_hash:0:7}
 		fi
 
 	elif [[ "$si_repo_type" = "hg" ]]; then
@@ -1805,20 +1813,6 @@ parse_ignore "$pkgmeta_file"
 ### Process .pkgmeta again to perform any pre-move-folders actions.
 ###
 
-retry() {
-	local result=0
-	local count=1
-	while [[ "$count" -le 3 ]]; do
-		[[ "$result" -ne 0 ]] && {
-			echo -e "\033[01;31mRetrying (${count}/3)\033[0m" >&2
-		}
-		"$@" && { result=0 && break; } || result="$?"
-		count="$((count + 1))"
-		sleep 3
-	done
-	return "$result"
-}
-
 # Checkout the external into a ".checkout" subdirectory of the final directory.
 checkout_external() {
 	_external_dir=$1
@@ -1874,7 +1868,7 @@ checkout_external() {
 		else
 			_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
 			if [ "$_external_tag" = "latest" ]; then
-				_external_tag=$( svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | awk '/^   A \/tags\// { print $2; exit }' | awk -F/ '{ print $3 }' )
+				_external_tag=$( retry svn log --verbose --limit 1 "$_cqe_svn_tag_url" 2>/dev/null | awk '/^   A \/tags\// { print $2; exit }' | awk -F/ '{ print $3 }' )
 				if [ -z "$_external_tag" ]; then
 					_external_tag="latest"
 				fi
@@ -1892,7 +1886,7 @@ checkout_external() {
 				retry svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir" || return 1
 			fi
 		fi
-		set_info_svn "$_cqe_checkout_dir"
+		set_info_svn "$_cqe_checkout_dir" || return 1
 		echo "Checked out r$si_project_revision"
 	elif [ "$_external_type" = "hg" ]; then
 		if [ -z "$_external_tag" ]; then
@@ -2290,7 +2284,8 @@ else
 		## $project_version ($changelog_date)
 
 		EOF
-		svn log "$topdir" "$_changelog_range" --xml \
+		_svn_changelog=$( retry svn log "$topdir" "$_changelog_range" --xml )
+		echo "$_svn_changelog" \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 			      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
@@ -2309,7 +2304,7 @@ else
 
 			[list]
 			EOF
-			svn log "$topdir" "$_changelog_range" --xml \
+			echo "$_svn_changelog" \
 				| awk '/<msg>/,/<\/msg>/' \
 				| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 				      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
@@ -2318,6 +2313,7 @@ else
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
+		unset _svn_changelog
 
 	elif [ "$repository_type" = "hg" ]; then
 		if [ -n "$previous_revision" ]; then
