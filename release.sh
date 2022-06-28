@@ -492,7 +492,8 @@ set_info_git() {
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
 	si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
 	si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
-	# XXX --depth limits rev-list :\ [ ! -s "$(git rev-parse --git-dir)/shallow" ] || git fetch --unshallow --no-tags
+	# XXX --depth limits rev-list :\ [ -s "$si_repo_dir/$(git rev-parse --git-dir)/shallow" ] && git -C "$si_repo_dir" fetch --quiet --unshallow --no-tags
+	# actions/checkout using clone --filter=blob:none instead of their current unholy abomination would be nice
 	si_project_revision=$( git -C "$si_repo_dir" rev-list --count "$si_project_hash" 2>/dev/null )
 
 	# Get the tag for the HEAD.
@@ -627,18 +628,20 @@ set_info_hg() {
 }
 
 set_info_file() {
-	if [ "$si_repo_type" = "git" ]; then
-		_si_file=${1#si_repo_dir} # need the path relative to the checkout
+	local _si_file="$1"
+	if [[ "$si_repo_type" = "git" ]]; then
+		local _si_file_dir=${_si_file%/*} # set the working directory to file's directory to allow for submodule file info
+		_si_file=${_si_file##*/} # just need the filename
 		# Populate filter vars from the last commit the file was included in.
-		si_file_hash=$( git -C "$si_repo_dir" log --max-count=1 --format="%H" "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1 --abbrev=7 --format="%h" "$_si_file" 2>/dev/null )
-		si_file_author=$( git -C "$si_repo_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
-		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
+		si_file_hash=$( git -C "$_si_file_dir" log --max-count=1 --format="%H" -- "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( git -C "$_si_file_dir" log --max-count=1 --abbrev=7 --format="%h" -- "$_si_file" 2>/dev/null )
+		si_file_author=$( git -C "$_si_file_dir" log --max-count=1 --format="%an" -- "$_si_file" 2>/dev/null )
+		si_file_timestamp=$( git -C "$_si_file_dir" log --max-count=1 --format="%at" -- "$_si_file" 2>/dev/null )
 		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
 		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
-		si_file_revision=$( git -C "$si_repo_dir" rev-list --count "$si_file_hash" 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
+		si_file_revision=$( git -C "$_si_file_dir" rev-list --count "$si_file_hash" 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
+
 	elif [ "$si_repo_type" = "svn" ]; then
-		_si_file="$1"
 		# Temporary file to hold results of "svn info".
 		_sif_svninfo="${si_repo_dir}/.svn/release_sh_svnfinfo"
 		svn info "$_si_file" 2>/dev/null > "$_sif_svninfo"
@@ -657,7 +660,7 @@ set_info_file() {
 			rm -f "$_sif_svninfo" 2>/dev/null
 		fi
 	elif [ "$si_repo_type" = "hg" ]; then
-		_si_file=${1#si_repo_dir} # need the path relative to the checkout
+		_si_file=${_si_file#si_repo_dir} # need the path relative to the checkout
 		# Populate filter vars.
 		si_file_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
 		si_file_abbreviated_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
