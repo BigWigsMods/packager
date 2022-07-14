@@ -2525,11 +2525,7 @@ upload_curseforge() {
 			case $type in
 				classic) game_id=67408 ;;
 				bcc) game_id=73246 ;;
-				wrath)
-					# TODO: Replace this section when CF API updates
-					echo "WARNING: Wrath is currently unsupported in CurseForge, falling back to BCC"
-					game_id=73246
-					;;
+				wrath) game_id=73713 ;;
 				*) game_id=517
 			esac
 
