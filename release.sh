@@ -381,11 +381,11 @@ if [ -n "$TRAVIS" ]; then
 fi
 
 # Check for GitHub Actions
-if [ -n "$GITHUB_ACTIONS" ]; then
-	# Prevent duplicate builds
-	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
+if [[ -n $GITHUB_ACTIONS ]]; then
+	# Prevent duplicate builds from multiple pushes
+	if [[ $GITHUB_EVENT_NAME == "push" && $GITHUB_REF == "refs/heads"* ]]; then
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
-		if [ -n "$check_tag" ]; then
+		if [[ -n $check_tag ]]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
