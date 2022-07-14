@@ -2740,9 +2740,11 @@ upload_wago() {
 		local version wago_type
 		for type in "${!game_type_version[@]}"; do
 			version="${game_type_version[$type]}"
-			wago_type="$type"
-			[[ "$wago_type" == "bcc" ]] && wago_type="bc"
-			[[ "$wago_type" == "wrath" ]] && wago_type="wotlk"
+			case $type in
+				bcc) wago_type="bc" ;;
+				wrath) wago_type="wotlk" ;;
+				*) wago_type="$type"
+			esac
 			# check the version
 			if ! jq -e --arg t "$wago_type" --arg v "$version" '.[$t] | index($v)' <<< "$_wago_versions" &>/dev/null; then
 				# no match, so grab the next highest version (try to avoid testing versions)
