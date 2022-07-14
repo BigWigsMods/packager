@@ -2624,37 +2624,34 @@ upload_wowinterface() {
 		return 0
 	fi
 
-	local _wowi_game_version _wowi_versions _wowi_versions_type
+	local _wowi_versions _wowi_game_version
 	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json )
 	if [ -n "$_wowi_versions" ]; then
-		_wowi_game_version=
-		local version
+		local version wowi_type
 		for type in "${!game_type_version[@]}"; do
 			version="${game_type_version[$type]}"
+			case $type in
+				classic) wowi_type="Classic" ;;
+				bcc) wowi_type="TBC-Classic" ;;
+				wrath) # wowi_type="WotLK-Classic" ;;
+					# XXX compat
+					echo "WARNING: Wrath is currently unsupported by WoWInterface, falling back to BCC" >&2
+					wowi_type="TBC-Classic"
+					;;
+				*) wowi_type="Retail"
+			esac
 			# check the version
 			if ! jq -e --arg v "$version" 'map(select(.id == $v)) | length > 0' <<< "$_wowi_versions" &>/dev/null; then
-				if [[ $type == "wrath" ]]; then # XXX compat
-					echo "WARNING: Wrath is currently unsupported by WoWInterface, falling back to BCC" >&2
-					version="2.5.10"
-				fi
-				# split out the versions that match the version we're checking against (to keep things more readable)
-				_wowi_versions_type=$( echo "$_wowi_versions" | jq -c --arg v "$version" 'map(select( (.id | .[:2]) == ($v | .[:2]) ))' )
-				if [[ $_wowi_versions_type == "[]" ]]; then
-					# retail default. the version doesn't match a classic version nor actual retail versions, but we fallback to retail
-					version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true ) | .id' )
-				else
-					# use the next highest version (try to avoid testing versions)
-					version=$( echo "$_wowi_versions_type" | jq -r --arg v "$version" 'map(select(.id < $v)) | max_by(.id) | .id // empty' )
-					if [[ -z $version ]]; then
-						if [[ $type == "retail" ]]; then # cheating
-							version=$( echo "$_wowi_versions" | jq -r '.[] | select(.default == true ) | .id' )
-						else # just grab the highest version
-							version=$( echo "$_wowi_versions_type" | jq -r 'max_by(.id) | .id' )
-						fi
+				# use the next highest version (try to avoid testing versions)
+				version=$( echo "$_wowi_versions" | jq -r --arg v "$version" --arg t "$wowi_type" 'map(select(.game == $t and .id < $v)) | max_by(.id) | .id // empty' )
+				if [[ -z $version ]]; then
+					# now that .game exists, maybe default per type is in the future?
+					version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" '.[] | select(.game == $t and .default == true ) | .id // empty' )
+					if [[ -z $version ]]; then # just grab the highest version
+						version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" 'map(select(.game == $t)) | max_by(.id) | .id' )
 					fi
 				fi
 				echo "WARNING: No WoWInterface game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
-				_wowi_versions_type=
 			fi
 			_wowi_game_version+=",${version}"
 		done
