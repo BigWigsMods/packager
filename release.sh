@@ -2633,6 +2633,10 @@ upload_wowinterface() {
 			version="${game_type_version[$type]}"
 			# check the version
 			if ! jq -e --arg v "$version" 'map(select(.id == $v)) | length > 0' <<< "$_wowi_versions" &>/dev/null; then
+				if [[ $type == "wrath" ]]; then # XXX compat
+					echo "WARNING: Wrath is currently unsupported by WoWInterface, falling back to BCC" >&2
+					version="2.5.10"
+				fi
 				# split out the versions that match the version we're checking against (to keep things more readable)
 				_wowi_versions_type=$( echo "$_wowi_versions" | jq -c --arg v "$version" 'map(select( (.id | .[:2]) == ($v | .[:2]) ))' )
 				if [[ $_wowi_versions_type == "[]" ]]; then
