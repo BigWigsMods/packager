@@ -2633,11 +2633,7 @@ upload_wowinterface() {
 			case $type in
 				classic) wowi_type="Classic" ;;
 				bcc) wowi_type="TBC-Classic" ;;
-				wrath) # wowi_type="WotLK-Classic" ;;
-					# XXX compat
-					echo "WARNING: Wrath is currently unsupported by WoWInterface, falling back to BCC" >&2
-					wowi_type="TBC-Classic"
-					;;
+				wrath) wowi_type="WOTLK-Classic" ;;
 				*) wowi_type="Retail"
 			esac
 			# check the version
