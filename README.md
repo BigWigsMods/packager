@@ -56,13 +56,14 @@ So what does this mean for you?
    the base interface value as it's version.
 
    ```toc
-   ## Interface: 90200
-   ## Interface-Classic: 11402
-   ## Interface-BCC: 20503
+   ## Interface: 90205
+   ## Interface-Classic: 11403
+   ## Interface-BCC: 20504
+   ## Interface-Wrath: 30400
    ```
 
    Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
-   `MyAddon_TBC.toc`, and `MyAddon.toc` (retail).
+   `MyAddon_TBC.toc`, `MyAddon_Wrath.toc`, and `MyAddon.toc` (retail).
 
 3. If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
    for controlling what code blocks execute based on the build version, you
@@ -177,8 +178,8 @@ Supported keywords and when the code block will run:
   file.
 - `no-lib-strip`: *(not supported in Lua files)* in any build other than a
   *nolib* build.
-- `retail`,`version-retail`,`version-classic`,`version-bcc`: based on game
-  version.
+- `retail`,`version-retail`,`version-classic`,`version-bcc`,`version-wrath`:
+  based on game version.
 
 `do-not-package` is a bit special. Everything between the tags, including the
 tags themselves, will always be removed from the packaged file. This will cause
@@ -251,7 +252,8 @@ on the build type:
 `{classic}` has some additional magic:
 
 1. It will show as the non-retail build type, so either `-classic` or `-bcc`.
-2. It will not be shown if "-classic" or "-bcc" is in the project version.
+2. It will not be shown if "-classic" or "-bcc" or "-wrath" is in the project
+   version.
 3. If it is included in the file name (it is by default) and #2 does not apply,
    it will also be appended to the file label (i.e., the name shown on
    CurseForge).
@@ -286,13 +288,14 @@ based on your existing preprocessing logic.  The fallback TOC file will use
 the base interface value as it's version.
 
 ```toc
-## Interface: 90200
-## Interface-Classic: 11402
-## Interface-BCC: 20503
+## Interface: 90205
+## Interface-Classic: 11403
+## Interface-BCC: 20504
+## Interface-Wrath: 30400
 ```
 
 Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
-`MyAddon_TBC.toc`, and `MyAddon.toc` (retail).
+`MyAddon_TBC.toc`, `MyAddon_Wrath.toc`, and `MyAddon.toc` (retail).
 
 If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
 for controlling what code blocks execute based on the build version, you
