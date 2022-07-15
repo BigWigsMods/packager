@@ -162,6 +162,18 @@ toc_filter() {
 	fi
 }
 
+toc_to_type() {
+	local toc_version="$1"
+	local -n game_type="$2" || return 1
+	case $toc_version in
+		11???) game_type="classic" ;;
+		20???) game_type="bcc" ;;
+		30???) game_type="wrath" ;;
+		*) game_type="retail"
+	esac
+	# return game_type
+}
+
 
 # Process command-line options
 usage() {
@@ -1070,13 +1082,11 @@ do_toc() {
 	)
 
 	toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
-	case $toc_version in
-		"") toc_game_type= ;;
-		11*) toc_game_type="classic" ;;
-		20*) toc_game_type="bcc" ;;
-		30*) toc_game_type="wrath" ;;
-		*) toc_game_type="retail"
-	esac
+	if [[ -z $toc_version ]]; then
+		toc_game_type=
+	else
+		toc_to_type "$toc_version" "toc_game_type"
+	fi
 	si_game_type_interface=()
 	si_game_type_interface_all=()
 	[[ -n "$toc_game_type" ]] && si_game_type_interface_all["$toc_game_type"]="$toc_version"
@@ -1111,12 +1121,7 @@ do_toc() {
 
 		if [[ -z "$toc_version" ]] || [[ -n "$game_type" && -n "$game_type_toc_version" && "$game_type_toc_version" != "$toc_version" ]]; then
 			toc_version="$game_type_toc_version"
-			case $toc_version in
-				11*) toc_game_type="classic" ;;
-				20*) toc_game_type="bcc" ;;
-				30*) toc_game_type="wrath" ;;
-				*) toc_game_type="retail"
-			esac
+			toc_to_type "$toc_version" "toc_game_type"
 		fi
 
 		# Check @non-@ blocks for other interface lines
@@ -1179,15 +1184,10 @@ set_build_version() {
 			else
 				version="${toc_interfaces[$path]}"
 			fi
-			declare -a versions
+			local -a versions
 			IFS=':' read -ra versions <<< "$version"
 			for toc_version in "${versions[@]}"; do
-				case $toc_version in
-					11*) toc_game_type="classic" ;;
-					20*) toc_game_type="bcc" ;;
-					30*) toc_game_type="wrath" ;;
-					*) toc_game_type="retail"
-				esac
+				toc_to_type "$toc_version" "toc_game_type"
 				# root addon interfaces take priority
 				if [[ -z $game_type || $game_type == "$toc_game_type" ]] && [[ -z ${game_type_interface[$toc_game_type]} || ${toc_root_paths[${path%/*}]} == "$package" ]]; then
 					game_type_interface[$toc_game_type]="$toc_version"
@@ -1723,12 +1723,7 @@ copy_directory_tree() {
 								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_toc_dir"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
-									case ${toc_root_interface["$_cdt_srcdir/$file"]} in
-										11*) _cdt_gametype="classic" ;;
-										20*) _cdt_gametype="bcc" ;;
-										30*) _cdt_gametype="wrath" ;;
-										*) _cdt_gametype="retail"
-									esac
+									toc_to_type "${toc_root_interface["$_cdt_srcdir/$file"]}" "_cdt_gametype"
 								fi
 								_cdt_filters+="|do_not_package_filter toc"
 								[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
