@@ -213,12 +213,13 @@ on the build type:
 
 `{classic}` has some additional magic:
 
-1. It will show as the non-retail build type, so either `-classic` or `-bcc`.
+1. It will show as the non-retail build type, so `-classic`, `-bcc`, or
+   `-wrath`.
 2. It will not be shown if "-classic" or "-bcc" or "-wrath" is in the project
-   version.
+   version (tag).
 3. If it is included in the file name (it is by default) and #2 does not apply,
-   it will also be appended to the file label (i.e., the name shown on
-   CurseForge).
+   it will also be appended to the file label (i.e., the name shown in the file
+   list on CurseForge).
 
 ## Building for multiple game versions
 
@@ -237,9 +238,9 @@ versions, you no longer need to manually set the versions via `-g` or on the
 CurseForge website.
 
 __Note:__ CurseForge still requires that a fallback TOC file exists (the TOC
-file with the same name as the addon directory). So if you support all three
-game types, you may as well leave the fallback TOC file as one of the game types
-instead of creating three game type specific ones.
+file with the same name as the addon directory). So if you support all game
+types, you may as well leave the fallback TOC file as one of the game types
+instead of creating all game type specific ones.
 
 ### Single TOC file
 
