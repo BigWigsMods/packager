@@ -57,6 +57,7 @@ skip_localization=
 skip_zipfile=
 skip_upload=
 skip_cf_upload=
+skip_invalid=
 pkgmeta_file=
 game_version=
 game_type=
@@ -1164,7 +1165,8 @@ set_build_version() {
 	local toc_game_type version
 
 	if [[ -z "$game_version" ]]; then
-		for path in "${!toc_interfaces[@]}"; do
+		readarray -t sorted < <(for a in "${!toc_interfaces[@]}"; do echo "$a"; done | sort -r)
+		for path in "${sorted[@]}"; do
 			if [[ -z "$split" && -z "$game_type" ]]; then
 				# no split and no game type means we should use the root interface value
 				# (blows up if one isn't set? should)
@@ -1544,6 +1546,7 @@ toc_interface_filter() {
 		if [ -n "$current_toc_version" ]; then # rewrite
 			sed -e $'1s/^\xEF\xBB\xBF//' -e 's/^## Interface:.*$/## Interface: '"$toc_version"'/' -e '/^## Interface-/d'
 		else # add
+			# shellcheck disable=SC1004
 			sed -e $'1s/^\xEF\xBB\xBF//' -e '1i\
 ## Interface: '"$toc_version" -e '/^## Interface-/d'
 		fi
