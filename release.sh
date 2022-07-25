@@ -2726,7 +2726,7 @@ upload_wago() {
 		return 0
 	fi
 
-	local _wago_support_property _wago_versions
+	local _wago_versions _wago_game_version _wago_support_property
 	_wago_versions=$( curl -s https://addons.wago.io/api/data/game | jq -c '.patches' 2>/dev/null )
 	if [ -n "$_wago_versions" ]; then
 		_wago_support_property=
@@ -2749,7 +2749,9 @@ upload_wago() {
 				echo "WARNING: No Wago game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
 			fi
 			_wago_support_property+="\"supported_${wago_type}_patch\": \"${version}\", "
+			_wago_game_version+=",${version}"
 		done
+		_wago_game_version="${_wago_game_version#,}"
 	fi
 	if [ -z "$_wago_support_property" ]; then
 		echo "Error fetching game version info from https://addons.wago.io/api/data/game"
@@ -2779,7 +2781,7 @@ upload_wago() {
 	EOF
 	)
 
-	echo "Uploading $archive_name ($game_version $file_type) to Wago"
+	echo "Uploading $archive_name ($_wago_game_version $file_type) to Wago"
 	resultfile="$releasedir/wago_result.json"
 	if result=$( echo "$_wago_payload" | curl -sS --retry 3 --retry-delay 10 \
 			-w "%{http_code}" -o "$resultfile" \
