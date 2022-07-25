@@ -1193,7 +1193,10 @@ set_build_version() {
 		if [[ -n "$game_type" ]]; then
 			game_version="${game_type_version[$game_type]}"
 		else
-			game_version=$( IFS=',' ; echo "${game_type_version[*]}" )
+			game_version=$(
+				readarray -t sorted < <(printf '%s\n' "${game_type_version[@]}" | sort -r)
+				IFS=',' ; echo "${sorted[*]}"
+			)
 		fi
 	fi
 
