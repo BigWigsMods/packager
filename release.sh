@@ -1262,15 +1262,11 @@ if [[ -n "$slug" && "$slug" -gt 0 && -z "$fallback_toc_file" ]]; then
 fi
 
 if [[ -n "$split" ]]; then
-	# if [[ ${#toc_interfaces[@]} -gt 1 ]]; then
-	# 	echo "Creating TOC files is enabled but there are already multiple TOC files:" >&2
-	# 	for path in "${!toc_interfaces[@]}"; do
-	# 		echo "  ${path##$topdir/}" >&2
-	# 	done
-	# 	exit 1
-	# fi
 	if [[ "${toc_interfaces[*]}" != *":"* ]]; then
-		echo "Creating TOC files is enabled but there is only one TOC interface version: ${toc_interfaces[*]}" >&2
+		echo "Creating TOC files is enabled but there is only one TOC interface version per file?" >&2
+		for path in "${toc_paths[@]}"; do
+			[[ -n ${toc_interfaces[$path]} ]] && echo "  ${path##$topdir/} [${toc_interfaces[$path]}]" >&2
+		done
 		exit 1
 	fi
 fi
