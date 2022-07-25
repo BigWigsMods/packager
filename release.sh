@@ -83,6 +83,7 @@ declare -A si_game_type_interface=()      # type -> game type toc (last file)
 declare -A toc_interfaces=()              # path -> all toc interface values (: delim)
 declare -A toc_root_interface=()          # path -> base interface value
 declare -A toc_root_paths=()              # path -> directory name
+declare -a toc_paths=()                   # toc path in order of processing
 
 # Script return code
 exit_code=0
@@ -1164,7 +1165,7 @@ set_build_version() {
 	local toc_game_type version
 
 	if [[ -z "$game_version" ]]; then
-		for path in "${!toc_interfaces[@]}"; do
+		for path in "${toc_paths[@]}"; do
 			if [[ -z "$split" && -z "$game_type" ]]; then
 				# no split and no game type means we should use the root interface value
 				# (blows up if one isn't set? should)
@@ -1181,7 +1182,8 @@ set_build_version() {
 					30*) toc_game_type="wrath" ;;
 					*) toc_game_type="retail"
 				esac
-				if [[ -z $game_type || $game_type == "$toc_game_type" ]]; then
+				# root addon interfaces take priority
+				if [[ -z $game_type || $game_type == "$toc_game_type" ]] && [[ -z ${game_type_interface[$toc_game_type]} || ${toc_root_paths[${path%/*}]} == "$package" ]]; then
 					game_type_interface[$toc_game_type]="$toc_version"
 					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" "${toc_version:0:1}" "${toc_version:1:2}" "${toc_version:3:2}" )
 				fi
@@ -1220,6 +1222,7 @@ fi
 for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC}.toc; do
 	if [[ -f "$toc_path" ]]; then
 		set_toc_project_info "$toc_path"
+		toc_paths+=("$toc_path")
 		toc_root_paths["$topdir"]="$package"
 	fi
 done
@@ -1237,6 +1240,9 @@ for path in "${!toc_root_paths[@]}"; do
 		if [[ -f "$toc_path" ]]; then
 			set_toc_project_info "$toc_path"
 			do_toc "$toc_path" "${toc_root_paths[$path]}"
+			if [[ " ${toc_paths[*]} " != *" $toc_path "* ]]; then
+				toc_paths+=("$toc_path")
+			fi
 		fi
 	done
 done
