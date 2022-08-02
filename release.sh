@@ -1498,7 +1498,7 @@ localization_filter() {
 						echo -n "$_ul_prefix"
 
 						# Fetch the localization data, but don't output anything if there is an error.
-						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
+						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
 
 						# Insert a trailing blank line to match CF packager.
 						if [ -z "$_ul_eof" ]; then
@@ -1506,7 +1506,7 @@ localization_filter() {
 						fi
 					else
 						# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
-						_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    Error! "$0"\n           "url; print o >"/dev/stderr"; exit 1 } /<!DOCTYPE/ { print "    Error! Invalid output\n           "url >"/dev/stderr"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
+						_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
 						if [ -n "$_ul_value" ] && [ "$_ul_value" != "$_ul_singlekey" ]; then
 							# The result is different from the base value so print out the line.
 							echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
@@ -1696,7 +1696,7 @@ copy_directory_tree() {
 							[ "$_cdt_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic"
 							[ "$_cdt_gametype" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
 							[ "$_cdt_gametype" != "wrath" ] && _cdt_filters+="|lua_filter version-wrath"
-							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+							[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_srcdir/$file" && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
 							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
@@ -1732,7 +1732,7 @@ copy_directory_tree() {
 								_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_gametype" != "wrath" ]] && echo "true")"
 								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
-								[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+								[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_srcdir/$file" && _cdt_filters+="|localization_filter"
 							fi
 							;;
 					esac
