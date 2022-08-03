@@ -1498,7 +1498,7 @@ localization_filter() {
 						echo -n "$_ul_prefix"
 
 						# Fetch the localization data, but don't output anything if there is an error.
-						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }'
+						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }' || exit 1
 
 						# Insert a trailing blank line to match CF packager.
 						if [ -z "$_ul_eof" ]; then
@@ -1754,7 +1754,8 @@ copy_directory_tree() {
 						exit 1
 					fi
 
-					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file"
+					set -o pipefail
+					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file" || exit 1
 
 					# Create game type specific TOCs
 					if [[ -n $_cdt_split && -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
