@@ -1552,7 +1552,9 @@ toc_interface_filter() {
 			sed -e $'1s/^\xEF\xBB\xBF//' -e '1i\
 ## Interface: '"$toc_version" -e '/^## Interface-/d'
 		fi
-		[[ -z "$split" ]] && echo "    Set Interface to ${toc_version}" >&3
+		if [[ -z "$split" ]]; then
+			echo "    Set Interface to ${toc_version}" >&3
+		fi
 	else # cleanup
 		sed -e $'1s/^\xEF\xBB\xBF//' -e '/^## Interface-/d'
 	fi
