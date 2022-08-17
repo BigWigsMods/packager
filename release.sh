@@ -1185,7 +1185,7 @@ set_build_version() {
 				# root addon interfaces take priority
 				if [[ -z $game_type || $game_type == "$toc_game_type" ]] && [[ -z ${game_type_interface[$toc_game_type]} || ${toc_root_paths[${path%/*}]} == "$package" ]]; then
 					game_type_interface[$toc_game_type]="$toc_version"
-					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" "${toc_version:0:1}" "${toc_version:1:2}" "${toc_version:3:2}" )
+					game_type_version[$toc_game_type]=$( printf "%d.%d.%d" "${toc_version:0: -4}" "${toc_version: -4:2}" "${toc_version: -2:2}" )
 				fi
 			done
 		done
