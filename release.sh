@@ -644,44 +644,50 @@ set_info_hg() {
 
 set_info_file() {
 	local _si_file="$1"
-	if [[ "$si_repo_type" = "git" ]]; then
+	if [[ $si_repo_type == "git" ]]; then
 		local _si_file_dir=${_si_file%/*} # set the working directory to file's directory to allow for submodule file info
 		_si_file=${_si_file##*/} # just need the filename
 		# Populate filter vars from the last commit the file was included in.
-		si_file_hash=$( git -C "$_si_file_dir" log --max-count=1 --format="%H" -- "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( git -C "$_si_file_dir" log --max-count=1 --abbrev=7 --format="%h" -- "$_si_file" 2>/dev/null )
 		si_file_author=$( git -C "$_si_file_dir" log --max-count=1 --format="%an" -- "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( git -C "$_si_file_dir" log --max-count=1 --format="%at" -- "$_si_file" 2>/dev/null )
-		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
-		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
 		si_file_revision=$( git -C "$_si_file_dir" rev-list --count "$si_file_hash" 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
+		si_file_hash=$( git -C "$_si_file_dir" log --max-count=1 --format="%H" -- "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( git -C "$_si_file_dir" log --max-count=1 --abbrev=7 --format="%h" -- "$_si_file" 2>/dev/null )
 
-	elif [[ "$si_repo_type" = "svn" ]]; then
+	elif [[ $si_repo_type == "svn" ]]; then
 		local _sif_svninfo _si_timestamp
 		_sif_svninfo=$( svn info "$_si_file" 2>/dev/null )
-		if [[ -n "$_sif_svninfo" ]]; then
+		if [[ -n $_sif_svninfo ]]; then
 			# Populate filter vars.
-			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' <<< "$_sif_svninfo" )
 			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' <<< "$_sif_svninfo" | cut -d" " -f4- )
 			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' <<< "$_sif_svninfo" )
 			si_file_timestamp=$( strtotime "$_si_timestamp" "%F %T %z" )
-			si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
-			si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
+			si_file_revision=$( awk '/^Last Changed Rev:/ { print $NF; exit }' <<< "$_sif_svninfo" )
 			# Use the file checksum.
 			si_file_hash=$( awk '/^Checksum:/ { print $2; exit }' <<< "$_sif_svninfo" )
 			si_file_abbreviated_hash=${si_file_hash:0:7}
+		else
+			si_file_author=
+			si_file_timestamp=
+			si_file_revision=
+			si_file_hash=
+			si_file_abbreviated_hash=
+			si_file_date_iso=
+			si_file_date_integer=
 		fi
 
-	elif [[ "$si_repo_type" = "hg" ]]; then
+	elif [[ $si_repo_type == "hg" ]]; then
 		# Populate filter vars.
-		si_file_hash=$( hg log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
-		si_file_abbreviated_hash=$( hg log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
 		si_file_author=$( hg log --limit 1 --template '{author}' "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( hg log --limit 1 --template '{date}' "$_si_file" 2>/dev/null | cut -d. -f1 )
+		si_file_revision=$( hg log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
+		si_file_hash=$( hg log --limit 1 --template '{node}' "$_si_file" 2>/dev/null )
+		si_file_abbreviated_hash=$( hg log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
+
+	fi
+	if [[ -n $si_file_timestamp ]]; then
 		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
 		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
-		si_file_revision=$( hg log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
-
 	fi
 }
 
