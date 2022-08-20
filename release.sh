@@ -1663,7 +1663,8 @@ copy_directory_tree() {
 	_cdt_find_cmd+=" -o \! -name \".\" -print"
 	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
 		file=${file#./}
-		if [ -f "$_cdt_srcdir/$file" ]; then
+		_cdt_source_file="$_cdt_srcdir/$file"
+		if [ -f "$_cdt_source_file" ]; then
 			_cdt_skip_copy=
 			_cdt_only_copy=
 			# Prefix external files with the relative pkgdir path
@@ -1691,7 +1692,7 @@ copy_directory_tree() {
 				# Check if the file matches a pattern for keyword replacement.
 				if [ -n "$_cdt_only_copy" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
-					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
+					cp "$_cdt_source_file" "$_cdt_destdir/$dir"
 				else
 					# Set the filters for replacement based on file extension.
 					_cdt_filters="vcs_filter"
@@ -1704,7 +1705,7 @@ copy_directory_tree() {
 							[ "$_cdt_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic"
 							[ "$_cdt_gametype" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
 							[ "$_cdt_gametype" != "wrath" ] && _cdt_filters+="|lua_filter version-wrath"
-							[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_srcdir/$file" && _cdt_filters+="|localization_filter"
+							[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
 							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
@@ -1718,12 +1719,12 @@ copy_directory_tree() {
 							;;
 						*.toc)
 							# We only care about processing project TOC files
-							if [[ -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
-								_cdt_toc_dir="$_cdt_srcdir/${file%/*}"
-								do_toc "$_cdt_srcdir/$file" "${toc_root_paths["$_cdt_toc_dir"]}"
+							if [[ -n ${toc_root_interface["$_cdt_source_file"]} ]]; then
+								_cdt_toc_dir="${_cdt_source_file%/*}"
+								do_toc "$_cdt_source_file" "${toc_root_paths["$_cdt_toc_dir"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_gametype && -n $_cdt_split ]]; then
-									toc_to_type "${toc_root_interface["$_cdt_srcdir/$file"]}" "_cdt_gametype"
+									toc_to_type "${toc_root_interface["$_cdt_source_file"]}" "_cdt_gametype"
 								fi
 								_cdt_filters+="|do_not_package_filter toc"
 								[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
@@ -1734,8 +1735,8 @@ copy_directory_tree() {
 								_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_gametype" != "classic" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_gametype" != "bcc" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_gametype" != "wrath" ]] && echo "true")"
-								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_srcdir/$file"]}'"
-								[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_srcdir/$file" && _cdt_filters+="|localization_filter"
+								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_gametype:- }]}' '${toc_root_interface["$_cdt_source_file"]}'"
+								[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
 							fi
 							;;
 					esac
@@ -1744,26 +1745,26 @@ copy_directory_tree() {
 					_cdt_filters+="|line_ending_filter"
 
 					# Set version control values for the file.
-					set_info_file "$_cdt_srcdir/$file"
+					set_info_file "$_cdt_source_file"
 
 					echo "  Copying: $file"
 
 					# Make sure we're not causing any surprises
-					if [[ -z $_cdt_gametype && ( $file == *".lua" || $file == *".xml" || $file == *".toc" ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_srcdir/$file"; then
+					if [[ -z $_cdt_gametype && ( $file == *".lua" || $file == *".xml" || $file == *".toc" ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
 						echo "           These should be replaced with lua conditional statements:" >&2
-						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_srcdir/$file" | sed 's/^/             /' >&2
+						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
 						echo "           See https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID" >&2
 						exit 1
 					fi
 
 					set -o pipefail
-					eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file" || exit 1
+					eval < "$_cdt_source_file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$file" || exit 1
 
 					# Create game type specific TOCs
-					if [[ -n $_cdt_split && -n ${toc_root_interface["$_cdt_srcdir/$file"]} ]]; then
+					if [[ -n $_cdt_split && -n ${toc_root_interface["$_cdt_source_file"]} ]]; then
 						local toc_version new_file
-						local root_toc_version="${toc_root_interface["$_cdt_srcdir/$file"]}"
+						local root_toc_version="${toc_root_interface["$_cdt_source_file"]}"
 						for type in "${!si_game_type_interface[@]}"; do
 							toc_version="${si_game_type_interface[$type]}"
 							new_file="${file%.toc}"
@@ -1789,7 +1790,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_interface_filter '$toc_version' '$root_toc_version'"
 							_cdt_filters+="|line_ending_filter"
 
-							eval < "$_cdt_srcdir/$file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$new_file"
+							eval < "$_cdt_source_file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$new_file"
 						done
 
 						# Remove the fallback TOC file if it doesn't have an interface value or if you a TOC file for each game type
