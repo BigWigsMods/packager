@@ -91,9 +91,10 @@ exit_code=0
 retry() {
 	local result=0
 	local count=1
-	while [[ "$count" -le 3 ]]; do
+	local max=10
+	while [[ "$count" -le "$max" ]]; do
 		[[ "$result" -ne 0 ]] && {
-			echo -e "\033[01;31mRetrying (${count}/3)\033[0m" >&2
+			echo -e "\033[01;31mRetrying (${count}/${max})\033[0m" >&2
 		}
 		"$@" && { result=0 && break; } || result="$?"
 		count="$((count + 1))"
