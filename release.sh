@@ -1818,13 +1818,6 @@ if [ -z "$skip_copying" ]; then
 	[ -n "$split" ] && cdt_args+="S"
 	[ -n "$game_type" ] && cdt_args+=" -g $game_type"
 	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
-	if [ -n "$changelog" ]; then
-		if [ -z "$unchanged" ]; then
-			unchanged="$changelog"
-		else
-			unchanged="$unchanged:$changelog"
-		fi
-	fi
 	[ -n "$unchanged" ] && cdt_args+=" -u \"$unchanged\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
 fi
@@ -2158,17 +2151,17 @@ fi
 
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
-if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	start_group "Using manual changelog at $changelog" "changelog"
-	head -n7 "$topdir/$changelog"
-	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
+if [ -n "$manual_changelog" ] && [ -f "$pkgdir/$changelog" ]; then
+	start_group "Using manual changelog $changelog" "changelog"
+	head -n7 "$pkgdir/$changelog"
+	[ "$( wc -l < "$pkgdir/$changelog" )" -gt 7 ] && echo "..."
 	end_group "changelog"
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
 	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-		pandoc -f commonmark -t html "$topdir/$changelog" | sed \
+		pandoc -f commonmark -t html "$pkgdir/$changelog" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
 			-e 's/<\(\/\)\?em>/[\1i]/g' \
 			-e 's/<\(\/\)\?strong>/[\1b]/g' \
