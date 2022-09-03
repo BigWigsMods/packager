@@ -124,6 +124,10 @@ for more info.
 - *@file-timestamp@*
 - *@project-timestamp@*
 - *@project-version@*
+- *@build-date@*
+- *@build-date-iso@*
+- *@build-date-integer@*
+- *@build-timestamp@*
 
 ### Build type keywords
 

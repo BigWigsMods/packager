@@ -497,6 +497,11 @@ si_file_date_iso= # Turns into the last changed date (by UTC) of the file in ISO
 si_file_date_integer= # Turns into the last changed date (by UTC) of the file in a readable integer fashion. e.g. 20080501123456
 si_file_timestamp= # Turns into the last changed date (by UTC) of the file in POSIX timestamp. e.g. 1209663296
 
+si_build_timestamp=$( date "+%s" )
+si_build_date=$( TZ='' printf "%(%Y-%m-%d)T" "$si_build_timestamp" )
+si_build_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_build_timestamp" )
+si_build_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_build_timestamp" )
+
 # SVN date helper function
 strtotime() {
 	local value="$1" # datetime string
@@ -1363,7 +1368,11 @@ vcs_filter() {
 		-e "s/@file-author@/$( escape_substr "$si_file_author" )/g" \
 		-e "s/@file-date-iso@/$si_file_date_iso/g" \
 		-e "s/@file-date-integer@/$si_file_date_integer/g" \
-		-e "s/@file-timestamp@/$si_file_timestamp/g"
+		-e "s/@file-timestamp@/$si_file_timestamp/g" \
+		-e "s/@build-date@/$si_build_date/g" \
+		-e "s/@build-date-iso@/$si_build_date_iso/g" \
+		-e "s/@build-date-integer@/$si_build_date_integer/g" \
+		-e "s/@build-timestamp@/$si_build_timestamp/g"
 }
 
 # Find URL of localization api.
