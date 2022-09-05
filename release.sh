@@ -2160,17 +2160,25 @@ fi
 
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
-if [ -n "$manual_changelog" ] && [ -f "$pkgdir/$changelog" ]; then
+
+changelog_path=
+if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
+	if [[ -f "$pkgdir/$changelog" ]]; then
+		# use the processed copy
+		changelog_path="$pkgdir/$changelog"
+	else
+		changelog_path="$topdir/$changelog"
+	fi
 	start_group "Using manual changelog $changelog" "changelog"
-	head -n7 "$pkgdir/$changelog"
-	[ "$( wc -l < "$pkgdir/$changelog" )" -gt 7 ] && echo "..."
+	head -n7 "$changelog_path"
+	[ "$( wc -l < "$changelog_path" )" -gt 7 ] && echo "..."
 	end_group "changelog"
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
 	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-		pandoc -f commonmark -t html "$pkgdir/$changelog" | sed \
+		pandoc -f commonmark -t html "$changelog_path" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
 			-e 's/<\(\/\)\?em>/[\1i]/g' \
 			-e 's/<\(\/\)\?strong>/[\1b]/g' \
@@ -2204,6 +2212,7 @@ else
 	fi
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
+	changelog_path="$pkgdir/$changelog"
 
 	if [ -n "$wowi_gen_changelog" ] && [ -z "$wowi_convert_changelog" ]; then
 		wowi_markup="markdown"
@@ -2263,7 +2272,7 @@ else
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
-		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
+		cat <<- EOF | line_ending_filter > "$changelog_path"
 		# $project
 
 		## $changelog_version ($changelog_date)
@@ -2276,7 +2285,7 @@ else
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
 			      -e '/^[[:space:]]*$/d' \
-			| line_ending_filter >> "$pkgdir/$changelog"
+			| line_ending_filter >> "$changelog_path"
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
@@ -2305,7 +2314,7 @@ else
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
-		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
+		cat <<- EOF | line_ending_filter > "$changelog_path"
 		# $project
 
 		## $project_version ($changelog_date)
@@ -2319,7 +2328,7 @@ else
 			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/^[[:space:]]*$/d' \
-			| line_ending_filter >> "$pkgdir/$changelog"
+			| line_ending_filter >> "$changelog_path"
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
@@ -2350,13 +2359,13 @@ else
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
-		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
+		cat <<- EOF | line_ending_filter > "$changelog_path"
 		# $project
 
 		## $project_version ($changelog_date)
 
 		EOF
-		hg --cwd "$topdir" log -r "$_changelog_range" --template '- {fill(desc|strip, 76, "", "  ")}\n' | line_ending_filter >> "$pkgdir/$changelog"
+		hg --cwd "$topdir" log -r "$_changelog_range" --template '- {fill(desc|strip, 76, "", "  ")}\n' | line_ending_filter >> "$changelog_path"
 
 		# WoWI uses BBCode, generate something usable to post to the site
 		# the file is deleted on successful upload
@@ -2373,7 +2382,7 @@ else
 		fi
 	fi
 
-	echo "$(<"$pkgdir/$changelog")"
+	echo "$(<"$changelog_path")"
 	end_group "changelog"
 fi
 
@@ -2580,7 +2589,7 @@ upload_curseforge() {
 	  "displayName": "$archive_label",
 	  "gameVersions": $_cf_game_version_id,
 	  "releaseType": "$file_type",
-	  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
+	  "changelog": $( jq --slurp --raw-input '.' < "$changelog_path" ),
 	  "changelogType": "$changelog_markup"
 	}
 	EOF
@@ -2683,7 +2692,7 @@ upload_wowinterface() {
 	if [ -f "$wowi_changelog" ]; then
 		_wowi_args+=("-F changelog=<$wowi_changelog")
 	elif [ -n "$manual_changelog" ] || [ "$wowi_markup" = "markdown" ]; then
-		_wowi_args+=("-F changelog=<$pkgdir/$changelog")
+		_wowi_args+=("-F changelog=<$changelog_path")
 	fi
 	if [ -z "$wowi_archive" ]; then
 		_wowi_args+=("-F archive=No")
@@ -2790,7 +2799,7 @@ upload_wago() {
 	  "label": "$archive_label",
 	  $_wago_support_property
 	  "stability": "$_wago_stability",
-	  "changelog": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" )
+	  "changelog": $( jq --slurp --raw-input '.' < "$changelog_path" )
 	}
 	EOF
 	)
@@ -2922,7 +2931,7 @@ upload_github() {
 	{
 	  "tag_name": "$tag",
 	  "name": "$tag",
-	  "body": $( jq --slurp --raw-input '.' < "$pkgdir/$changelog" ),
+	  "body": $( jq --slurp --raw-input '.' < "$changelog_path" ),
 	  "draft": false,
 	  "prerelease": $( [[ "$file_type" != "release" ]] && echo true || echo false )
 	}
