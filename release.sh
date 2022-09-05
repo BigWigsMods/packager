@@ -1002,10 +1002,13 @@ vcs_addignore() {
 	if [[ -d "$topdir/$_ignored_path" ]]; then
 		_vcs_ignore="$_ignored_path*"
 	fi
-	if [[ -z "$ignore" ]]; then
-		ignore="$_ignored_path"
-	else
-		ignore="$ignore:$_ignored_path"
+	# Don't ignore a manual changelog generated for the build
+	if [[ -z $changelog || $_ignored_path != "$changelog" ]]; then
+		if [[ -z "$ignore" ]]; then
+			ignore="$_ignored_path"
+		else
+			ignore="$ignore:$_ignored_path"
+		fi
 	fi
 }
 
