@@ -947,34 +947,6 @@ if [ -f "$pkgmeta_file" ]; then
 						# Get the YAML list item.
 						yaml_listitem "$yaml_line"
 						case $pkgmeta_phase in
-							ignore)
-								pattern=$yaml_item
-								if [ -d "$topdir/$pattern" ]; then
-									pattern="$pattern/*"
-								elif [ ! -f "$topdir/$pattern" ]; then
-									# doesn't exist so match both a file and a path
-									pattern="$pattern:$pattern/*"
-								fi
-								if [ -z "$ignore" ]; then
-									ignore="$pattern"
-								else
-									ignore="$ignore:$pattern"
-								fi
-								;;
-							plain-copy)
-								pattern=$yaml_item
-								if [ -d "$topdir/$pattern" ]; then
-									pattern="$pattern/*"
-								elif [ ! -f "$topdir/$pattern" ]; then
-									# doesn't exist so match both a file and a path
-									pattern="$pattern:$pattern/*"
-								fi
-								if [ -z "$unchanged" ]; then
-									unchanged="$pattern"
-								else
-									unchanged="$unchanged:$pattern"
-								fi
-								;;
 							tools-used)
 								relations["$yaml_item"]="tool"
 								;;
@@ -1024,47 +996,39 @@ if [ -f "$pkgmeta_file" ]; then
 fi
 
 # Add untracked/ignored files to the ignore list
-if [ "$repository_type" = "git" ]; then
-	OLDIFS=$IFS
-	IFS=$'\n'
-	for _vcs_ignore in $( git -C "$topdir" ls-files --others --directory ); do
-		if [ -d "$topdir/$_vcs_ignore" ]; then
-			_vcs_ignore="$_vcs_ignore*"
-		fi
-		if [ -z "$ignore" ]; then
-			ignore="$_vcs_ignore"
-		else
-			ignore="$ignore:$_vcs_ignore"
-		fi
-	done
-	IFS=$OLDIFS
-elif [ "$repository_type" = "svn" ]; then
-	# svn always being difficult.
-	OLDIFS=$IFS
-	IFS=$'\n'
-	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/' | cut -c9- ); do
-		_vcs_ignore="${_vcs_ignore//\\//}"
-		if [ -d "$topdir/$_vcs_ignore" ]; then
-			_vcs_ignore="$_vcs_ignore/*"
-		fi
-		if [ -z "$ignore" ]; then
-			ignore="$_vcs_ignore"
-		else
-			ignore="$ignore:$_vcs_ignore"
-		fi
-	done
-	IFS=$OLDIFS
-elif [ "$repository_type" = "hg" ]; then
-	_vcs_ignore=$( hg --cwd "$topdir" status --ignored --unknown --no-status --print0 | tr '\0' ':' )
-	if [ -n "$_vcs_ignore" ]; then
-		_vcs_ignore="${_vcs_ignore%:}"
-		if [ -z "$ignore" ]; then
-			ignore="$_vcs_ignore"
-		else
-			ignore="$ignore:$_vcs_ignore"
-		fi
+
+vcs_addignore() {
+	local _ignored_path="$1"
+	if [[ -d "$topdir/$_ignored_path" ]]; then
+		_vcs_ignore="$_ignored_path*"
 	fi
+	if [[ -z "$ignore" ]]; then
+		ignore="$_ignored_path"
+	else
+		ignore="$ignore:$_ignored_path"
+	fi
+}
+
+OLDIFS=$IFS
+IFS=$'\n'
+if [ "$repository_type" = "git" ]; then
+	for _vcs_ignore in $( git -C "$topdir" ls-files --others --directory ); do
+		vcs_addignore "$_vcs_ignore"
+	done
+elif [ "$repository_type" = "svn" ]; then
+	for _vcs_ignore in $( cd "$topdir" && svn status --no-ignore --ignore-externals | awk '/^[?IX]/ { print $2 }' ); do
+		vcs_addignore "${_vcs_ignore//\\//}"
+	done
+elif [ "$repository_type" = "hg" ]; then
+	for _vcs_ignore in $( hg --cwd "$topdir" status --ignored --unknown --no-status ); do
+		vcs_addignore "$_vcs_ignore"
+	done
 fi
+IFS=$OLDIFS
+
+
+# Add .pkgmeta ignored files to the ignore list
+parse_ignore "$pkgmeta_file"
 
 ###
 ### Process TOC file
