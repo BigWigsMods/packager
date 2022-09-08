@@ -786,6 +786,8 @@ yaml_keyvalue() {
 yaml_listitem() {
 	yaml_item=${1#-}
 	yaml_item=${yaml_item#"${yaml_item%%[! ]*}"} # trim leading whitespace
+	yaml_item=${yaml_item#[\'\"]} # trim leading quotes
+	yaml_item=${yaml_item%[\'\"]} # trim trailing quotes
 }
 
 ###
