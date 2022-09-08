@@ -31,7 +31,8 @@
 #   SC2295: Expansions inside ${..} need to be quoted separately, otherwise they will match as a pattern.
 #   SC2030: Modification of var is local (to subshell caused by pipeline).
 #   SC2031: var was modified in a subshell. That change might be lost.
-# shellcheck disable=SC2295,SC2030,SC2031
+#   SC2001: See if you can use ${variable//search/replace} instead.
+# shellcheck disable=SC2295,SC2030,SC2031,SC2001
 
 ## USER OPTIONS
 
@@ -586,7 +587,6 @@ set_info_svn() {
 			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
 			_si_tag_line=$( retry svn log --verbose --limit 1 "$si_repo_url/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
 			_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-			# shellcheck disable=SC2001
 			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
 
 			if [[ "$_si_tag_from_revision" == "$_si_revision" ]]; then
