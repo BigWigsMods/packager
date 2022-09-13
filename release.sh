@@ -256,7 +256,7 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 						fi
 						# Only one version per game type is allowed
 						if [ -n "${game_type_version[$game_type]}" ]; then
-							echo "Invalid argument for option \"-g\" ($i) - Only one version per game type is supported." >&2
+							echo "Invalid argument for option \"-g\" (${game_type_version[$game_type]}, $i) - Only one version per game type is supported." >&2
 							usage
 							exit 1
 						fi
