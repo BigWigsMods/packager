@@ -2145,7 +2145,7 @@ if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
 
 	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
 	# Requires pandoc (http://pandoc.org/)
-	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
+	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && command -v pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
 		pandoc -f commonmark -t html "$changelog_path" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
@@ -2981,7 +2981,7 @@ upload_github() {
 
 
 if [[ -z $skip_upload && -n $archive && -s $archive ]]; then
-	if ! hash jq &>/dev/null; then
+	if command -v jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		exit_code=1
