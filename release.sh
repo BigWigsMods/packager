@@ -1240,12 +1240,6 @@ if [[ ${#toc_interfaces[@]} -eq 0 ]]; then
 	exit 1
 fi
 
-# CurseForge still requires a fallback TOC file
-if [[ -n "$slug" && "$slug" -gt 0 && -z "$fallback_toc_file" ]]; then
-	echo "CurseForge still requires a fallback TOC file (\"$package.toc\") when using multiple TOC files." >&2
-	exit 1
-fi
-
 if [[ -n "$split" ]]; then
 	if [[ "${toc_interfaces[*]}" != *":"* ]]; then
 		echo "Creating TOC files is enabled but there is only one TOC interface version per file?" >&2
