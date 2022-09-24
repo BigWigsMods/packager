@@ -1043,8 +1043,6 @@ parse_ignore "$pkgmeta_file"
 ### Process TOC file
 ###
 
-fallback_toc_file=
-
 do_toc() {
 	local toc_file toc_version toc_game_type root_toc_version
 	local toc_path="$1"
@@ -1218,7 +1216,6 @@ done
 for path in "${!toc_root_paths[@]}"; do
 	if [[ -f "$path/$package.toc" ]]; then
 		set_toc_project_info "$path/$package.toc"
-		fallback_toc_file="$path/$package.toc"
 	fi
 done
 
