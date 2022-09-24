@@ -2998,7 +2998,7 @@ upload_github() {
 
 
 if [[ -z $skip_upload && -n $archive && -s $archive ]]; then
-	if command -v jq &>/dev/null; then
+	if ! command -v jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		exit_code=1
