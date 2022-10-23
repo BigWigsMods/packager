@@ -2539,7 +2539,7 @@ upload_curseforge() {
 			esac
 
 			# check the version
-			if ! jq -e --arg v "$version_name" 'map(select(.name == $v)) | length > 0' <<< "$_cf_versions" &>/dev/null; then
+			if ! jq -e --arg v "$version_name" --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t and .name == $v)) | length > 0' <<< "$_cf_versions" &>/dev/null; then
 				# no match, so grab the next highest version (try to avoid testing versions)
 				version_name=$( echo "$_cf_versions" | jq -r --arg v "$version_name" --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t and .name < $v)) | max_by(.id) | .name // empty' )
 				if [[ -z $version_name ]]; then
