@@ -2469,7 +2469,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$GITHUB_ACTIONS" ]; then
-		echo "::set-output name=archive_path::${archive}"
+		echo "ARCHIVE_PATH=${archive}" >> $GITHUB_OUTPUT
 	fi
 
 	start_group "Creating archive: $archive_name ($archive_label)" "archive"
