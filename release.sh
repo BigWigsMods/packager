@@ -954,16 +954,16 @@ if [ -f "$pkgmeta_file" ]; then
 						yaml_listitem "$yaml_line"
 						case $pkgmeta_phase in
 							tools-used)
-								relations["$yaml_item"]="tool"
+								relations["${yaml_item,,}"]="tool"
 								;;
 							required-dependencies)
-								relations["$yaml_item"]="requiredDependency"
+								relations["${yaml_item,,}"]="requiredDependency"
 								;;
 							optional-dependencies)
-								relations["$yaml_item"]="optionalDependency"
+								relations["${yaml_item,,}"]="optionalDependency"
 								;;
 							embedded-libraries)
-								relations["$yaml_item"]="embeddedLibrary"
+								relations["${yaml_item,,}"]="embeddedLibrary"
 								;;
 						esac
 						;;
@@ -1985,7 +1985,7 @@ process_external() {
 		fi
 
 		if [ -n "$external_slug" ]; then
-			relations["$external_slug"]="embeddedLibrary"
+			relations["${external_slug,,}"]="embeddedLibrary"
 		fi
 
 		echo "Fetching external: $external_dir"
