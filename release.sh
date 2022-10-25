@@ -1665,9 +1665,18 @@ copy_directory_tree() {
 				if [ "$_cdt_subdir" != "$file" ]; then
 					mkdir -p "$_cdt_destdir/$_cdt_subdir"
 				fi
+				# Check for marked hard embedded libraries
+				_cdt_external_slug=
+				if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -Po "(?i)(?<=@)curseforge-project-slug[[:space:]]*:[[:space:]]*[^@]+(?=@)" "$_cdt_source_file"); then
+					_cdt_external_slug="${_cdt_external_slug##*:}"
+					_cdt_external_slug="${_cdt_external_slug//[[:space:]]/}"
+					if [[ -n $_cdt_external_slug ]]; then
+						relations["${_cdt_external_slug,,}"]="embeddedLibrary"
+					fi
+				fi
 				# Check if the file matches a pattern for keyword replacement.
 				if [ -n "$_cdt_only_copy" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
-					echo "  Copying: $file (unchanged)"
+					echo "  Copying: $file (unchanged)${_cdt_external_slug:+(embedded: "$_cdt_external_slug")}"
 					cp "$_cdt_source_file" "$_cdt_destdir/$_cdt_subdir"
 				else
 					_cdt_file_gametype="$_cdt_gametype"
@@ -1724,7 +1733,7 @@ copy_directory_tree() {
 					# Set version control values for the file.
 					set_info_file "$_cdt_source_file"
 
-					echo "  Copying: $file"
+					echo "  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
 
 					# Make sure we're not causing any surprises
 					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || $file == *".toc" ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file"; then
