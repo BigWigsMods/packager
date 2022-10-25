@@ -1635,7 +1635,9 @@ copy_directory_tree() {
 	esac
 	# Print the filename, but suppress the current directory ".".
 	_cdt_find_cmd+=" -o \! -name \".\" -print"
-	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
+
+	local file
+	while read -r file; do # <( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" )
 		file=${file#./}
 		_cdt_source_file="$_cdt_srcdir/$file"
 		if [ -f "$_cdt_source_file" ]; then
@@ -1659,14 +1661,14 @@ copy_directory_tree() {
 			if [ -n "$_cdt_skip_copy" ]; then
 				echo "  Ignoring: $file"
 			else
-				dir=${file%/*}
-				if [ "$dir" != "$file" ]; then
-					mkdir -p "$_cdt_destdir/$dir"
+				_cdt_subdir=${file%/*}
+				if [ "$_cdt_subdir" != "$file" ]; then
+					mkdir -p "$_cdt_destdir/$_cdt_subdir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
 				if [ -n "$_cdt_only_copy" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
-					cp "$_cdt_source_file" "$_cdt_destdir/$dir"
+					cp "$_cdt_source_file" "$_cdt_destdir/$_cdt_subdir"
 				else
 					_cdt_file_gametype="$_cdt_gametype"
 					# Set the filters for replacement based on file extension.
@@ -1767,17 +1769,11 @@ copy_directory_tree() {
 
 							eval < "$_cdt_source_file" "$_cdt_filters" 3>&1 > "$_cdt_destdir/$new_file"
 						done
-
-						# Remove the fallback TOC file if it doesn't have an interface value or if you a TOC file for each game type
-						# if [[ -z $root_toc_version || ${#si_game_type_interface[@]} -eq 3 ]]; then
-						# 	echo "    Removing $file"
-						# 	rm -f "$_cdt_destdir/$file"
-						# fi
 					fi
 				fi
 			fi
 		fi
-	done || exit 1 # actually exit if we end with an error
+	done < <( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" )
 	if [ -z "$_external_dir" ]; then
 		end_group "copy"
 	fi
