@@ -1006,7 +1006,7 @@ fi
 vcs_addignore() {
 	local _ignored_path="$1"
 	if [[ -d "$topdir/$_ignored_path" ]]; then
-		_vcs_ignore="$_ignored_path*"
+		_ignored_path="$_ignored_path*"
 	fi
 	# Don't ignore a manual changelog generated for the build
 	if [[ -z $changelog || $_ignored_path != "$changelog" ]]; then
@@ -1623,6 +1623,7 @@ copy_directory_tree() {
 	if [ ! -d "$_cdt_destdir" ]; then
 		mkdir -p "$_cdt_destdir"
 	fi
+
 	# Create a "find" command to list all of the files in the current directory, minus any ones we need to prune.
 	_cdt_find_cmd="find ."
 	# Prune everything that begins with a dot except for the current directory ".".
