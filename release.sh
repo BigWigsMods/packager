@@ -1668,9 +1668,9 @@ copy_directory_tree() {
 				fi
 				# Check for marked hard embedded libraries
 				_cdt_external_slug=
-				if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -Po "(?i)(?<=@)curseforge-project-slug[[:space:]]*:[[:space:]]*[^@]+(?=@)" "$_cdt_source_file"); then
+				if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -io "@curseforge-project-slug[[:blank:]]*:[[:blank:]]*[^@]\+@" "$_cdt_source_file"); then
+					_cdt_external_slug="${_cdt_external_slug//[[:blank:]@]/}"
 					_cdt_external_slug="${_cdt_external_slug##*:}"
-					_cdt_external_slug="${_cdt_external_slug//[[:space:]]/}"
 					if [[ -n $_cdt_external_slug ]]; then
 						relations["${_cdt_external_slug,,}"]="embeddedLibrary"
 					fi
