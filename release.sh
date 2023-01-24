@@ -31,8 +31,8 @@
 #   SC2295: Expansions inside ${..} need to be quoted separately, otherwise they will match as a pattern.
 #   SC2030: Modification of var is local (to subshell caused by pipeline).
 #   SC2031: var was modified in a subshell. That change might be lost.
-#   SC2001: See if you can use ${variable//search/replace} instead.
-# shellcheck disable=SC2295,SC2030,SC2031,SC2001
+#   SC2317: Command appears to be unreachable.
+# shellcheck disable=SC2295,SC2030,SC2031,SC2317
 
 ## USER OPTIONS
 
@@ -592,7 +592,9 @@ set_info_svn() {
 			# Check if the latest tag matches the working copy revision (/trunk checkout instead of /tags)
 			_si_tag_line=$( retry svn log --verbose --limit 1 "$si_repo_url/tags" 2>/dev/null | awk '/^   A/ { print $0; exit }' )
 			_si_tag=$( echo "$_si_tag_line" | awk '/^   A/ { print $2 }' | awk -F/ '{ print $NF }' )
-			_si_tag_from_revision=$( echo "$_si_tag_line" | sed -e 's/^.*:\([0-9]\{1,\}\)).*$/\1/' ) # (from /project/trunk:N)
+			# (from /project/trunk:REV)
+			_si_tag_from_revision=${_si_tag_line##*:}
+			_si_tag_from_revision=${_si_tag_from_revision%)*}
 
 			if [[ "$_si_tag_from_revision" == "$_si_revision" ]]; then
 				si_tag="$_si_tag"
@@ -1060,7 +1062,7 @@ do_toc() {
 	toc_file=$(
 		# remove BOM and CR and apply some non-version related TOC filters
 		[ "$file_type" != "alpha" ] && _tf_alpha="true"
-		sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | toc_filter alpha ${_tf_alpha} | toc_filter debug true
+		sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | toc_filter alpha ${_tf_alpha:+true} | toc_filter debug true
 	)
 
 	toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
@@ -2480,7 +2482,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	if [ -n "$GITHUB_ACTIONS" ]; then
-		echo "ARCHIVE_PATH=${archive}" >> $GITHUB_OUTPUT
+		echo "ARCHIVE_PATH=${archive}" >> "$GITHUB_OUTPUT"
 	fi
 
 	start_group "Creating archive: $archive_name ($archive_label)" "archive"
@@ -2534,7 +2536,7 @@ upload_curseforge() {
 	fi
 
 	local _cf_game_version_id _cf_game_version _cf_versions
-	_cf_versions=$( curl -s -H "x-api-token: $cf_token" $project_site/api/game/versions )
+	_cf_versions=$( curl -s -H "x-api-token: $cf_token" "$project_site/api/game/versions" )
 	if [[ -n $_cf_versions && $_cf_versions != *"errorMessage"* ]]; then
 		_cf_game_version_id=
 		_cf_game_version=
@@ -2635,6 +2637,7 @@ upload_curseforge() {
 
 	rm -f "$resultfile" 2>/dev/null
 
+	# shellcheck disable=SC2086  # why does this one instance raise an error? /shrug
 	return $return_code
 }
 
