@@ -1065,7 +1065,7 @@ do_toc() {
 		sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | toc_filter alpha ${_tf_alpha:+true} | toc_filter debug true
 	)
 
-	toc_version=$( awk '/^## Interface:/ { print $NF; exit }' <<< "$toc_file" )
+	toc_version=$( awk -F: '/^## Interface:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' <<< "$toc_file" )
 	if [[ -z $toc_version ]]; then
 		toc_game_type=
 	else
@@ -1142,17 +1142,17 @@ set_toc_project_info() {
 	local toc_path="$1"
 	# Get the title of the addon for the changelog
 	if [ -z "$project" ]; then
-		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
+		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## Title:/ { gsub(/^[[:blank:]]+|[[:blank:]]+$/, "", $2); print $2; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' )
 	fi
 	# Get project IDs for uploading
 	if [ -z "$slug" ]; then
-		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
+		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Curse-Project-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
 	fi
 	if [ -z "$addonid" ]; then
-		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
+		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-WoWI-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
 	fi
 	if [ -z "$wagoid" ]; then
-		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## X-Wago-ID:/ { print $NF; exit }' )
+		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Wago-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
 	fi
 }
 
