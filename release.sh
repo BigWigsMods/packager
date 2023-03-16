@@ -2801,7 +2801,7 @@ upload_wago() {
 	EOF
 	)
 
-	echo "Uploading $archive_name ($_wago_game_version $file_type) to Wago"
+	echo "Uploading $archive_name ($_wago_game_version $file_type) to https://addons.wago.io/addons/$wagoid"
 	resultfile="$releasedir/wago_result.json"
 	if result=$( echo "$_wago_payload" | curl -sS --retry 3 --retry-delay 10 \
 			-w "%{http_code}" -o "$resultfile" \
