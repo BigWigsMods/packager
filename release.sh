@@ -537,7 +537,11 @@ set_info_git() {
 	si_previous_tag=
 	si_previous_revision=
 	_si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=7 2>/dev/null )
-	si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
+	if [[ -n $GITHUB_REF_NAME ]]; then
+		si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
+	else
+		si_tag=$GITHUB_REF_NAME
+	fi
 	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
 	si_project_version="$si_tag"
 	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
