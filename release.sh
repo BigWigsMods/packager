@@ -1828,6 +1828,10 @@ checkout_external() {
 	_external_checkout_type=$6
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
+	if [[ -d $_cqe_checkout_dir ]]; then
+		# cleanup in case there was an aborted attempt to checkout
+		rm -rf "$_cqe_checkout_dir"
+	fi
 	mkdir -p "$_cqe_checkout_dir"
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
