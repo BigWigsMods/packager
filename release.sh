@@ -1934,7 +1934,7 @@ checkout_external() {
 		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
 		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir"
 		copy_directory_tree -dnpe -i "$ignore" -u "$unchanged" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
-	)
+	) || return 1
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
 		rm -fr "$_cqe_checkout_dir"
