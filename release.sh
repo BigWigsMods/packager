@@ -536,17 +536,37 @@ set_info_git() {
 	# Get the tag for the HEAD.
 	si_previous_tag=
 	si_previous_revision=
-	_si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=7 2>/dev/null )
-	si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
-	# Set $si_project_version to the version number of HEAD. May be empty if there are no commits.
+	# git describe should use the latest tag if there are multiple, but it doesn't always work that way.
+	check_tag=()
+	while IFS='' read -r tag; do check_tag+=( "$tag" ); done < <( git -C "$si_repo_dir" tag --points-at HEAD --sort=-committerdate --sort=-v:refname --sort=-taggerdate )
+	if [[ ${#check_tag[@]} -gt 0 ]]; then
+		# Use the most recent tag
+		si_tag="${check_tag[0]}"
+		_si_tag="$si_tag"
+
+		if [[ $GITHUB_REF == "refs/tags/"* && $si_tag != "$GITHUB_REF_NAME" ]]; then
+			# Git doesn't agree with GitHub Actions, check if there is another local tag that matches
+			for tag in "${check_tag[@]}"; do
+				if [[ $tag == "$GITHUB_REF_NAME" ]]; then
+					si_tag="$GITHUB_REF_NAME"
+					_si_tag="$si_tag"
+					break
+				fi
+			done
+		fi
+	else
+		_si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=7 2>/dev/null )
+		si_tag=$( git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null )
+	fi
+	# Set $si_project_version to the version number of HEAD.
 	si_project_version="$si_tag"
 	# The HEAD is not tagged if the HEAD is several commits past the most recent tag.
-	if [ "$si_tag" = "$si_project_hash" ]; then
+	if [[ $si_tag == "$si_project_hash" ]]; then
 		# --abbrev=0 expands out the full sha if there was no previous tag
 		si_project_version="$_si_tag"
 		si_previous_tag=
 		si_tag=
-	elif [ "$_si_tag" != "$si_tag" ]; then
+	elif [[ $_si_tag != "$si_tag" ]]; then
 		# not on a tag
 		si_project_version=$( git -C "$si_repo_dir" describe --tags --abbrev=7 --exclude="*[Aa][Ll][Pp][Hh][Aa]*" 2>/dev/null )
 		if [[ -n $si_project_version ]]; then
