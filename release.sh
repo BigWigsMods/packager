@@ -1744,7 +1744,7 @@ copy_directory_tree() {
 					echo "  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
 
 					# Make sure we're not causing any surprises
-					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || $file == *".toc" ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file"; then
+					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
 						echo "           These should be replaced with lua conditional statements:" >&2
 						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
