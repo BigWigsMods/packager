@@ -1142,7 +1142,7 @@ set_toc_project_info() {
 	local toc_path="$1"
 	# Get the title of the addon for the changelog
 	if [ -z "$project" ]; then
-		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## Title:/ { gsub(/^[[:blank:]]+|[[:blank:]]+$/, "", $2); print $2; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' )
+		project=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' -e 's/|T[^|]*|t//g' -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)/\1/' -e 's/[[:space:]]*$//' )
 	fi
 	# Get project IDs for uploading
 	if [ -z "$slug" ]; then
