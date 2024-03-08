@@ -755,6 +755,16 @@ else
 	file_type="alpha"
 fi
 
+# Add some GitHub Actions outputs
+if [[ -n $GITHUB_ACTIONS ]]; then
+	# shellcheck disable=SC2129
+	echo "project_version=${project_version}" >> "$GITHUB_OUTPUT"
+	echo "previous_version=${previous_version}" >> "$GITHUB_OUTPUT"
+	echo "project_hash=${project_hash}" >> "$GITHUB_OUTPUT"
+	echo "project_timestamp=${project_timestamp}" >> "$GITHUB_OUTPUT"
+	echo "release_type=${file_type}" >> "$GITHUB_OUTPUT"
+fi
+
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
 
@@ -2485,8 +2495,8 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive=
 	fi
 
-	if [ -n "$GITHUB_ACTIONS" ]; then
-		echo "ARCHIVE_PATH=${archive}" >> "$GITHUB_OUTPUT"
+	if [[ -n $GITHUB_ACTIONS ]]; then
+		echo "archive_path=${archive}" >> "$GITHUB_OUTPUT"
 	fi
 
 	start_group "Creating archive: $archive_name ($archive_label)" "archive"
