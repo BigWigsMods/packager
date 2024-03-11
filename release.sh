@@ -2647,7 +2647,7 @@ upload_curseforge() {
 		_cf_payload=$( echo "$_cf_payload $_cf_payload_relations" | jq -s -c '.[0] * .[1]' )
 	fi
 
-	echo "Uploading $archive_name ($_cf_game_version $file_type) to $project_site/projects/$slug"
+	echo "Uploading $archive_name ($_cf_game_version $file_type) to https://www.curseforge.com/projects/$slug"
 	resultfile="$releasedir/cf_result.json"
 	if result=$( echo "$_cf_payload" | curl -sS --retry 3 --retry-delay 10 \
 			-w "%{http_code}" -o "$resultfile" \
