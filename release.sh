@@ -1879,8 +1879,20 @@ checkout_external() {
 		# cleanup in case there was an aborted attempt to checkout
 		rm -rf "$_cqe_checkout_dir"
 	fi
-	mkdir -p "$_cqe_checkout_dir"
+	mkdir -p "$_cqe_checkout_dir"+
 	if [ "$_external_type" = "git" ]; then
+### Allows url like https://github.com/alarofrunetotem/LibInit.git/LibInit to pull a specific subdirectory
+		delimiter='.git'
+		s=$_external_uri$delimiter
+		array=();
+		while [[ $s ]]; do
+		    array+=( "${s%%"$delimiter"*}" );
+		    s=${s#*"$delimiter"};
+		done;
+		subfolder=${array[1]}
+		if [ -n "$subfolder" ] ; then
+			_external_uri="${array[0]}.git"
+		fi
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
 			retry git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
@@ -1986,7 +1998,8 @@ checkout_external() {
 			_cqe_checkout_dir="$_cqe_checkout_dir/$_external_path"
 			cd "$_cqe_checkout_dir" || return 1
 		fi
-		copy_directory_tree -dnpe -i "$ignore" -u "$unchanged" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
+		copy_directory_tree -dnp -i "$ignore" "$_cqe_checkout_dir$subfolder" "$pkgdir/$_external_dir"
+
 	) || return 1
 	# Remove the ".checkout" subdirectory containing the full checkout.
 	if [ -d "$_cqe_checkout_dir" ]; then
