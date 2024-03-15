@@ -20,7 +20,7 @@ since that tag.
 
 For a full example workflow, please check out the [wiki page](https://github.com/BigWigsMods/packager/wiki/GitHub-Actions-workflow).
 
-### Example using [options](#Usage)
+### Example using [options](#usage)
 
 ```yaml
 - uses: BigWigsMods/packager@v2
@@ -234,7 +234,7 @@ appropriate versions when uploaded.
 
 ### Multiple TOC files
 
-You can create [multiple TOC files](https://wowpedia.fandom.com/wiki/TOC_format#Multiple_client_flavors),
+You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Multiple_client_flavors),
 one for each supported game type, and __release.sh__ will use them to set the
 build's game version.
 
@@ -270,7 +270,7 @@ Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
 If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
 for controlling what code blocks execute based on the build version, you
 need to switch to plain old Lua control statements.  Fortunately, there are
-some [constants](https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID) set by
+some [constants](https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID) set by
 Blizzard you can use for this.  If you use these keywords in xml files, you
 will have to reorganize your includes in the appropriate TOC files.
 
