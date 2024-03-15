@@ -321,13 +321,13 @@ Usage: release.sh [options]
 ```text
 Usage: release.sh -n "{template}"
   Set the package zip file name and upload file label. There are several string
-  substitutions you can use to include version control and build type infomation in
+  substitutions you can use to include version control and build type information in
   the file name and upload label.
 
   The default file name is "{package-name}-{project-version}{nolib}{classic}".
   The default upload label is "{project-version}{classic}{nolib}".
 
-  To set both, seperate with a ":", i.e, "{file template}:{label template}".
+  To set both, separate with a ":", i.e, "{file template}:{label template}".
   If either side of the ":" is blank, the default will be used. Not including a ":"
   will set the file name template, leaving upload label as default.
 
