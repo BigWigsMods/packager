@@ -220,7 +220,7 @@ on the build type:
 
 1. It will show as the non-retail build type, so `-classic`, `-bcc`, `-wrath`,
    or `-cata`.
-2. It will not be shown if "-classic", "-bcc", "-wrath", or "-cata" is in the
+2. It will not be shown if `-classic`, `-bcc`, `-wrath`, or `-cata` is in the
    project version (tag).
 3. If it is included in the file name (it is by default) and #2 does not apply,
    it will also be appended to the file label (i.e., the name shown in the file
@@ -256,10 +256,10 @@ based on your existing preprocessing logic.  The fallback TOC file will use
 the base interface value as it's version.
 
 ```toc
-## Interface: 90205
-## Interface-Classic: 11403
+## Interface: 100205
+## Interface-Classic: 11501
 ## Interface-BCC: 20504
-## Interface-Wrath: 30400
+## Interface-Wrath: 30403
 ## Interface-Cata: 40400
 ```
 
