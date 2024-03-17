@@ -2060,17 +2060,13 @@ process_external() {
 		fi
 
 		if [[ $external_type == "git" ]]; then
-			# check for subpath in short form
+			# check for subpath in urls we know the structure of
 			if [[ -n $external_slug && $external_uri == *"$external_slug/"* ]]; then
-				# CF: `Libs/LibDoThings-1.0: https://repos.curseforge.com/wow/libdothings-1-0/LibDoThings-1.0`
+				# CF: https://repos.curseforge.com/wow/libdothings-1-0/LibDoThings-1.0
 				external_path=${external_uri#*/wow/$external_slug/}
 				external_uri=${external_uri%/$external_path*}
-			elif [[ $external_uri == *".git/"* ]]; then
-				# Anything using .git: `Libs/LibDoThings-1.0: https://github.com/nebularg/LibDoThings-1.0.git/LibDoThings-1.0`
-				external_path=${external_uri#*.git/}
-				external_uri=${external_uri%/$external_path*}
 			elif [[ $external_uri == "https://github.com/"*/*/* ]]; then
-				# Github without .git: `Libs/LibDoThings-1.0: https://github.com/nebularg/LibDoThings-1.0/LibDoThings-1.0`
+				# GitHub: https://github.com/nebularg/LibDoThings-1.0.git/LibDoThings-1.0
 				external_path=${external_uri#*.com/*/*/}
 				external_uri=${external_uri%/$external_path*}
 			fi
