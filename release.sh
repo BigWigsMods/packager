@@ -2743,17 +2743,18 @@ upload_wowinterface() {
 				# use the next highest version (try to avoid testing versions)
 				version=$( echo "$_wowi_versions" | jq -r --arg v "$version" --arg t "$wowi_type" 'map(select(.game == $t and .id < $v)) | max_by(.id) | .id // empty' )
 				if [[ -z $version ]]; then
-					# now that .game exists, maybe default per type is in the future? (future me: nope, default is just the latest retail)
-					# version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" '.[] | select(.game == $t and .default == true ) | .id // empty' )
-					if [[ $wowi_type == "Cata-Classic" ]]; then # XXX compat: not supported or I guessed the wrong name
-						wowi_type="WOTLK-Classic"
-					fi
 					# just grab the highest version
-					version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" 'map(select(.game == $t)) | max_by(.id) | .id' )
+					version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" 'map(select(.game == $t)) | max_by(.id) | .id // empty' )
 				fi
-				echo "WARNING: No WoWInterface game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
+				if [[ -z $version ]]; then
+					echo "WARNING: No WoWInterface game version match for \"${game_type_version[$type]}\", \"$wowi_type\" is not supported" >&2
+				else
+					echo "WARNING: No WoWInterface game version match for \"${game_type_version[$type]}\", using \"$version\"" >&2
+				fi
 			fi
-			_wowi_game_version+=",${version}"
+			if [[ -n $version ]]; then
+				_wowi_game_version+=",${version}"
+			fi
 		done
 		_wowi_game_version="${_wowi_game_version#,}"
 	fi
