@@ -101,7 +101,8 @@ retry() {
 		count="$((count + 1))"
 		sleep 3
 	done
-	return "$result"
+	# shellcheck disable=SC2086
+	return $result
 }
 
 # Escape a string for use in sed substitutions.
@@ -2715,7 +2716,7 @@ upload_curseforge() {
 
 	rm -f "$resultfile" 2>/dev/null
 
-	# shellcheck disable=SC2086  # why does this one instance raise an error? /shrug
+	# shellcheck disable=SC2086
 	return $return_code
 }
 
@@ -2822,6 +2823,7 @@ upload_wowinterface() {
 
 	rm -f "$resultfile" 2>/dev/null
 
+	# shellcheck disable=SC2086
 	return $return_code
 }
 
@@ -2922,6 +2924,7 @@ upload_wago() {
 
 	rm -f "$resultfile" 2>/dev/null
 
+	# shellcheck disable=SC2086
 	return $return_code
 }
 
@@ -2973,6 +2976,7 @@ upload_github_asset() {
 
 	rm -f "$_ghf_resultfile" 2>/dev/null
 
+	# shellcheck disable=SC2086
 	return $return_code
 }
 
@@ -3089,6 +3093,7 @@ upload_github() {
 	rm -f "$resultfile" 2>/dev/null
 	[ -z "$CI" ] && rm -f "$versionfile" 2>/dev/null
 
+	# shellcheck disable=SC2086
 	return $return_code
 }
 
@@ -3112,4 +3117,5 @@ echo
 echo "Packaging complete."
 echo
 
+# shellcheck disable=SC2086
 exit $exit_code
