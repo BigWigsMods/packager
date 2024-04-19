@@ -3,7 +3,7 @@
 __release.sh__ generates an addon zip file from a Git, SVN, or Mercurial
 checkout.
 
-__release.sh__ works by creating a new project directory (*.release* by
+__release.sh__ works by creating a new project directory (`.release` by
 default), copying files from the checkout into the project directory, checking
 out external repositories then copying their files into the project directory,
 then moves subdirectories into the project root.  The project directory is then
@@ -74,7 +74,7 @@ for more info.
   packager, manually uploaded nolib packages will not be used by the client when
   users have enabled downloading libraries separately.
 - *enable-toc-creation* (defaults to no) Create game type specific TOC files
-  from your TOC file if you have multiple `## Interface-Type:` lines.
+  from your TOC file if you have multiple `## Interface-[Type]:` lines.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
@@ -238,18 +238,9 @@ You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Mul
 one for each supported game type, and __release.sh__ will use them to set the
 build's game version.
 
-If you have already been dabbling with multiple TOC files and/or multiple
-versions, you no longer need to manually set the versions via `-g` or on the
-CurseForge website.
-
-__Note:__ CurseForge still requires that a fallback TOC file exists (the TOC
-file with the same name as the addon directory). So if you support all game
-types, you may as well leave the fallback TOC file as one of the game types
-instead of creating all game type specific ones.
-
 ### Single TOC file
 
-If you are using multiple `## Interface-Type` lines in a single TOC file, you
+If you are using multiple `## Interface-[Type]` lines in a single TOC file, you
 can now use the `-S` command line option or add `enable-toc-creation: yes` to
 your `.pkgmeta` file to automatically generate game type specific TOC files
 based on your existing preprocessing logic.  The fallback TOC file will use
@@ -276,23 +267,26 @@ will have to reorganize your includes in the appropriate TOC files.
 
 ### Single game version
 
-As the game officially supports multiple game versions now, manually setting the
-version should be considered deprecated and only be used if the game version is
-not being detected correctly.
-
 You can specify what version of the game you're targeting with the `-g` switch.
-You can use a specific version (`release.sh -g 1.14.2`), a list (`release.sh -g "9.2.0,1.14.2"`)
-or the game type (`release.sh -g classic`).  Using a game type will set the game
-version based on the appropriate TOC `## Interface` value.
+As the game officially supports multiple game versions, manually setting the
+version should only be used if you have a specific reason for creating and
+uploading multiple packages.
+
+If you specify a single game type (`release.sh -g classic`), the game version
+will be set based on the appropriate TOC `## Interface-[Type]` value.  You can
+also completely override version detection by passing a version number
+(`release.sh -g 1.15.2`) or a list of versions (`release.sh -g "3.4.3,1.15.2"`).
 
 ## Building locally
 
 The recommended way to include __release.sh__ in a project is to:
 
-1. Create a *.release* subdirectory in your top-level checkout.
-2. Copy __release.sh__ into the *.release* directory.
-3. Ignore the *.release* subdirectory in __.gitignore__.
-4. Run __release.sh__.
+1. Create a `.release` subdirectory in the root of your checkout.
+2. Ignore the `.release` subdirectory in your `.gitignore`.
+3. Copy __release.sh__ into the `.release` directory.
+4. (Optionally) Create a `.env` file in the `.release` directory filled with
+   your upload secrets. (KEY=value pairs each on a new line)
+5. Run __release.sh__.
 
 ## Usage
 
