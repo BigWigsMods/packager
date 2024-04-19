@@ -3,7 +3,7 @@
 __release.sh__ generates an addon zip file from a Git, SVN, or Mercurial
 checkout.
 
-__release.sh__ works by creating a new project directory (*.release* by
+__release.sh__ works by creating a new project directory (`.release` by
 default), copying files from the checkout into the project directory, checking
 out external repositories then copying their files into the project directory,
 then moves subdirectories into the project root.  The project directory is then
@@ -28,11 +28,31 @@ For a full example workflow, please check out the [wiki page](https://github.com
     args: -p 1234 -w 5678 -a he54k6bL
 ```
 
-### What's new with v2
+### What changed with v2.3.0?
 
-Creating one package file that supports multiple game versions is now supported!
-See [Building for multiple game versions](https://github.com/BigWigsMods/packager#building-for-multiple-game-versions)
-for more info.
+1. The `## Interface:` and `## Interface-[Type]:` values can be a comma
+   separated list of values.
+2. Every interface value in every (non-external) TOC file will be included as a
+   supported version when uploading to CurseForge, Wago, and WowInterface.  This
+   behavior differs from v2.2.2.
+
+   When detecting versions, the `package-as` TOC file is parsed first, then TOC
+   files in `move-folders` paths.  In v2.2.2, the first interface value found
+   for a game type was used and the rest were ignored.  So if you had 100207 in
+   your main TOC file, but missed updating 100205 in your modules, the final
+   version would just be `10.2.7`.  But now the final version will include *all*
+   interface versions, meaning it will be `10.2.7,10.2.5`.
+
+   You can still use `-g` to override version detection entirely, but it is
+   still kind of the nuclear option.
+3. Fallback TOC files are no longer needed.  If you create a TOC file with only
+   `## Interface-[Type]:` lines and use TOC file creation (splitting), the
+   original TOC file is not included.
+4. The base `## Interface:` doesn't affect splitting, and will just be carried
+   through to the fallback TOC file.
+5. Wago is still finalizing support for multiple versions per game type, until
+   complete, the Wago versions are restricted to the current live version of
+   each game type.
 
 ## Customizing the build
 
@@ -74,7 +94,7 @@ for more info.
   packager, manually uploaded nolib packages will not be used by the client when
   users have enabled downloading libraries separately.
 - *enable-toc-creation* (defaults to no) Create game type specific TOC files
-  from your TOC file if you have multiple `## Interface-Type:` lines.
+  from your TOC file if you have multiple `## Interface-[Type]:` lines.
 - *tools-used*
 - *required-dependencies*
 - *optional-dependencies*
@@ -232,67 +252,90 @@ __release.sh__ automatically detects what game version(s) the addon supports.
 You only need to run a build once and the file will be tagged with the
 appropriate versions when uploaded.
 
+For builds with multiple game types, you won't be able to use [build version keywords](#build-type-keywords)
+(e.g., `@version-retail@` ... `@end-version-retail@`) in Lua files for
+controlling what code blocks execute based on the build version, you need to
+switch to plain old Lua control statements.  Fortunately, there are some
+[constants](https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID) set by Blizzard you
+can use for this.  If you use these keywords in XML files, you will have to
+reorganize your includes in the appropriate TOC files.
+
 ### Multiple TOC files
 
 You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Multiple_client_flavors),
 one for each supported game type, and __release.sh__ will use them to set the
 build's game version.
 
-If you have already been dabbling with multiple TOC files and/or multiple
-versions, you no longer need to manually set the versions via `-g` or on the
-CurseForge website.
-
-__Note:__ CurseForge still requires that a fallback TOC file exists (the TOC
-file with the same name as the addon directory). So if you support all game
-types, you may as well leave the fallback TOC file as one of the game types
-instead of creating all game type specific ones.
-
 ### Single TOC file
 
-If you are using multiple `## Interface-Type` lines in a single TOC file, you
-can now use the `-S` command line option or add `enable-toc-creation: yes` to
-your `.pkgmeta` file to automatically generate game type specific TOC files
-based on your existing preprocessing logic.  The fallback TOC file will use
-the base interface value as it's version.
+__release.sh__ can support multiple game versions with the use of additional
+`## Interface-[Type]` lines in your TOC file.
 
 ```toc
-## Interface: 100205
-## Interface-Classic: 11501
-## Interface-BCC: 20504
-## Interface-Wrath: 30403
+## Interface: 100207
+## Interface-Classic: 11502
 ## Interface-Cata: 40400
 ```
 
-Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
-`MyAddon_TBC.toc`, `MyAddon_Wrath.toc`, `MyAddon_Cata.toc`, and `MyAddon.toc`
-(retail).
+#### Using TOC file creation (splitting)
 
-If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
-for controlling what code blocks execute based on the build version, you
-need to switch to plain old Lua control statements.  Fortunately, there are
-some [constants](https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID) set by
-Blizzard you can use for this.  If you use these keywords in xml files, you
-will have to reorganize your includes in the appropriate TOC files.
+When using multiple `## Interface-[Type]` lines in a single TOC file, you
+can use the `-S` command line option or add `enable-toc-creation: yes` to your
+`.pkgmeta` file to automatically generate game type specific TOC files using
+your existing preprocessing logic.  The fallback TOC file will use the base
+interface value as it's version.
+
+For each `## Interface-[Type]` line, a new TOC file is created. In the above
+example, __release.sh__ would create `MyAddon_Vanilla.toc` and
+`MyAddon_Cata.toc`, based on `MyAddon.toc` applying each game type's processing
+logic and rewriting the interface version and also copy `MyAddon.toc` processed
+as retail.  You can also not include a fallback TOC file to prevent the addon
+from displaying for unsupported versions by not including a base interface
+value.
+
+#### Using comma separated interface values
+
+The game client for 10.2.7 and 4.4.0 have added the option to specify multiple
+interface versions delimited by commas.
+
+```toc
+## Interface: 11502, 100207, 40400, 110000
+```
+
+The above example would mark an addon compatible with the latest version of all
+client flavors and The War Within alpha.
+
+Other game client versions will stop processing the line when it hits the comma,
+So until Classic Era also supports multiple versions, if you include the Classic
+Era interface version first, all three game clients will load the addon
+correctly.
+
+That said, just because you *can* include a bunch of interface versions doesn't
+mean you should start adding upcoming versions you haven't testing your addon
+against.
 
 ### Single game version
 
-As the game officially supports multiple game versions now, manually setting the
-version should be considered deprecated and only be used if the game version is
-not being detected correctly.
-
 You can specify what version of the game you're targeting with the `-g` switch.
-You can use a specific version (`release.sh -g 1.14.2`), a list (`release.sh -g "9.2.0,1.14.2"`)
-or the game type (`release.sh -g classic`).  Using a game type will set the game
-version based on the appropriate TOC `## Interface` value.
+As the game officially supports multiple game versions, manually setting the
+version should only be used if you have a specific reason for creating and
+uploading multiple packages.
+
+If you specify a single game type (`release.sh -g classic`), the game version
+will be set based on the appropriate TOC `## Interface-[Type]` value.  You can
+also completely override version detection by passing a version number
+(`release.sh -g 1.15.2`) or a list of versions (`release.sh -g "3.4.3,1.15.2"`).
 
 ## Building locally
 
 The recommended way to include __release.sh__ in a project is to:
 
-1. Create a *.release* subdirectory in your top-level checkout.
-2. Copy __release.sh__ into the *.release* directory.
-3. Ignore the *.release* subdirectory in __.gitignore__.
-4. Run __release.sh__.
+1. Create a `.release` subdirectory in the root of your checkout.
+2. Ignore the `.release` subdirectory in your `.gitignore`.
+3. Copy __release.sh__ into the `.release` directory.
+4. (Optionally) Create a `.env` file in the `.release` directory filled with
+   your upload secrets. (KEY=value pairs each on a new line)
+5. Run __release.sh__.
 
 ## Usage
 
