@@ -1317,8 +1317,8 @@ if [ -n "$previous_version" ]; then
 	echo "Previous version: $previous_version"
 fi
 (
-	if [[ -n "$game_type" ]]; then
-		[[ "$game_type" = "retail" ]] && version="retail " || version="non-retail version-${game_type} "
+	if [[ -n $game_type ]]; then
+		[[ $game_type == "retail" ]] && version="retail " || version="non-retail version-${game_type} "
 	elif [[ ${#game_type_version[@]} -gt 1 ]]; then
 		version="multi-version "
 	fi
@@ -1738,7 +1738,7 @@ copy_directory_tree() {
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
 							[ "$_cdt_file_gametype" != "retail" ] && _cdt_filters+="|lua_filter version-retail|lua_filter retail"
-							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic"
+							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic|lua_filter version-vanilla"
 							[ "$_cdt_file_gametype" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
 							[ "$_cdt_file_gametype" != "wrath" ] && _cdt_filters+="|lua_filter version-wrath"
 							[ "$_cdt_file_gametype" != "cata" ] && _cdt_filters+="|lua_filter version-cata"
@@ -1750,7 +1750,7 @@ copy_directory_tree() {
 							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
 							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
 							[ "$_cdt_file_gametype" != "retail" ] && _cdt_filters+="|xml_filter version-retail|xml_filter retail"
-							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|xml_filter version-classic"
+							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|xml_filter version-classic|xml_filter version-vanilla"
 							[ "$_cdt_file_gametype" != "bcc" ] && _cdt_filters+="|xml_filter version-bcc"
 							[ "$_cdt_file_gametype" != "wrath" ] && _cdt_filters+="|xml_filter version-wrath"
 							[ "$_cdt_file_gametype" != "cata" ] && _cdt_filters+="|xml_filter version-cata"
@@ -1771,6 +1771,7 @@ copy_directory_tree() {
 								_cdt_filters+="|toc_filter retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
+								_cdt_filters+="|toc_filter version-vanilla $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_file_gametype" != "bcc" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_file_gametype" != "wrath" ]] && echo "true")"
 								_cdt_filters+="|toc_filter version-cata $([[ "$_cdt_file_gametype" != "cata" ]] && echo "true")"
@@ -1789,10 +1790,10 @@ copy_directory_tree() {
 					echo "  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
 
 					# Make sure we're not causing any surprises
-					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\|cata\)@' "$_cdt_source_file"; then
+					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\)@' "$_cdt_source_file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
 						echo "           These should be replaced with lua conditional statements:" >&2
-						grep -n '@\(non-\)\?version-\(retail\|classic\|bcc\|wrath\|cata\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
+						grep -n '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
 						echo "           See https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID" >&2
 						exit 1
 					fi
@@ -1825,6 +1826,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter retail $([[ "$type" != "retail" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-retail $([[ "$type" != "retail" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-classic $([[ "$type" != "classic" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-vanilla $([[ "$type" != "classic" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-bcc $([[ "$type" != "bcc" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-wrath $([[ "$type" != "wrath" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-cata $([[ "$type" != "cata" ]] && echo "true")"
