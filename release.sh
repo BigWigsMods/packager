@@ -81,6 +81,7 @@ declare -A game_type_version=()           # type -> version (: delim)
 declare -A game_type_interface=()         # type -> toc (: delim)
 declare -A si_game_type_interface_all=()  # type -> interface value (last file)  (values from ## Interface*:)
 declare -A si_game_type_interface=()      # type -> game type interface value (last file)  (values from ## Interface-Type:)
+declare    si_game_root_interface         # base interface value (last file)
 declare -A toc_interfaces=()              # path -> si_game_type_interface_all (: delim)
 declare -A toc_root_interface=()          # path -> base interface value  (values from ## Interface:)
 declare -A toc_root_paths=()              # path -> directory name
@@ -1092,17 +1093,18 @@ parse_ignore "$pkgmeta_file"
 ### Process TOC file
 ###
 
-do_toc() {
+set_info_toc_interface() {
 	local toc_path="$1"
 	local package_name="$2"
 
 	si_game_type_interface=()
 	si_game_type_interface_all=()
+	si_game_root_interface=
 	[[ -z $package_name ]] && return 0
 
 	local toc_name=${toc_path##*/}
 
-	local toc_file toc_version toc_game_type root_toc_version
+	local toc_file toc_version toc_game_type
 	toc_file=$(
 		# Remove BOM and CR and apply some non-version related TOC filters
 		[[ $file_type != "alpha" ]] && _tf_alpha="true"
@@ -1137,7 +1139,7 @@ do_toc() {
 		fi
 
 		toc_version=$( IFS=':' ; echo "${V[*]}" ) # swap delimiter
-		root_toc_version="$toc_version"
+		si_game_root_interface="$toc_version"
 	fi
 
 	if [[ ${toc_name} =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata)\.toc$ ]]; then
@@ -1206,7 +1208,7 @@ do_toc() {
 				toc_version=$( IFS=':' ; echo "${V[*]}" ) # swap delimiter
 
 				# This becomes the actual interface version after replacements
-				root_toc_version="$toc_version"
+				si_game_root_interface="$toc_version"
 				si_game_type_interface_all[$toc_game_type]="$toc_version"
 			fi
 		fi
@@ -1221,8 +1223,6 @@ do_toc() {
 			exit 1
 		fi
 	fi
-	toc_root_interface[$toc_path]="$root_toc_version"
-	toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface_all[*]}" )
 }
 
 set_toc_project_info() {
@@ -1249,7 +1249,6 @@ set_build_version() {
 		for path in "${toc_paths[@]}"; do
 			if [[ -z "$split" && -z "$game_type" ]]; then
 				# no split and no game type means we should use the root interface value
-				# (blows up if one isn't set? should)
 				toc_version="${toc_root_interface[$path]}"
 			else
 				toc_version="${toc_interfaces[$path]}"
@@ -1326,7 +1325,9 @@ for path in "${!toc_root_paths[@]}"; do
 	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata}.toc; do
 		if [[ -f "$toc_path" ]]; then
 			set_toc_project_info "$toc_path"
-			do_toc "$toc_path" "${toc_root_paths[$path]}"
+			set_info_toc_interface "$toc_path" "${toc_root_paths[$path]}"
+			toc_root_interface[$toc_path]="$si_game_root_interface"
+			toc_interfaces[$toc_path]=$( IFS=':' ; echo "${si_game_type_interface_all[*]}" )
 			if [[ " ${toc_paths[*]} " != *" $toc_path "* ]]; then
 				toc_paths+=("$toc_path")
 			fi
@@ -1811,7 +1812,7 @@ copy_directory_tree() {
 							# We only care about processing project TOC files
 							if [[ -n ${toc_root_interface["$_cdt_source_file"]} ]]; then
 								_cdt_toc_dir="${_cdt_source_file%/*}"
-								do_toc "$_cdt_source_file" "${toc_root_paths["$_cdt_toc_dir"]}"
+								set_info_toc_interface "$_cdt_source_file" "${toc_root_paths["$_cdt_toc_dir"]}"
 								# Process the fallback TOC file according to it's base interface version
 								if [[ -z $_cdt_file_gametype && -n $_cdt_split ]]; then
 									toc_to_type "${toc_root_interface["$_cdt_source_file"]}" "_cdt_file_gametype"
@@ -1856,7 +1857,7 @@ copy_directory_tree() {
 					# Create game type specific TOCs
 					if [[ -n $_cdt_split && -n ${toc_root_interface["$_cdt_source_file"]} ]]; then
 						local toc_version new_file
-						local root_toc_version="${toc_root_interface["$_cdt_source_file"]}"
+						local root_toc_version="$si_game_root_interface"
 						for type in "${!si_game_type_interface[@]}"; do
 							toc_version="${si_game_type_interface[$type]}"
 							new_file="${file%.toc}"
