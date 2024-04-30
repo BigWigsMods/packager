@@ -180,6 +180,18 @@ toc_to_type() {
 	# return game_type
 }
 
+is_toc_multiple_types() {
+	local toc_version="$1"
+	local toc_game_type toc_version_game_type
+	IFS=':,' read -ra V <<< "$toc_version"
+	toc_to_type "${V[0]}" "toc_game_type"
+	for i in "${V[@]}"; do
+		toc_to_type "$i" "toc_version_game_type"
+		[[ $toc_game_type != "$toc_version_game_type" ]] && return 0
+	done
+	return 1
+}
+
 
 # Process command-line options
 usage() {
@@ -1132,11 +1144,11 @@ set_info_toc_interface() {
 		done
 
 		# Splitting needs the fallback toc to be game typed, so make sure we're not mixing strategies
-		if [[ -n $split && -z $toc_game_type ]]; then
-			echo "$toc_name has multiple game type interface versions as the fallback ($toc_version) but creating TOC files is enabled." >&2
-			echo "Add additional \"## Interface-[Type]:\" lines for each game type TOC file to create." >&2
-			exit 1
-		fi
+		# if [[ -n $split && -z $toc_game_type ]]; then
+		# 	echo "$toc_name has multiple game type interface versions as the fallback ($toc_version) but creating TOC files is enabled." >&2
+		# 	echo "Add additional \"## Interface-[Type]:\" lines for each game type TOC file to create." >&2
+		# 	exit 1
+		# fi
 
 		toc_version=$( IFS=':' ; echo "${V[*]}" ) # swap delimiter
 		si_game_root_interface="$toc_version"
@@ -1814,8 +1826,8 @@ copy_directory_tree() {
 								_cdt_toc_dir="${_cdt_source_file%/*}"
 								set_info_toc_interface "$_cdt_source_file" "${toc_root_paths["$_cdt_toc_dir"]}"
 								# Process the fallback TOC file according to it's base interface version
-								if [[ -z $_cdt_file_gametype && -n $_cdt_split ]]; then
-									toc_to_type "${toc_root_interface["$_cdt_source_file"]}" "_cdt_file_gametype"
+								if [[ -z $_cdt_file_gametype && -n $_cdt_split && -n $si_game_root_interface ]] && ! is_toc_multiple_types "$si_game_root_interface" ; then
+									toc_to_type "$si_game_root_interface" "_cdt_file_gametype"
 								fi
 								_cdt_filters+="|do_not_package_filter toc"
 								[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
