@@ -1799,48 +1799,58 @@ copy_directory_tree() {
 					_cdt_filters="vcs_filter"
 					case $file in
 						*.lua)
-							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
-							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
-							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
-							[ "$_cdt_file_gametype" != "retail" ] && _cdt_filters+="|lua_filter version-retail|lua_filter retail"
-							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|lua_filter version-classic|lua_filter version-vanilla"
-							[ "$_cdt_file_gametype" != "bcc" ] && _cdt_filters+="|lua_filter version-bcc"
-							[ "$_cdt_file_gametype" != "wrath" ] && _cdt_filters+="|lua_filter version-wrath"
-							[ "$_cdt_file_gametype" != "cata" ] && _cdt_filters+="|lua_filter version-cata"
-							[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
+							[[ -n $_cdt_do_not_package ]] && _cdt_filters+="|do_not_package_filter lua"
+							[[ -n $_cdt_debug ]] && _cdt_filters+="|lua_filter debug"
+							[[ -n $_cdt_alpha ]] && _cdt_filters+="|lua_filter alpha"
+							if [[ -n $_cdt_file_gametype ]]; then
+								[[ $_cdt_file_gametype != "retail" ]] && _cdt_filters+="|lua_filter version-retail|lua_filter retail"
+								[[ $_cdt_file_gametype != "classic" ]] && _cdt_filters+="|lua_filter version-classic|lua_filter version-vanilla"
+								[[ $_cdt_file_gametype != "bcc" ]] && _cdt_filters+="|lua_filter version-bcc"
+								[[ $_cdt_file_gametype != "wrath" ]] && _cdt_filters+="|lua_filter version-wrath"
+								[[ $_cdt_file_gametype != "cata" ]] && _cdt_filters+="|lua_filter version-cata"
+							fi
+							[[ -n $_cdt_localization ]] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
 							;;
 						*.xml)
-							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
-							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
-							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
-							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
-							[ "$_cdt_file_gametype" != "retail" ] && _cdt_filters+="|xml_filter version-retail|xml_filter retail"
-							[ "$_cdt_file_gametype" != "classic" ] && _cdt_filters+="|xml_filter version-classic|xml_filter version-vanilla"
-							[ "$_cdt_file_gametype" != "bcc" ] && _cdt_filters+="|xml_filter version-bcc"
-							[ "$_cdt_file_gametype" != "wrath" ] && _cdt_filters+="|xml_filter version-wrath"
-							[ "$_cdt_file_gametype" != "cata" ] && _cdt_filters+="|xml_filter version-cata"
+							[[ -n $_cdt_do_not_package ]] && _cdt_filters+="|do_not_package_filter xml"
+							[[ -n $_cdt_nolib ]] && _cdt_filters+="|xml_filter no-lib-strip"
+							[[ -n $_cdt_debug ]] && _cdt_filters+="|xml_filter debug"
+							[[ -n $_cdt_alpha ]] && _cdt_filters+="|xml_filter alpha"
+							if [[ -n $_cdt_file_gametype ]]; then
+								[[ $_cdt_file_gametype != "retail" ]] && _cdt_filters+="|xml_filter version-retail|xml_filter retail"
+								[[ $_cdt_file_gametype != "classic" ]] && _cdt_filters+="|xml_filter version-classic|xml_filter version-vanilla"
+								[[ $_cdt_file_gametype != "bcc" ]] && _cdt_filters+="|xml_filter version-bcc"
+								[[ $_cdt_file_gametype != "wrath" ]] && _cdt_filters+="|xml_filter version-wrath"
+								[[ $_cdt_file_gametype != "cata" ]] && _cdt_filters+="|xml_filter version-cata"
+							fi
 							;;
 						*.toc)
 							# We only care about processing project TOC files
 							if [[ -n ${toc_interfaces["$_cdt_source_file"]} ]]; then
+								# Set the interface values
 								_cdt_toc_dir="${_cdt_source_file%/*}"
 								set_info_toc_interface "$_cdt_source_file" "${toc_root_paths["$_cdt_toc_dir"]}"
-								# Process the fallback TOC file according to it's base interface version
-								if [[ -z $_cdt_file_gametype && -n $_cdt_split && -n $si_game_root_interface ]] && ! is_toc_multiple_types "$si_game_root_interface" ; then
-									toc_to_type "$si_game_root_interface" "_cdt_file_gametype"
-								fi
+								# Add build type filters
 								_cdt_filters+="|do_not_package_filter toc"
 								[ -n "$_cdt_nolib" ] && _cdt_filters+="|toc_filter no-lib-strip true" # leave the tokens in the file normally
 								_cdt_filters+="|toc_filter debug ${_cdt_debug}"
 								_cdt_filters+="|toc_filter alpha ${_cdt_alpha}"
-								_cdt_filters+="|toc_filter retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-vanilla $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_file_gametype" != "bcc" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_file_gametype" != "wrath" ]] && echo "true")"
-								_cdt_filters+="|toc_filter version-cata $([[ "$_cdt_file_gametype" != "cata" ]] && echo "true")"
+								# Add game type filters, skipping if multi-version
+								if [[ -z $_cdt_file_gametype && -n $_cdt_split && -n $si_game_root_interface ]] && ! is_toc_multiple_types "$si_game_root_interface" ; then
+									toc_to_type "$si_game_root_interface" "_cdt_file_gametype"
+								fi
+								if [[ -n "$_cdt_file_gametype" ]]; then
+									_cdt_filters+="|toc_filter retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-retail $([[ "$_cdt_file_gametype" != "retail" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-classic $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-vanilla $([[ "$_cdt_file_gametype" != "classic" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-bcc $([[ "$_cdt_file_gametype" != "bcc" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_file_gametype" != "wrath" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-cata $([[ "$_cdt_file_gametype" != "cata" ]] && echo "true")"
+								fi
+								# Rewrite the interface line if necessary
 								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_file_gametype:- }]}' '${toc_root_interface["$_cdt_source_file"]}'"
+								# Do localized key replacements (this is really inefficient and should probably be deprecated)
 								[ -n "$_cdt_localization" ] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
 							fi
 							;;
