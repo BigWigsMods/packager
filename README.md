@@ -232,6 +232,14 @@ __release.sh__ automatically detects what game version(s) the addon supports.
 You only need to run a build once and the file will be tagged with the
 appropriate versions when uploaded.
 
+For builds with multiple game types, you won't be able to use [build version keywords](#build-type-keywords)
+(e.g., `@version-retail@` ... `@end-version-retail@`) in Lua files for
+controlling what code blocks execute based on the build version, you need to
+switch to plain old Lua control statements.  Fortunately, there are some
+[constants](https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID) set by Blizzard you
+can use for this.  If you use these keywords in XML files, you will have to
+reorganize your includes in the appropriate TOC files.
+
 ### Multiple TOC files
 
 You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Multiple_client_flavors),
@@ -240,30 +248,62 @@ build's game version.
 
 ### Single TOC file
 
-If you are using multiple `## Interface-[Type]` lines in a single TOC file, you
-can now use the `-S` command line option or add `enable-toc-creation: yes` to
-your `.pkgmeta` file to automatically generate game type specific TOC files
-based on your existing preprocessing logic.  The fallback TOC file will use
-the base interface value as it's version.
+__release.sh__ can support multiple game versions with the use of additional
+`## Interface-[Type]` lines in your TOC file.
 
 ```toc
-## Interface: 100205
-## Interface-Classic: 11501
-## Interface-BCC: 20504
+## Interface: 100206
+## Interface-Classic: 11502
 ## Interface-Wrath: 30403
 ## Interface-Cata: 40400
 ```
 
-Splitting the above TOC file would end up with `MyAddon_Vanilla.toc`,
-`MyAddon_TBC.toc`, `MyAddon_Wrath.toc`, `MyAddon_Cata.toc`, and `MyAddon.toc`
-(retail).
+#### Using TOC file creation (splitting)
 
-If you use build version keywords (e.g., `@version-retail@` ... `@end-version-retail@`)
-for controlling what code blocks execute based on the build version, you
-need to switch to plain old Lua control statements.  Fortunately, there are
-some [constants](https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID) set by
-Blizzard you can use for this.  If you use these keywords in xml files, you
-will have to reorganize your includes in the appropriate TOC files.
+When using multiple `## Interface-[Type]` lines in a single TOC file, you
+can use the `-S` command line option or add `enable-toc-creation: yes` to your
+`.pkgmeta` file to automatically generate game type specific TOC files using
+your existing preprocessing logic.  The fallback TOC file will use the base
+interface value as it's version.
+
+For each `## Interface-[Type]` line, a new TOC file is created. In the above
+example, __release.sh__ would create `MyAddon_Vanilla.toc`, `MyAddon_Wrath.toc`,
+and `MyAddon_Cata.toc`, based on `MyAddon.toc` applying each game type's
+processing logic and rewriting the interface version and also copy `MyAddon.toc`
+processed as retail.  You can also not include a fallback TOC file to prevent
+the addon from displaying for unsupported versions by not including a base
+interface value.
+
+#### Using comma separated interface values (limited game support)
+
+The game client for 10.2.7 (releases May 7th) and 4.4.0 (releases April 30th)
+have added the option to specify multiple interface versions delimited by
+commas.
+
+```toc
+## Interface: 11502, 100207, 40400, 110000
+```
+
+The above example would mark an addon compatible with the latest version of all
+client flavors and The War Within alpha.
+
+Other game client versions will stop processing the line when it hits the comma,
+So until Classic Era also supports multiple versions, if you include the Classic
+Era interface version first, all three game clients will load the addon
+correctly when 10.2.7 is live.
+
+If you want to extend that logic to the current live (10.2.6) client behavior,
+the following will support all current and upcoming interface versions (with
+splitting enabled):
+
+```toc
+## Interface: 100206, 40400, 100207, 110000
+## Interface-Vanilla: 11502
+```
+
+That said, just because you *can* include a bunch of interface versions doesn't
+mean you should start adding upcoming versions you haven't testing your addon
+against.
 
 ### Single game version
 
