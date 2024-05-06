@@ -23,16 +23,36 @@ For a full example workflow, please check out the [wiki page](https://github.com
 ### Example using [options](#usage)
 
 ```yaml
-- uses: BigWigsMods/packager@v2
+- uses: BigWigsMods/packager@toc-csv
   with:
     args: -p 1234 -w 5678 -a he54k6bL
 ```
 
-### What's new with v2
+### What changed with toc-csv?
 
-Creating one package file that supports multiple game versions is now supported!
-See [Building for multiple game versions](https://github.com/BigWigsMods/packager#building-for-multiple-game-versions)
-for more info.
+1. The `## Interface:` and `## Interface-[Type]:` values can be a comma
+   separated list of values.
+2. Every interface value in every (non-external) TOC file will be included as a
+   supported version when uploading to CurseForge, Wago, and WowInterface.  This
+   behavior differs from v2.
+
+   When detecting versions, the `package-as` TOC file is parsed first, then TOC
+   files in `move-folders` paths.  In v2, the first interface value found for a
+   game type was used and the rest were ignored.  So if you had 100206 in your
+   main TOC file, but missed updating 100205 in your modules, the final version
+   would just be `10.2.6`.  But now the final version will include _all_
+   interface versions, meaning it will be `10.2.6,10.2.5`.
+
+   You can still use `-g` to override version detection entirely, but it is
+   still kind of the nuclear option.
+3. Fallback TOC files are no longer needed.  If you create a TOC file with only
+   `## Interface-[Type]:` lines and use TOC file creation (splitting), the
+   original TOC file is not included.
+4. The base `## Interface:` doesn't affect splitting, and will just be carried
+   through to the fallback TOC file.
+5. Wago is still finalizing support for multiple versions per game type, until
+   complete, the Wago versions are restricted to the current live version of
+   each game type.
 
 ## Customizing the build
 
