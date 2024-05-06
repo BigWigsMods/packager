@@ -2962,7 +2962,7 @@ upload_wago() {
 				fi
 			done
 			if [[ -n $wago_game_type_version ]]; then
-				_wago_support_property+="\"supported_${wago_type}_patch\": [${wago_game_type_version#,}], " # XXX single version compat
+				_wago_support_property+="\"supported_${wago_type}_patch\": ${wago_game_type_version#,}, " # XXX single version compat
 			fi
 		done
 		_wago_game_version=$( echo "${_wago_game_version#,}" | tr ',' '\n' | sort -Vr | tr '\n' ',' )
