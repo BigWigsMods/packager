@@ -38,10 +38,10 @@ For a full example workflow, please check out the [wiki page](https://github.com
 
    When detecting versions, the `package-as` TOC file is parsed first, then TOC
    files in `move-folders` paths.  In v2, the first interface value found for a
-   game type was used and the rest were ignored.  So if you had 100206 in your
+   game type was used and the rest were ignored.  So if you had 100207 in your
    main TOC file, but missed updating 100205 in your modules, the final version
-   would just be `10.2.6`.  But now the final version will include _all_
-   interface versions, meaning it will be `10.2.6,10.2.5`.
+   would just be `10.2.7`.  But now the final version will include *all*
+   interface versions, meaning it will be `10.2.7,10.2.5`.
 
    You can still use `-g` to override version detection entirely, but it is
    still kind of the nuclear option.
@@ -272,7 +272,7 @@ __release.sh__ can support multiple game versions with the use of additional
 `## Interface-[Type]` lines in your TOC file.
 
 ```toc
-## Interface: 100206
+## Interface: 100207
 ## Interface-Classic: 11502
 ## Interface-Wrath: 30403
 ## Interface-Cata: 40400
@@ -294,11 +294,10 @@ processed as retail.  You can also not include a fallback TOC file to prevent
 the addon from displaying for unsupported versions by not including a base
 interface value.
 
-#### Using comma separated interface values (limited game support)
+#### Using comma separated interface values
 
-The game client for 10.2.7 (releases May 7th) and 4.4.0 (releases April 30th)
-have added the option to specify multiple interface versions delimited by
-commas.
+The game client for 10.2.7 and 4.4.0 have added the option to specify multiple
+interface versions delimited by commas.
 
 ```toc
 ## Interface: 11502, 100207, 40400, 110000
@@ -310,16 +309,7 @@ client flavors and The War Within alpha.
 Other game client versions will stop processing the line when it hits the comma,
 So until Classic Era also supports multiple versions, if you include the Classic
 Era interface version first, all three game clients will load the addon
-correctly when 10.2.7 is live.
-
-If you want to extend that logic to the current live (10.2.6) client behavior,
-the following will support all current and upcoming interface versions (with
-splitting enabled):
-
-```toc
-## Interface: 100206, 40400, 100207, 110000
-## Interface-Vanilla: 11502
-```
+correctly.
 
 That said, just because you *can* include a bunch of interface versions doesn't
 mean you should start adding upcoming versions you haven't testing your addon
