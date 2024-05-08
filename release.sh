@@ -2928,7 +2928,7 @@ upload_wago() {
 
 	local _wago_versions _wago_game_version _wago_support_property
 	# _wago_versions=$( curl -s https://addons.wago.io/api/data/game | jq -c '.patches' 2>/dev/null )
-	_wago_versions='{"retail":["10.2.7"],"cata":["4.4.0"],"wotlk":["3.4.3"],"classic":["1.15.2"]}' # XXX single version compat
+	_wago_versions='{"retail":["10.2.7"],"cata":["4.4.0"],"wotlk":["3.4.3"],"bc":["2.5.4"],"classic":["1.15.2"]}' # XXX single version compat
 	if [ -n "$_wago_versions" ]; then
 		_wago_support_property=
 		local wago_type wago_game_type_version invalid_version
