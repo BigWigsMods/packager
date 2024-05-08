@@ -39,9 +39,9 @@ For a full example workflow, please check out the [wiki page](https://github.com
    When detecting versions, the `package-as` TOC file is parsed first, then TOC
    files in `move-folders` paths.  In v2.2.2, the first interface value found
    for a game type was used and the rest were ignored.  So if you had 100207 in
-   your main TOC file, but missed updating 100205 in your modules, the final
+   your main TOC file, but missed updating 100206 in your modules, the final
    version would just be `10.2.7`.  But now the final version will include *all*
-   interface versions, meaning it will be `10.2.7,10.2.5`.
+   interface versions, meaning it will be `10.2.7,10.2.6`.
 
    You can still use `-g` to override version detection entirely, but it is
    still kind of the nuclear option.
@@ -50,9 +50,6 @@ For a full example workflow, please check out the [wiki page](https://github.com
    original TOC file is not included.
 4. The base `## Interface:` doesn't affect splitting, and will just be carried
    through to the fallback TOC file.
-5. Wago is still finalizing support for multiple versions per game type, until
-   complete, the Wago versions are restricted to the current live version of
-   each game type.
 
 ## Customizing the build
 
@@ -311,7 +308,7 @@ Era interface version first, all three game clients will load the addon
 correctly.
 
 That said, just because you *can* include a bunch of interface versions doesn't
-mean you should start adding upcoming versions you haven't testing your addon
+mean you *should* start adding upcoming versions you haven't tested your addon
 against.
 
 ### Single game version
