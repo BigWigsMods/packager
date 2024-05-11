@@ -1162,8 +1162,20 @@ set_info_toc_interface() {
 		fi
 		local toc_file_game_type="${game_flavor[${BASH_REMATCH[1],,}]}"
 		if [[ $toc_file_game_type != "$toc_game_type" ]]; then
-			echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
-			exit 1
+			if [[ $toc_file_game_type == "classic" && -z $toc_game_type ]]; then
+				# New loading logic for _Classic
+				IFS=':' read -ra V <<< "$toc_version"
+				for i in "${V[@]}"; do
+					toc_to_type "$i" "toc_file_game_type"
+					if [[ $toc_file_game_type == "retail" ]]; then
+						echo "$toc_name has an interface version ($i) that is not compatible with the game version \"classic\"." >&2
+						exit 1
+					fi
+				done
+			else
+				echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
+				exit 1
+			fi
 		fi
 	else
 		# Fallback
