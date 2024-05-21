@@ -1337,10 +1337,14 @@ for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanil
 		toc_root_paths["$topdir"]="$package"
 	fi
 done
-# Also check other project root directories for the root TOC file
+# Try parsing the project addon in move-folders for info next
 for path in "${!toc_root_paths[@]}"; do
-	if [[ -f "$path/$package.toc" ]]; then
-		set_toc_project_info "$path/$package.toc"
+	if [[ ${toc_root_paths[$path]} == "$package" ]]; then
+		for toc_path in "$path/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata}.toc; do
+			if [[ -f "$toc_path" ]]; then
+				set_toc_project_info "$toc_path"
+			fi
+		done
 	fi
 done
 
