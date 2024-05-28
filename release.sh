@@ -1339,7 +1339,7 @@ for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanil
 done
 # Try parsing the project addon in move-folders for info next
 for path in "${!toc_root_paths[@]}"; do
-	if [[ ${toc_root_paths[$path]} == "$package" ]]; then
+	if [[ ${toc_root_paths[$path]} == "$package" && $path != "$topdir" ]]; then
 		for toc_path in "$path/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata}.toc; do
 			if [[ -f "$toc_path" ]]; then
 				set_toc_project_info "$toc_path"
