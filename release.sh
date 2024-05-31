@@ -1123,7 +1123,7 @@ set_info_toc_interface() {
 		sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | toc_filter alpha ${_tf_alpha:+true} | toc_filter debug true
 	)
 
-	toc_version=$( awk -F: '/^## Interface:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' <<< "$toc_file" )
+	toc_version=$( awk -F: '/^## Interface:/ { gsub(/[ \t]/, "", $2); print $2; exit }' <<< "$toc_file" )
 	if [[ -n $toc_version ]]; then
 		local toc_version_game_type
 		IFS=',' read -ra V <<< "$toc_version"
@@ -1183,7 +1183,7 @@ set_info_toc_interface() {
 
 		# Save the game type interface values
 		for type in "${!game_flavor[@]}"; do
-			game_type_toc_version=$( awk -F: 'tolower($0) ~ /^## interface-'"$type"':/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' <<< "$toc_file" )
+			game_type_toc_version=$( awk -F: 'tolower($0) ~ /^## interface-'"$type"':/ { gsub(/[ \t]/, "", $2); print $2; exit }' <<< "$toc_file" )
 			if [[ -n $game_type_toc_version ]]; then
 				type="${game_flavor[$type]}"
 				IFS=',' read -ra V <<< "$game_type_toc_version"
@@ -1220,7 +1220,7 @@ set_info_toc_interface() {
 				*) game_type_toc_prefix=
 			esac
 			if [[ -n $game_type_toc_prefix ]]; then
-				toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk -F: '/#[[:blank:]]*## Interface:[[:blank:]]*('"$game_type_toc_prefix"')/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
+				toc_version=$( sed -n '/@non-[-a-z]*@/,/@end-non-[-a-z]*@/{//b;p}' <<< "$toc_file" | awk -F: '/#[ \t]*## Interface:[ \t]*('"$game_type_toc_prefix"')/ { gsub(/[ \t]/, "", $2); print $2; exit }' )
 				IFS=',' read -ra V <<< "$toc_version"
 				for i in "${V[@]}"; do
 					toc_to_type "$i" "toc_file_game_type"
@@ -1257,13 +1257,13 @@ set_toc_project_info() {
 	fi
 	# Get project IDs for uploading
 	if [ -z "$slug" ]; then
-		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Curse-Project-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
+		slug=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Curse-Project-ID:/ { gsub(/[ \t]/, "", $2); print $2; exit }' )
 	fi
 	if [ -z "$addonid" ]; then
-		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-WoWI-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
+		addonid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-WoWI-ID:/ { gsub(/[ \t]/, "", $2); print $2; exit }' )
 	fi
 	if [ -z "$wagoid" ]; then
-		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Wago-ID:/ { gsub(/[[:blank:]]/, "", $2); print $2; exit }' )
+		wagoid=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$toc_path" | awk -F: '/^## X-Wago-ID:/ { gsub(/[ \t]/, "", $2); print $2; exit }' )
 	fi
 }
 
