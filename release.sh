@@ -2432,9 +2432,11 @@ else
 		$changelog_url $changelog_previous
 
 		EOF
+		# ignore sed matching backticks
+		# shellcheck disable=SC2016
 		git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
-			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
+			      -e ':a;s/^\(\(`[^`]*`\|[^`_]*\)*\)_/\1\\###/;ta' -e 's/###/_/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
 			      -e '/^[[:space:]]*$/d' \
@@ -2474,11 +2476,13 @@ else
 
 		EOF
 		_svn_changelog=$( retry svn log "$topdir" "$_changelog_range" --xml )
+		# ignore sed matching backticks
+		# shellcheck disable=SC2016
 		echo "$_svn_changelog" \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 			      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
-			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
+			      -e ':a;s/^\(\(`[^`]*`\|[^`_]*\)*\)_/\1\\###/;ta' -e 's/###/_/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
 			      -e '/^[[:space:]]*$/d' \
 			| line_ending_filter >> "$changelog_path"
