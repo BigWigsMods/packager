@@ -2104,6 +2104,8 @@ external_checkout_type=
 external_path=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
+		echo "Fetching external: $external_dir"
+
 		external_uri=${external_uri%%#*} # strip trailing comment
 		external_uri=${external_uri% *}  # strip trailing space
 		external_uri=${external_uri%/}   # strip trailing slash
@@ -2159,6 +2161,10 @@ process_external() {
 		fi
 
 		if [[ $external_type == "git" ]]; then
+			if ! command -v git &>/dev/null; then
+				echo "    ERROR! \"$external_uri\" is a git repository, but git is not available." >&2
+				exit 1
+			fi
 			# check for subpath in urls we know the structure of
 			if [[ -n $external_slug && $external_uri == *"$external_slug/"* ]]; then
 				# CF: https://repos.curseforge.com/wow/libdothings-1-0/LibDoThings-1.0
@@ -2169,13 +2175,22 @@ process_external() {
 				external_path=${external_uri#*.com/*/*/}
 				external_uri=${external_uri%/$external_path*}
 			fi
+		elif [[ $external_type == "svn" ]]; then
+			if ! command -v svn &>/dev/null; then
+				echo "    ERROR! \"$external_uri\" is a subversion repository, but svn is not available." >&2
+				exit 1
+			fi
+		elif [[ $external_type == "hg" ]]; then
+			if ! command -v hg &>/dev/null; then
+				echo "    ERROR! \"$external_uri\" is a mercurial repository, but hg is not available." >&2
+				exit 1
+			fi
 		fi
 
 		if [ -n "$external_slug" ]; then
 			relations["${external_slug,,}"]="embeddedLibrary"
 		fi
 
-		echo "Fetching external: $external_dir"
 		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_checkout_type" "$external_path" &> "$releasedir/.$BASHPID.externalout" &
 		external_pids+=($!)
 	fi
