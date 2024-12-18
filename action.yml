@@ -18,6 +18,9 @@ runs:
         if [[ -n "$WOWI_API_TOKEN" && "${{ github.ref }}" == "refs/tags/"* && "${{ inputs.pandoc }}" == "true" ]] && ! hash pandoc &>/dev/null; then
           sudo apt-get install -yq pandoc &>/dev/null && echo -e "##[group]Install pandoc\\n[command]pandoc --version\\n$( pandoc --version )\\n##[endgroup]"
         fi
+        if ! hash svn &>/dev/null; then
+          sudo apt-get install -yq subversion &>/dev/null && echo -e "##[group]Install subversion\\n[command]svn --version\\n$( svn --version )\\n##[endgroup]"
+        fi
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
