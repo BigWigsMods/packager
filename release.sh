@@ -1409,7 +1409,7 @@ fi
 	echo
 )
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
-	project_site="https://www.curseforge.com"
+	project_site="https://cloudflare.curseforge.com"
 	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
 fi
 if [ -n "$addonid" ]; then
@@ -2075,7 +2075,7 @@ checkout_external() {
 		project_site=
 		package=
 		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
-			project_site="https://www.curseforge.com"
+			project_site="https://cloudflare.curseforge.com"
 		fi
 
 		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
