@@ -14,10 +14,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: |
-        if [[ -n "$WOWI_API_TOKEN" && "${{ github.ref }}" == "refs/tags/"* && "${{ inputs.pandoc }}" == "true" ]] && ! hash pandoc &>/dev/null; then
-          sudo apt-get install -yq pandoc &>/dev/null && echo -e "##[group]Install pandoc\\n[command]pandoc --version\\n$( pandoc --version )\\n##[endgroup]"
-        fi
+    - run: INPUT_PANDOC=${{ inputs.pandoc }} $GITHUB_ACTION_PATH/setup-packager.sh
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
