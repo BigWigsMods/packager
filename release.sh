@@ -1409,7 +1409,7 @@ fi
 	echo
 )
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
-	project_site="https://wow.curseforge.com"
+	project_site="https://www.curseforge.com"
 	echo "CurseForge ID: $slug${cf_token:+ [token set]}"
 fi
 if [ -n "$addonid" ]; then
@@ -2075,7 +2075,7 @@ checkout_external() {
 		project_site=
 		package=
 		if [[ "$_external_uri" == *"wowace.com"* || "$_external_uri" == *"curseforge.com"* ]]; then
-			project_site="https://wow.curseforge.com"
+			project_site="https://www.curseforge.com"
 		fi
 
 		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
@@ -2731,7 +2731,7 @@ upload_curseforge() {
 	fi
 
 	local _cf_game_version_id _cf_game_version _cf_versions
-	_cf_versions=$( curl -s -H "x-api-token: $cf_token" "$project_site/api/game/versions" )
+	_cf_versions=$( curl -s -H "x-api-token: $cf_token" "$project_site/api/game/wow/versions" )
 	if [[ -n $_cf_versions && $_cf_versions != *"errorMessage"* ]]; then
 		_cf_game_version_id=
 		_cf_game_version=
