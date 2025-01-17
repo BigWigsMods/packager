@@ -15,7 +15,8 @@ install_subversion() {
 
 	local pkgmeta_file
 	local OPTIND
-	while getopts ":m:" opt "$INPUT_ARGS"; do
+	# shellcheck disable=SC2086
+	while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt $INPUT_ARGS; do
 		case $opt in
 			m)
 				pkgmeta_file="${GITHUB_WORKSPACE}/${OPTARG}"
