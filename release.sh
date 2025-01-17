@@ -3047,6 +3047,10 @@ upload_wago() {
 				# don't need to ouput the redirect page
 				return_code=1
 				;;
+			403)
+				echo "Error! ($result)"
+				return_code=1
+				;;
 			404)
 				echo "Error! No Wago project for id \"$wagoid\" found."
 				return_code=1
