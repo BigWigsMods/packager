@@ -106,6 +106,55 @@ retry() {
 	return $result
 }
 
+# Color codes
+cyan='\033[0;36m'
+yellow='\033[33m'
+red='\033[31m'
+green='\033[0;32m'
+no_color='\033[0m' # Reset colors
+
+# Function to print text in cyan - generally "info"
+print_cyan() {
+	echo -e "${cyan}$1${no_color}"
+}
+
+# Function to print text in green - generally "success"
+print_green() {
+	echo -e "${green}$1${no_color}"
+}
+
+# Function to print text in red - generally "error"
+print_red() {
+	echo -e "${red}$1${no_color}"
+}
+
+# Function to print text in yellow - generally "warning"
+print_yellow() {
+	echo -e "${yellow}$1${no_color}"
+}
+
+# Function to print only when verbose mode is not enabled
+# usually paired with print_verbose to let the user know prints have been suppressed
+print_no_verbose() {
+	if [ "$verbose" != "true" ]; then
+		echo "$@"
+	fi
+}
+
+# Function to print only when verbose mode is enabled - for info purposes
+print_verbose() {
+	if [ "$verbose" == "true" ]; then
+		echo "$@"
+	fi
+}
+
+# Function to print only when super verbose mode is enabled - for debug purposes
+print_debug() {
+	if [ "$super_verbose" == "true" ]; then
+		echo "$@"
+	fi
+}
+
 # Escape a string for use in sed substitutions.
 escape_substr() {
 	local s="$1"
@@ -199,6 +248,7 @@ usage() {
 	Usage: release.sh [options]
 	  -c               Skip copying files into the package directory.
 	  -d               Skip uploading.
+	  -D               Local dev mode (Skips uploading, keeps existing pkgdir, skips external if it exists)
 	  -e               Skip checkout of external repositories.
 	  -l               Skip @localization@ keyword replacement.
 	  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
@@ -207,6 +257,8 @@ usage() {
 	  -S               Create a package supporting multiple game types from a single TOC file.
 	  -u               Use Unix line-endings.
 	  -z               Skip zip file creation.
+	  -v               Verbose mode, adds extra prints
+	  -V               Super Verbose mode, adds even more prints
 	  -t topdir        Set top-level directory of checkout.
 	  -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
 	  -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
@@ -219,7 +271,7 @@ usage() {
 }
 
 OPTIND=1
-while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
+while getopts ":celLzusSop:dDw:a:r:t:g:m:n:vV" opt; do
 	case $opt in
 		c) skip_copying="true" ;; # Skip copying files into the package directory
 		z) skip_zipfile="true" ;; # Skip creating a zip file
@@ -227,8 +279,14 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 		l) skip_localization="true" ;; # Skip @localization@ keyword replacement
 		L) skip_cf_upload="true" ;; # Skip uploading to CurseForge
 		d) skip_upload="true" ;; # Skip uploading
+		D) LOCAL_FLAG=true ;; # Skips uploading, keeps existing pkgdir, skips external if it exists
 		u) line_ending="unix" ;; # Use LF instead of CRLF as the line ending for all text files
 		o) overwrite="true" ;; # Don't delete existing directories in the release directory
+		v) verbose=true ;; # Print more info
+		V) # Prints even more info
+			super_verbose=true
+			verbose=true
+			;;
 		p) slug="$OPTARG" ;; # Set CurseForge project id
 		w) addonid="$OPTARG" ;; # Set WoWInterface addon id
 		a) wagoid="$OPTARG" ;; # Set Wago Addons project id
@@ -353,6 +411,13 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 done
 shift $((OPTIND - 1))
 
+if [ "$LOCAL_FLAG" = true ]; then
+	print_cyan "\n🖥️  Local Mode enabled! Taking a bunch of shortcuts...\n"
+	skip_cf_upload="true"
+	skip_upload="true"
+	overwrite="true"
+fi
+
 # Set $topdir to top-level directory of the checkout.
 if [ -z "$topdir" ]; then
 	dir=$( pwd )
@@ -376,7 +441,7 @@ if [ -z "$topdir" ]; then
 fi
 
 # Handle folding sections in CI logs
-start_group() { echo "$1"; }
+start_group() { echo -e "$1"; }
 end_group() { echo; }
 
 # Check for Travis CI
@@ -534,6 +599,28 @@ strtotime() {
 set_info_git() {
 	si_repo_dir="$1"
 	si_repo_type="git"
+	if [ "$LOCAL_FLAG" = true ]; then
+		si_repo_url="local-working-copy"
+		si_project_hash=$(git -C "$si_repo_dir" rev-parse HEAD)
+		si_project_abbreviated_hash=$(git -C "$si_repo_dir" rev-parse --short HEAD)
+		si_project_author=$(git -C "$si_repo_dir" log -1 --format="%an")
+		si_project_timestamp=$(git -C "$si_repo_dir" log -1 --format="%at")
+		si_project_date_iso=$(date -u -d @$si_project_timestamp +"%Y-%m-%dT%H:%M:%SZ")
+		si_project_date_integer=$(date -u -d @$si_project_timestamp +"%Y%m%d%H%M%S")
+		si_project_revision=$(git -C "$si_repo_dir" rev-list --count HEAD)
+
+		# Set $si_project_version to the version number of HEAD.
+		si_tag=$(git -C "$si_repo_dir" describe --tags --always --abbrev=0 2>/dev/null)
+		si_project_version="$si_tag"
+		if [[ $si_tag == "$si_project_hash" ]]; then
+			si_project_version=$(git -C "$si_repo_dir" describe --tags --always --abbrev=7 2>/dev/null)
+			si_previous_tag=
+		else
+			si_previous_tag=$(git -C "$si_repo_dir" describe --tags --abbrev=0 --exclude="*[Aa][Ll][Pp][Hh][Aa]*" HEAD~ 2>/dev/null)
+		fi
+		return
+	fi
+
 	si_repo_url=$( git -C "$si_repo_dir" remote get-url origin 2>/dev/null | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
 	if [ -z "$si_repo_url" ]; then # no origin so grab the first fetch url
 		si_repo_url=$( git -C "$si_repo_dir" remote -v | awk '/(fetch)/ { print $2; exit }' | sed -e 's/^git@\(.*\):/https:\/\/\1\//' )
@@ -754,13 +841,13 @@ set_info_file() {
 }
 
 # Set some version info about the project
-echo -ne "Reading project repository..."
+print_debug -ne "Reading project repository..."
 case $repository_type in
 	git) set_info_git "$topdir" ;;
 	svn) set_info_svn "$topdir" ;;
 	hg)  set_info_hg  "$topdir" ;;
 esac
-echo -e "done\n"
+print_debug -e "done\n"
 
 tag=$si_tag
 project_version=$si_project_version
@@ -794,6 +881,10 @@ else
 	file_type="alpha"
 fi
 
+if [[ ${LOCAL_FLAG} == true ]]; then
+	file_type="alpha"
+fi
+
 # Add some GitHub Actions outputs
 if [[ -n $GITHUB_ACTIONS ]]; then
 	# shellcheck disable=SC2129
@@ -824,7 +915,6 @@ match_pattern() {
 	done
 	return 1
 }
-
 
 # Simple .pkgmeta YAML processor.
 declare -A yaml_bool=( ["yes"]="yes" ["true"]="yes" ["on"]="yes" ["false"]="no" ["off"]="no" ["no"]="no" )
@@ -874,6 +964,7 @@ wowi_gen_changelog="true"
 wowi_archive="true"
 wowi_convert_changelog="true"
 declare -A relations=()
+declare -A _pkgmeta_ignored_dirs
 
 parse_ignore() {
 	pkgmeta="$1"    # full path to .pkgmeta
@@ -915,6 +1006,11 @@ parse_ignore() {
 				if [[ "$pkgmeta_phase" == "ignore" || "$pkgmeta_phase" == "plain-copy" ]] && [[ $yaml_item == "$sub_path"* ]]; then
 					yaml_item=${yaml_item%"/*"} # trim dir glob
 					pattern=${yaml_item#$sub_path} # match relative to sub_path
+					if [[ $pattern == */ ]] && [[ $pkgmeta_phase == "ignore" ]]; then
+						if [[ -z ${_pkgmeta_ignored_dirs[$pattern]} ]]; then
+							_pkgmeta_ignored_dirs["${pattern}"]="${pattern}"
+						fi
+					fi
 					if [ -d "$check_path$yaml_item" ]; then
 						pattern="$copy_path$pattern/*"
 					elif [ ! -f "$copy_path$yaml_item" ]; then
@@ -1390,12 +1486,14 @@ fi
 [ "$addonid" = "0" ] && addonid=
 [ "$wagoid" = "0" ] && wagoid=
 
-echo "Packaging $package"
+print_yellow "📦  Packaging $package  📦"
 if [ -n "$project_version" ]; then
-	echo "Current version: $project_version"
+	echo -n "  Current version: "
+	print_cyan "$project_version"
 fi
 if [ -n "$previous_version" ]; then
-	echo "Previous version: $previous_version"
+	echo -n "  Previous version: "
+	print_red "$previous_version"
 fi
 (
 	if [[ -n $game_type ]]; then
@@ -1404,8 +1502,10 @@ fi
 		version="multi-version "
 	fi
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
-	echo "Build type: ${version}${alpha} non-debug${nolib:+ nolib}"
-	echo "Game version: ${game_version}"
+	echo -n "  Build type: "
+	print_cyan "${version}${alpha} non-debug${nolib:+ nolib}"
+	echo -n "  Game version: "
+	print_cyan "${game_version}"
 	echo
 )
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
@@ -1424,9 +1524,9 @@ fi
 if [ -n "$project_site" ] || [ -n "$addonid" ] || [ -n "$wagoid" ] || [ -n "$project_github_slug" ]; then
 	echo
 fi
-echo "Checkout directory: $topdir"
-echo "Release directory: $releasedir"
-echo
+print_debug "Checkout directory: $topdir"
+print_debug "Release directory: $releasedir"
+print_debug
 
 # Set $pkgdir to the path of the package directory inside $releasedir.
 pkgdir="$releasedir/$package"
@@ -1746,7 +1846,7 @@ copy_directory_tree() {
 	_cdt_destdir=$2
 
 	if [ -z "$_cdt_external" ]; then
-		start_group "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
+		start_group "${yellow}Copying files into ${_cdt_destdir#$topdir/}:${no_color}" "copy"
 	else # don't nest groups
 		echo "Copying files into ${_cdt_destdir#$topdir/}:"
 	fi
@@ -1767,10 +1867,34 @@ copy_directory_tree() {
 	# Print the filename, but suppress the current directory ".".
 	_cdt_find_cmd+=" -o \! -name \".\" -print"
 
+	# Collect ignored directories
+	declare -A ignored_dirs
+	while read -r file; do
+		file=${file#./}
+		_cdt_source_file="$_cdt_srcdir/$file"
+		if [ -d "$_cdt_source_file" ]; then
+			if match_pattern "$file/" "$_cdt_ignored_patterns"; then
+				ignored_dirs["$file"]=1
+			fi
+		fi
+	done < <(cd "$_cdt_srcdir" && eval "$_cdt_find_cmd")
+
+	for dir in "${_pkgmeta_ignored_dirs[@]}"; do
+		print_verbose -e "  ❌  ${red}Ignoring directory: $dir${no_color}"
+	done
+
 	local file
 	while read -r file; do # <( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" )
 		file=${file#./}
 		_cdt_source_file="$_cdt_srcdir/$file"
+
+		# Skip files in ignored directories
+		for dir in "${!ignored_dirs[@]}"; do
+			if [[ $file == "$dir"* ]]; then
+				continue 2
+			fi
+		done
+
 		if [ -f "$_cdt_source_file" ]; then
 			_cdt_skip_copy=
 			_cdt_only_copy=
@@ -1788,9 +1912,14 @@ copy_directory_tree() {
 				_cdt_skip_copy=
 				_cdt_only_copy="true"
 			fi
+			# Check if the file is in a directory that should be ignored
+			if [[ $_cdt_check_file == */ ]] && [[ $_cdt_ignored_patterns == *"${_cdt_check_file%/*}"* ]]; then
+				print_verbose -e "  ❌  ${red}Ignoring: ${_cdt_check_file%/*}${no_color}"
+				_cdt_skip_copy="true"
+			fi
 			# Copy unskipped files into $_cdt_destdir.
 			if [ -n "$_cdt_skip_copy" ]; then
-				echo "  Ignoring: $file"
+				[[ $_cdt_check_file != */ ]] && print_verbose -e "  ❌  ${red}Ignoring: $file${no_color}"
 			else
 				_cdt_subdir=${file%/*}
 				if [ "$_cdt_subdir" != "$file" ]; then
@@ -1807,7 +1936,7 @@ copy_directory_tree() {
 				fi
 				# Check if the file matches a pattern for keyword replacement.
 				if [ -n "$_cdt_only_copy" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
-					echo "  Copying: $file (unchanged)${_cdt_external_slug:+(embedded: "$_cdt_external_slug")}"
+					print_yellow "  📰  Copying: $file (unchanged)${_cdt_external_slug:+(embedded: "$_cdt_external_slug")}"
 					cp "$_cdt_source_file" "$_cdt_destdir/$_cdt_subdir"
 				else
 					_cdt_file_gametype="$_cdt_gametype"
@@ -1878,7 +2007,7 @@ copy_directory_tree() {
 					# Set version control values for the file.
 					set_info_file "$_cdt_source_file"
 
-					echo "  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
+					print_yellow "  📰  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
 
 					# Make sure we're not causing any surprises
 					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\)@' "$_cdt_source_file"; then
@@ -1936,6 +2065,7 @@ copy_directory_tree() {
 			fi
 		fi
 	done < <( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" )
+	print_no_verbose -e "  ${cyan}❌ Anything not explictly mentioned as being copied above is ignored. Use -v or -V flag to see ignores.${no_color}\n"
 	if [ -z "$_external_dir" ]; then
 		end_group "copy"
 	fi
@@ -2104,6 +2234,11 @@ external_checkout_type=
 external_path=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
+		if [ "$LOCAL_FLAG" = true ] && [ -d "$pkgdir/$external_dir" ]; then
+			# Skip fetching external libs if they are already present, simply delete the directory
+			# if you want to force a re-fetch.
+			return
+		fi
 		echo "Fetching external: $external_dir"
 
 		external_uri=${external_uri%%#*} # strip trailing comment
@@ -2211,6 +2346,9 @@ kill_externals() {
 trap kill_externals INT
 
 if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
+	if [ "$LOCAL_FLAG" = true ]; then
+		print_cyan "🌐  Local Mode is enabled, so external libs will not be fetched/updated if they are already present.\n"
+	fi
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
@@ -2386,7 +2524,8 @@ else
 		wowi_markup="markdown"
 	fi
 
-	start_group "Generating changelog of commits into $changelog" "changelog"
+	start_group "🗒️  ${yellow}Generating changelog of commits into $changelog${no_color}" "changelog"
+	print_debug
 
 	_changelog_range=
 	if [ "$repository_type" = "git" ]; then
@@ -2554,7 +2693,8 @@ else
 		fi
 	fi
 
-	echo "$(<"$changelog_path")"
+	print_debug "$(<"$changelog_path")"
+	print_no_verbose -e "  ☑️  ${cyan}Changelog generated at ${changelog_path#$topdir/}${no_color}"
 	end_group "changelog"
 fi
 
@@ -3263,10 +3403,16 @@ if [[ -z $skip_upload && -n $archive && -s $archive ]]; then
 	fi
 fi
 
+if [[ ${LOCAL_FLAG} == true ]]; then
+	if [[ -f ${wowi_changelog} ]]; then
+		rm -f "${wowi_changelog}" 2>/dev/null
+	fi
+fi
+
 # All done.
 
 echo
-echo "Packaging complete."
+print_green "✔️  Packaging complete."
 echo
 
 # shellcheck disable=SC2086

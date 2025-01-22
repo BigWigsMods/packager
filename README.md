@@ -333,6 +333,9 @@ The recommended way to include __release.sh__ in a project is to:
 4. (Optionally) Create a `.env` file in the `.release` directory filled with
    your upload secrets. (KEY=value pairs each on a new line)
 5. Run __release.sh__.
+6. (Optionally) Running with the `-D` flag will be quicker as it will skip
+   the checkout of external repositories if they are already present,
+   among other shortcuts.
 
 ## Usage
 
@@ -340,6 +343,7 @@ The recommended way to include __release.sh__ in a project is to:
 Usage: release.sh [options]
   -c               Skip copying files into the package directory.
   -d               Skip uploading.
+  -D               Local dev mode (Skips uploading, keeps existing pkgdir, skips external if it exists)
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
   -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
@@ -348,6 +352,8 @@ Usage: release.sh [options]
   -S               Create a package supporting multiple game types from a single TOC file.
   -u               Use Unix line-endings.
   -z               Skip zip file creation.
+  -v               Verbose mode, adds extra prints
+  -V               Super Verbose mode, adds even more prints
   -t topdir        Set top-level directory of checkout.
   -r releasedir    Set directory containing the package directory. Defaults to "$topdir/.release".
   -p curse-id      Set the project id used on CurseForge for localization and uploading. (Use 0 to unset the TOC value)
