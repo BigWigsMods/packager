@@ -470,7 +470,7 @@ if [ -n "$TRAVIS" ]; then
 		# release_timer_id="$(printf %08x $((RANDOM * RANDOM)))"
 		# release_timer_start_time="$(date -u +%s%N)"
 		# echo -en "travis_time:start:${release_timer_id}\\r\033[0K"
-		echo "$1"
+		echo -e "$1"
 	}
 	end_group() {
 		# local release_timer_end_time="$(date -u +%s%N)"
@@ -491,7 +491,7 @@ if [[ -n $GITHUB_ACTIONS ]]; then
 		fi
 		unset check_tag
 	fi
-	start_group() { echo "##[group]$1"; }
+	start_group() { echo -e "##[group]$1"; }
 	end_group() { echo "##[endgroup]"; }
 fi
 
