@@ -106,6 +106,25 @@ retry() {
 	return $result
 }
 
+retry_svn_checkout() {
+	local repo="$1"
+	local path="$2"
+	local result=0
+	local count=1
+	local max=5
+	while [[ $count -le "$max" ]]; do
+		[[ $result -ne 0 ]] && {
+			echo -e "\033[01;31mRetrying (${count}/${max})\033[0m" >&2
+			rm -rf "$path" # an aborted checkout can leave a .svn directory with a locked state
+		}
+		svn checkout -q "$repo" "$path" --force && { result=0 && break; } || result="$?"
+		count="$((count + 1))"
+		sleep 3
+	done
+	# shellcheck disable=SC2086
+	return $result
+}
+
 # Escape a string for use in sed substitutions.
 escape_substr() {
 	local s="$1"
@@ -2028,7 +2047,7 @@ checkout_external() {
 
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
-			retry svn checkout -q "$_external_uri" "$_cqe_checkout_dir" --force || return 1
+			retry_svn_checkout "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else
 			_cqe_svn_tag_url="${_cqe_svn_trunk_url%/trunk}/tags"
 			if [ "$_external_tag" = "latest" ]; then
@@ -2040,14 +2059,14 @@ checkout_external() {
 			if [ "$_external_tag" = "latest" ]; then
 				echo "No tags found in $_cqe_svn_tag_url"
 				echo "Fetching latest version of external $_external_uri"
-				retry svn checkout -q "$_external_uri" "$_cqe_checkout_dir" --force || return 1
+				retry_svn_checkout "$_external_uri" "$_cqe_checkout_dir" || return 1
 			else
 				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
 				if [ -n "$_cqe_svn_subdir" ]; then
 					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
 				echo "Fetching tag \"$_external_tag\" from external $_cqe_external_uri"
-				retry svn checkout -q "$_cqe_external_uri" "$_cqe_checkout_dir" --force || return 1
+				retry_svn_checkout "$_cqe_external_uri" "$_cqe_checkout_dir" || return 1
 			fi
 		fi
 		set_info_svn "$_cqe_checkout_dir" || return 1
