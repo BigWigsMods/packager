@@ -1825,6 +1825,9 @@ copy_directory_tree() {
 				if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -io "@curseforge-project-slug[[:blank:]]*:[[:blank:]]*[^@]\+@" "$_cdt_source_file"); then
 					_cdt_external_slug="${_cdt_external_slug//[[:blank:]@]/}"
 					_cdt_external_slug="${_cdt_external_slug##*:}"
+					if [[ ${_cdt_external_slug,,} == "${package,,}" ]]; then
+						_cdt_external_slug=
+					fi
 					if [[ -n $_cdt_external_slug ]]; then
 						relations["${_cdt_external_slug,,}"]="embeddedLibrary"
 					fi
