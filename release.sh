@@ -1821,15 +1821,17 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$_cdt_subdir"
 				fi
 				# Check for marked hard embedded libraries
-				_cdt_external_slug=
-				if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -io "@curseforge-project-slug[[:blank:]]*:[[:blank:]]*[^@]\+@" "$_cdt_source_file"); then
-					_cdt_external_slug="${_cdt_external_slug//[[:blank:]@]/}"
-					_cdt_external_slug="${_cdt_external_slug##*:}"
-					if [[ ${_cdt_external_slug,,} == "${package,,}" ]]; then
-						_cdt_external_slug=
-					fi
-					if [[ -n $_cdt_external_slug ]]; then
-						relations["${_cdt_external_slug,,}"]="embeddedLibrary"
+				if [[ -z $_cdt_external ]]; then
+					_cdt_external_slug=
+					if [[ $_cdt_source_file == *".lua" ]] && _cdt_external_slug=$( grep -io "@curseforge-project-slug[[:blank:]]*:[[:blank:]]*[^@]\+@" "$_cdt_source_file"); then
+						_cdt_external_slug="${_cdt_external_slug//[[:blank:]@]/}"
+						_cdt_external_slug="${_cdt_external_slug##*:}"
+						if [[ ${_cdt_external_slug,,} == "${package,,}" ]]; then
+							_cdt_external_slug=
+						fi
+						if [[ -n $_cdt_external_slug ]]; then
+							relations["${_cdt_external_slug,,}"]="embeddedLibrary"
+						fi
 					fi
 				fi
 				# Check if the file matches a pattern for keyword replacement.
