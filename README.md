@@ -163,7 +163,7 @@ Supported keywords and when the code block will run:
 - `no-lib-strip`: *(not supported in Lua files)* in any build other than a
   *nolib* build.
 - `retail`,`version-retail`,`version-classic`,`version-bcc`,`version-wrath`,
-  `version-cata`: based on game version.
+  `version-cata`, `version-mists`: based on game version.
 
 `do-not-package` is a bit special. Everything between the tags, including the
 tags themselves, will always be removed from the packaged file. This will cause
@@ -236,9 +236,9 @@ on the build type:
 `{classic}` has some additional magic:
 
 1. It will show as the non-retail build type, so `-classic`, `-bcc`, `-wrath`,
-   or `-cata`.
-2. It will not be shown if `-classic`, `-bcc`, `-wrath`, or `-cata` is in the
-   project version (tag).
+   `-cata`, or `-mists`.
+2. It will not be shown if `-classic`, `-bcc`, `-wrath`, `-cata`, or `-mists`
+   is in the project version (tag).
 3. If it is included in the file name (it is by default) and #2 does not apply,
    it will also be appended to the file label (i.e., the name shown in the file
    list on CurseForge).
