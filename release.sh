@@ -1429,7 +1429,7 @@ fi
 	fi
 	[ "$file_type" = "alpha" ] && alpha="alpha" || alpha="non-alpha"
 	echo "Build type: ${version}${alpha} non-debug${nolib:+ nolib}"
-	echo "Game version: ${game_version}"
+	echo "Game version: ${game_version//,/, }"
 	echo
 )
 if [[ "$slug" =~ ^[0-9]+$ ]]; then
