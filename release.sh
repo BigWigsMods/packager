@@ -193,7 +193,7 @@ toc_to_type() {
 	case $toc_version in
 		11???) game_type="classic" ;;
 		20???) game_type="bcc" ;;
-		30???) game_type="wrath" ;;
+		3[08]???) game_type="wrath" ;;
 		40???) game_type="cata" ;;
 		50???) game_type="mists" ;;
 		*) game_type="retail"
@@ -1240,7 +1240,7 @@ set_info_toc_interface() {
 			case $toc_game_type in
 				classic) game_type_toc_prefix="11[345]" ;;
 				bcc) game_type_toc_prefix="20" ;;
-				wrath) game_type_toc_prefix="30" ;;
+				wrath) game_type_toc_prefix="3[08]" ;;
 				cata) game_type_toc_prefix="40" ;;
 				mists) game_type_toc_prefix="50" ;;
 				*) game_type_toc_prefix=
