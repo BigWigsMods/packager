@@ -2761,6 +2761,7 @@ fi
 ###
 
 # Upload to CurseForge.
+# shellcheck disable=SC2329
 upload_curseforge() {
 	if [[ -n "$skip_cf_upload" || -z "$slug" || -z "$cf_token" || -z "$project_site" ]]; then
 		return 0
@@ -2783,6 +2784,11 @@ upload_curseforge() {
 			esac
 			IFS=':' read -ra V <<< "${game_type_version[$type]}"
 			for version in "${V[@]}"; do
+				# titan reforged is a special version of classic available to china based on mop code that goes from vanilla to wrath z.z
+				if [[ $version == "3.80."* ]]; then
+					game_id=81212
+				fi
+
 				# check the version
 				if ! jq -e --arg v "$version" --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t and .name == $v)) | length > 0' <<< "$_cf_versions" &>/dev/null; then
 					invalid_version="$version"
