@@ -76,7 +76,7 @@ if [[ ${BASH_VERSINFO[0]} -lt 4 ]] || [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VER
 fi
 
 # Game versions for uploading
-declare -A game_flavor=( ["retail"]="retail" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" ["wrath"]="wrath" ["wotlkc"]="wrath" ["cata"]="cata" ["mists"]="mists" )
+declare -A game_flavor=( ["retail"]="retail" ["classic"]="classic" ["bcc"]="bcc" ["mainline"]="retail" ["tbc"]="bcc" ["vanilla"]="classic" ["wrath"]="wrath" ["wotlkc"]="wrath" ["cata"]="cata" ["mists"]="mists" ["titan"]="titan" )
 
 declare -A game_type_version=()           # type -> version (: delim)
 declare -A game_type_interface=()         # type -> toc (: delim)
@@ -144,7 +144,8 @@ filename_filter() {
 		 [[ "$game_type" != "bcc" || "${si_project_version,,}" != *"-bcc"* ]] &&\
 		 [[ "$game_type" != "wrath" || "${si_project_version,,}" != *"-wrath"* ]] &&\
 		 [[ "$game_type" != "cata" || "${si_project_version,,}" != *"-cata"* ]] &&\
-		 [[ "$game_type" != "mists" || "${si_project_version,,}" != *"-mists"* ]]
+		 [[ "$game_type" != "mists" || "${si_project_version,,}" != *"-mists"* ]] &&\
+		 [[ "$game_type" != "titan" || "${si_project_version,,}" != *"-titan"* ]]
 	then
 		# only append the game type if the tag doesn't include it
 		classic="-$game_type"
@@ -194,9 +195,10 @@ toc_to_type() {
 	case $toc_version in
 		11???) game_type="classic" ;;
 		20???) game_type="bcc" ;;
-		3[08]???) game_type="wrath" ;;
+		30???) game_type="wrath" ;;
 		40???) game_type="cata" ;;
 		50???) game_type="mists" ;;
+		380??) game_type="titan" ;;
 		*) game_type="retail"
 	esac
 	# return game_type
@@ -271,7 +273,7 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 		g) # Set the game type or version
 			OPTARG="${OPTARG,,}"
 			case "$OPTARG" in
-				retail|classic|bcc|wrath|cata|mists) game_type="$OPTARG" ;; # game_version from toc
+				retail|classic|bcc|wrath|cata|mists|titan) game_type="$OPTARG" ;; # game_version from toc
 				mainline) game_type="retail" ;;
 				*)
 					# Set game version (x.y.z)
@@ -288,7 +290,11 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 						elif [[ ${BASH_REMATCH[1]} == "2" ]]; then
 							game_type="bcc"
 						elif [[ ${BASH_REMATCH[1]} == "3" ]]; then
-							game_type="wrath"
+							if [[ ${BASH_REMATCH[2]} == "80" ]]; then
+								game_type="titan"
+							else
+								game_type="wrath"
+							fi
 						elif [[ ${BASH_REMATCH[1]} == "4" ]]; then
 							game_type="cata"
 						elif [[ ${BASH_REMATCH[1]} == "5" ]]; then
@@ -1198,9 +1204,12 @@ set_info_toc_interface() {
 		else
 			local toc_file_game_type="${game_flavor[$toc_suffix]}"
 			if [[ $toc_file_game_type != "$toc_game_type" ]]; then
-				# Other suffixes are required to match the game type
-				echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
-				exit 1
+				# Titan Reforged Classic will load TOC files with a Wrath suffix
+				if [[ $toc_file_game_type == "wrath" && $toc_game_type != "titan" ]]; then
+					# Other suffixes are required to match the game type
+					echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
+					exit 1
+				fi
 			fi
 		fi
 	else
@@ -1241,9 +1250,10 @@ set_info_toc_interface() {
 			case $toc_game_type in
 				classic) game_type_toc_prefix="11[345]" ;;
 				bcc) game_type_toc_prefix="20" ;;
-				wrath) game_type_toc_prefix="3[08]" ;;
+				wrath) game_type_toc_prefix="30" ;;
 				cata) game_type_toc_prefix="40" ;;
 				mists) game_type_toc_prefix="50" ;;
+				titan) game_type_toc_prefix="380" ;;
 				*) game_type_toc_prefix=
 			esac
 			if [[ -n $game_type_toc_prefix ]]; then
@@ -1857,6 +1867,7 @@ copy_directory_tree() {
 								[[ $_cdt_file_gametype != "wrath" ]] && _cdt_filters+="|lua_filter version-wrath"
 								[[ $_cdt_file_gametype != "cata" ]] && _cdt_filters+="|lua_filter version-cata"
 								[[ $_cdt_file_gametype != "mists" ]] && _cdt_filters+="|lua_filter version-mists"
+								[[ $_cdt_file_gametype != "titan" ]] && _cdt_filters+="|lua_filter version-titan"
 							fi
 							[[ -n $_cdt_localization ]] && grep -q "@localization" "$_cdt_source_file" && _cdt_filters+="|localization_filter"
 							;;
@@ -1872,6 +1883,7 @@ copy_directory_tree() {
 								[[ $_cdt_file_gametype != "wrath" ]] && _cdt_filters+="|xml_filter version-wrath"
 								[[ $_cdt_file_gametype != "cata" ]] && _cdt_filters+="|xml_filter version-cata"
 								[[ $_cdt_file_gametype != "mists" ]] && _cdt_filters+="|xml_filter version-mists"
+								[[ $_cdt_file_gametype != "titan" ]] && _cdt_filters+="|xml_filter version-titan"
 							fi
 							;;
 						*.toc)
@@ -1898,6 +1910,7 @@ copy_directory_tree() {
 									_cdt_filters+="|toc_filter version-wrath $([[ "$_cdt_file_gametype" != "wrath" ]] && echo "true")"
 									_cdt_filters+="|toc_filter version-cata $([[ "$_cdt_file_gametype" != "cata" ]] && echo "true")"
 									_cdt_filters+="|toc_filter version-mists $([[ "$_cdt_file_gametype" != "mists" ]] && echo "true")"
+									_cdt_filters+="|toc_filter version-titan $([[ "$_cdt_file_gametype" != "titan" ]] && echo "true")"
 								fi
 								# Rewrite the interface line if necessary
 								_cdt_filters+="|toc_interface_filter '${si_game_type_interface_all[${_cdt_file_gametype:- }]}' '${toc_root_interface["$_cdt_source_file"]}'"
@@ -1916,10 +1929,10 @@ copy_directory_tree() {
 					echo "  Copying: $file${_cdt_external_slug:+ (embedded: "$_cdt_external_slug")}"
 
 					# Make sure we're not causing any surprises
-					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\)@' "$_cdt_source_file"; then
+					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\|titan\)@' "$_cdt_source_file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
 						echo "           These should be replaced with lua conditional statements:" >&2
-						grep -n '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
+						grep -n '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\|titan\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
 						echo "           See https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID" >&2
 						exit 1
 					fi
@@ -1941,6 +1954,7 @@ copy_directory_tree() {
 								wrath) new_file+="_Wrath.toc" ;;
 								cata) new_file+="_Cata.toc" ;;
 								mists) new_file+="_Mists.toc" ;;
+								# titan) new_file+="_Wrath.toc" ;;
 							esac
 
 							echo "    Creating $new_file [${toc_version//:/, }]"
@@ -1958,6 +1972,7 @@ copy_directory_tree() {
 							_cdt_filters+="|toc_filter version-wrath $([[ "$type" != "wrath" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-cata $([[ "$type" != "cata" ]] && echo "true")"
 							_cdt_filters+="|toc_filter version-mists $([[ "$type" != "mists" ]] && echo "true")"
+							_cdt_filters+="|toc_filter version-titan $([[ "$type" != "titan" ]] && echo "true")"
 							_cdt_filters+="|toc_interface_filter '$toc_version' '$root_toc_version'"
 							_cdt_filters+="|line_ending_filter"
 
@@ -2780,15 +2795,11 @@ upload_curseforge() {
 				wrath) game_id=73713 ;;
 				cata) game_id=77522 ;;
 				mists) game_id=79434 ;;
+				titan) game_id=81212 ;;
 				*) game_id=517
 			esac
 			IFS=':' read -ra V <<< "${game_type_version[$type]}"
 			for version in "${V[@]}"; do
-				# titan reforged is a special version of classic available to china based on mop code that goes from vanilla to wrath z.z
-				if [[ $version == "3.80."* ]]; then
-					game_id=81212
-				fi
-
 				# check the version
 				if ! jq -e --arg v "$version" --argjson t "$game_id" 'map(select(.gameVersionTypeID == $t and .name == $v)) | length > 0' <<< "$_cf_versions" &>/dev/null; then
 					invalid_version="$version"
@@ -2904,6 +2915,7 @@ upload_wowinterface() {
 				wrath) wowi_type="WOTLK-Classic" ;;
 				cata) wowi_type="Cata-Classic" ;;
 				mists) wowi_type="MOP-Classic" ;; # XXX nyi
+				titan) wowi_type="Titan-Classic" ;; # XXX nyi
 				*) wowi_type="Retail"
 			esac
 			IFS=':' read -ra V <<< "${game_type_version[$type]}"
@@ -3018,6 +3030,7 @@ upload_wago() {
 				bcc) wago_type="bc" ;;
 				wrath) wago_type="wotlk" ;;
 				mists) wago_type="mop" ;;
+				titan) wago_type="titan" ;; # XXX nyi
 				*) wago_type="$type"
 			esac
 			wago_game_type_version=
