@@ -1344,7 +1344,7 @@ set_build_version() {
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
 	# shellcheck disable=SC2035
-	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | sort -dr | head -n1 )
+	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | LC_ALL=C sort | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
 		exit 1
