@@ -32,7 +32,8 @@
 #   SC2030: Modification of var is local (to subshell caused by pipeline).
 #   SC2031: var was modified in a subshell. That change might be lost.
 #   SC2317: Command appears to be unreachable.
-# shellcheck disable=SC2295,SC2030,SC2031,SC2317
+#   SC2329: This function is never invoked.
+# shellcheck disable=SC2295,SC2030,SC2031,SC2317,SC2329
 
 ## USER OPTIONS
 
@@ -2761,7 +2762,6 @@ fi
 ###
 
 # Upload to CurseForge.
-# shellcheck disable=SC2329
 upload_curseforge() {
 	if [[ -n "$skip_cf_upload" || -z "$slug" || -z "$cf_token" || -z "$project_site" ]]; then
 		return 0
