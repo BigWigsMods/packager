@@ -3037,13 +3037,13 @@ upload_wago() {
 			IFS=':' read -ra V <<< "${game_type_version[$type]}"
 			for version in "${V[@]}"; do
 				# check the version
-				if ! jq -e --arg t "$wago_type" --arg v "$version" '.[$t] | index($v)' <<< "$_wago_versions" &>/dev/null; then
+				if ! jq -e --arg t "$wago_type" --arg v "$version" '.[$t] // empty | index($v)' <<< "$_wago_versions" &>/dev/null; then
 					invalid_version="$version"
 					# no match, so grab the next highest version (try to avoid testing versions)
-					version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" --arg v "$invalid_version" '.[$t] | map(select(. < $v)) | max // empty' )
+					version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" --arg v "$invalid_version" '.[$t] // empty | map(select(. < $v)) | max // empty' )
 					if [[ -z $version ]]; then
 						# just grab the highest version
-						version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" '.[$t] | max // empty' )
+						version=$( echo "$_wago_versions" | jq -r --arg t "$wago_type" '.[$t] // empty | max // empty' )
 					fi
 					if [[ -z $version ]]; then
 						echo "WARNING: No Wago game version match for \"$invalid_version\", ignoring" >&2
