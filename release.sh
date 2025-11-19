@@ -1169,7 +1169,10 @@ set_info_toc_interface() {
 
 			# Are the interface values all for one game type?
 			if [[ -n $toc_game_type && $toc_game_type != "$toc_version_game_type" ]]; then
-				toc_game_type=
+				# Titan Reforged Classic will load TOC files with a Wrath suffix
+				if [[ $toc_version_game_type == "wrath" && $toc_game_type != "titan" ]]; then
+					toc_game_type=
+				fi
 			fi
 		done
 
@@ -1204,12 +1207,9 @@ set_info_toc_interface() {
 		else
 			local toc_file_game_type="${game_flavor[$toc_suffix]}"
 			if [[ $toc_file_game_type != "$toc_game_type" ]]; then
-				# Titan Reforged Classic will load TOC files with a Wrath suffix
-				if [[ $toc_file_game_type == "wrath" && $toc_game_type != "titan" ]]; then
-					# Other suffixes are required to match the game type
-					echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
-					exit 1
-				fi
+				# Other suffixes are required to match the game type
+				echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
+				exit 1
 			fi
 		fi
 	else
