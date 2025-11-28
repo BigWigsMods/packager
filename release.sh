@@ -204,6 +204,21 @@ toc_to_type() {
 	# return game_type
 }
 
+toc_to_file_type() {
+	local toc_version="$1"
+	local -n game_type="$2" || return 1
+	case $toc_version in
+		11???) game_type="classic" ;;
+		20???) game_type="bcc" ;;
+		30???) game_type="wrath" ;;
+		40???) game_type="cata" ;;
+		50???) game_type="mists" ;;
+		380??) game_type="wrath" ;;
+		*) game_type="retail"
+	esac
+	# return game_type
+}
+
 is_toc_multiple_types() {
 	local toc_version="$1"
 	local toc_game_type toc_version_game_type
@@ -1146,6 +1161,12 @@ set_info_toc_interface() {
 
 	local toc_name=${toc_path##*/}
 
+	local toc_suffix toc_file_game_type
+	if [[ $toc_name =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists)\.toc$ ]]; then
+		toc_suffix="${BASH_REMATCH[1],,}"
+		toc_file_game_type="${game_flavor[$toc_suffix]}"
+	fi
+
 	local toc_file toc_version toc_game_type
 	toc_file=$(
 		# Remove BOM and CR and apply some non-version related TOC filters
@@ -1157,20 +1178,19 @@ set_info_toc_interface() {
 	if [[ -n $toc_version ]]; then
 		local toc_version_game_type
 		IFS=',' read -ra V <<< "$toc_version"
-		toc_to_type "${V[0]}" "toc_game_type"
+		toc_to_file_type "${V[0]}" "toc_game_type"
 		for i in "${V[@]}"; do
 			toc_to_type "$i" "toc_version_game_type"
-
 			if [[ -n ${si_game_type_interface_all[$toc_version_game_type]} ]]; then
 				si_game_type_interface_all[$toc_version_game_type]="${si_game_type_interface_all[$toc_version_game_type]}:$i"
 			else
 				si_game_type_interface_all[$toc_version_game_type]="$i"
 			fi
 
-			# Are the interface values all for one game type?
-			if [[ -n $toc_game_type && $toc_game_type != "$toc_version_game_type" ]]; then
-				# Titan Reforged Classic will load TOC files with a Wrath suffix
-				if [[ $toc_version_game_type == "wrath" && $toc_game_type != "titan" ]]; then
+			# Are the interface values all for one game type? (Using the base game type)
+			if [[ -n $toc_game_type ]]; then
+				toc_to_file_type "$i" "toc_version_game_type"
+				if [[ $toc_game_type != "$toc_version_game_type" ]]; then
 					toc_game_type=
 				fi
 			fi
@@ -1186,14 +1206,12 @@ set_info_toc_interface() {
 		toc_version=$( IFS=':' ; echo "${V[*]}" ) # swap delimiter
 		si_game_root_interface="$toc_version"
 	fi
-
-	if [[ ${toc_name} =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists)\.toc$ ]]; then
+	if [[ -n $toc_suffix ]]; then
 		# Flavored, just validate the version
 		if [[ -z $toc_version ]]; then
 			echo "$toc_name is missing an interface version." >&2
 			exit 1
 		fi
-		local toc_suffix="${BASH_REMATCH[1],,}"
 		if [[ $toc_suffix == "classic" ]]; then
 			# Special check for _Classic (any classic game type)
 			IFS=':' read -ra V <<< "$toc_version"
@@ -1204,13 +1222,10 @@ set_info_toc_interface() {
 					exit 1
 				fi
 			done
-		else
-			local toc_file_game_type="${game_flavor[$toc_suffix]}"
-			if [[ $toc_file_game_type != "$toc_game_type" ]]; then
-				# Other suffixes are required to match the game type
-				echo "$toc_name has an interface version ($toc_version) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
-				exit 1
-			fi
+		elif [[ $toc_file_game_type != "$toc_game_type" ]]; then
+			# Other suffixes are required to match the game type
+			echo "$toc_name has an interface version (${toc_version//:/,}) that is not compatible with the game version \"${toc_file_game_type}\"." >&2
+			exit 1
 		fi
 	else
 		# Fallback
@@ -1244,7 +1259,8 @@ set_info_toc_interface() {
 		fi
 
 		# Check @non-@ blocks for an interface matching the game type (DEPRECATED, remove this in v3)
-		if [[ -z $toc_version ]] || [[ -n $game_type && $toc_game_type != "$game_type" ]]; then
+		# XXX toc_game_type is the base game type, so we check si_game_type_interface_all for the manually set game type (band-aid for titan⊃wrath)
+		if [[ -z $toc_version ]] || [[ -n $game_type && $toc_game_type != "$game_type" && -z ${si_game_type_interface_all[$game_type]} ]]; then
 			toc_game_type="$game_type"
 			local game_type_toc_prefix
 			case $toc_game_type in
@@ -1279,7 +1295,7 @@ set_info_toc_interface() {
 			if [[ -z $toc_game_type ]]; then
 				echo "$toc_name is missing an interface version." >&2
 			else
-				echo "$toc_name has an interface version that is not compatible with the game version \"$toc_game_type\" or was not found." >&2
+				echo "$toc_name does not have an interface version that is compatible with the game version \"$toc_game_type\"." >&2
 			fi
 			exit 1
 		fi
@@ -3030,7 +3046,6 @@ upload_wago() {
 				bcc) wago_type="bc" ;;
 				wrath) wago_type="wotlk" ;;
 				mists) wago_type="mop" ;;
-				titan) wago_type="titan" ;; # XXX nyi
 				*) wago_type="$type"
 			esac
 			wago_game_type_version=
