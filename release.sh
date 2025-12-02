@@ -2414,7 +2414,7 @@ if [[ -n "$manual_changelog" && -f "$topdir/$changelog" ]]; then
 	# Requires pandoc (http://pandoc.org/)
 	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && command -v pandoc &>/dev/null; then
 		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-		pandoc -f commonmark -t html "$changelog_path" | sed \
+		pandoc --wrap=none -f commonmark -t html "$changelog_path" | sed \
 			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
 			-e 's/<\(\/\)\?em>/[\1i]/g' \
 			-e 's/<\(\/\)\?strong>/[\1b]/g' \
