@@ -343,6 +343,7 @@ Usage: release.sh [options]
   -e               Skip checkout of external repositories.
   -l               Skip @localization@ keyword replacement.
   -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
+  -C               Don't include metadata in automatic changelog.
   -o               Keep existing package directory, overwriting its contents.
   -s               Create a stripped-down "nolib" package.
   -S               Create a package supporting multiple game types from a single TOC file.

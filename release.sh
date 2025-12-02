@@ -59,6 +59,7 @@ skip_localization=
 skip_zipfile=
 skip_upload=
 skip_cf_upload=
+skip_changelog_meta=
 pkgmeta_file=
 game_version=
 game_type=
@@ -241,6 +242,7 @@ usage() {
 	  -e               Skip checkout of external repositories.
 	  -l               Skip @localization@ keyword replacement.
 	  -L               Only do @localization@ keyword replacement (skip upload to CurseForge).
+	  -C               Don't include metadata in automatic changelog.
 	  -o               Keep existing package directory, overwriting its contents.
 	  -s               Create a stripped-down "nolib" package.
 	  -S               Create a package supporting multiple game types from a single TOC file.
@@ -258,13 +260,14 @@ usage() {
 }
 
 OPTIND=1
-while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
+while getopts ":celLCzusSop:dw:a:r:t:g:m:n:" opt; do
 	case $opt in
 		c) skip_copying="true" ;; # Skip copying files into the package directory
 		z) skip_zipfile="true" ;; # Skip creating a zip file
 		e) skip_externals="true" ;; # Skip checkout of external repositories
 		l) skip_localization="true" ;; # Skip @localization@ keyword replacement
 		L) skip_cf_upload="true" ;; # Skip uploading to CurseForge
+		C) skip_changelog_meta="true" ;; # Omit changelog metadata
 		d) skip_upload="true" ;; # Skip uploading
 		u) line_ending="unix" ;; # Use LF instead of CRLF as the line ending for all text files
 		o) overwrite="true" ;; # Don't delete existing directories in the release directory
@@ -2508,13 +2511,15 @@ else
 		fi
 		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
-		cat <<- EOF | line_ending_filter > "$changelog_path"
-		# $project
+		if [[ -z "$skip_changelog_meta" ]]; then
+			cat <<- EOF | line_ending_filter > "$changelog_path"
+			# $project
 
-		## $changelog_version ($changelog_date)
-		$changelog_url $changelog_previous
+			## $changelog_version ($changelog_date)
+			$changelog_url $changelog_previous
 
-		EOF
+			EOF
+		fi
 		# ignore sed matching backticks
 		# shellcheck disable=SC2016
 		git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
