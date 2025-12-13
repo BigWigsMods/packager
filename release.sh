@@ -1661,7 +1661,7 @@ localization_filter() {
 						echo -n "$_ul_prefix"
 
 						# Fetch the localization data, but don't output anything if there is an error.
-						curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }' || exit 1
+						curl -L -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^'"$_ul_tablename"' = '"$_ul_tablename"' or \{\}/ { next } { print }' || exit 1
 
 						# Insert a trailing blank line to match CF packager.
 						if [ -z "$_ul_eof" ]; then
@@ -1669,7 +1669,7 @@ localization_filter() {
 						fi
 					else
 						# Parse out a single phrase. This is kind of expensive, but caching would be way too much effort to optimize for what is basically an edge case.
-						_ul_value=$( curl -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
+						_ul_value=$( curl -L -s -H "x-api-token: $cf_token" "${_ul_url}" | awk -v url="$_ul_url" '/^{"error/ { o="    \033[01;31mError! "$0"\033[0m\n           "url; print o >"/dev/fd/3"; exit 1 } /<!DOCTYPE/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } /^<html>/ { print "    \033[01;31mError! Invalid output\033[0m\n           "url >"/dev/fd/3"; exit 1 } { print }' | sed -n '/L\["'"$_ul_singlekey"'"\]/p' | sed 's/^.* = "\(.*\)"/\1/' )
 						if [ -n "$_ul_value" ] && [ "$_ul_value" != "$_ul_singlekey" ]; then
 							# The result is different from the base value so print out the line.
 							echo "${_ul_prefix}${_ul_value}${_ul_line##*)@}"
