@@ -1535,7 +1535,7 @@ set_localization_url() {
 }
 
 # Filter to handle @localization@ repository keyword replacement.
-# https://authors.curseforge.com/knowledge-base/projects/531-localization-substitutions/
+# https://support.curseforge.com/support/solutions/articles/9000197354-localization-substitutions
 declare -A unlocalized_values=( ["english"]="ShowPrimary" ["comment"]="ShowPrimaryAsComment" ["blank"]="ShowBlankAsComment" ["ignore"]="Ignore" )
 localization_filter() {
 	_ul_eof=
@@ -1568,7 +1568,7 @@ localization_filter() {
 					echo "    Warning! No locale set, using enUS." >&3
 				fi
 				# Generate a URL parameter string from the localization parameters.
-				# https://authors.curseforge.com/knowledge-base/projects/529-api
+				# https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-upload-api#Localization
 				_ul_url_params=""
 				# shellcheck disable=SC2086
 				set -- ${_ul_params}
