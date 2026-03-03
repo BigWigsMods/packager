@@ -168,7 +168,7 @@ filename_filter() {
 		-e "s/{beta}/${beta}/g" \
 		-e "s/{nolib}/${nolib:+-nolib}/g" \
 		-e "s/{classic}/${classic}/g" \
-		-e "s/\([^A-Za-z0-9._-]\)/${invalid}/g" \
+		-e "s/\([^A-Za-z0-9._!-]\)/${invalid}/g" \
 		<<< "$1"
 }
 
