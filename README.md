@@ -385,13 +385,13 @@ Usage: release.sh -n "{template}"
 
 __release.sh__ uses following environment variables for uploading:
 
-- `CF_API_KEY` - a [CurseForge API token](https://wow.curseforge.com/account/api-tokens),
+- `CF_API_KEY` - a [CurseForge API token](https://authors.curseforge.com/#/settings/api-tokens),
   required for the CurseForge API to fetch localization and upload files.
 - `WOWI_API_TOKEN` - a [WoWInterface API token](https://www.wowinterface.com/downloads/filecpl.php?action=apitokens),
   required for uploading to WoWInterface.
 - `WAGO_API_TOKEN` - a [Wago Addons API token](https://addons.wago.io/account/apikeys),
   required for uploading to Wago Addons.
-- `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/tokens),
+- `GITHUB_OAUTH` - a [GitHub personal access token](https://github.com/settings/personal-access-tokens),
   required for uploading to GitHub.
 
 __release.sh__ will attempt to load environment variables from a `.env` file in
