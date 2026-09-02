@@ -1292,6 +1292,11 @@ set_info_toc_interface() {
 			fi
 		fi
 
+		# Only game type TOC files will be created, so a fallback interface version isn't needed
+		if [[ -z $toc_version && -n $split && -z $game_type && ${#si_game_type_interface[@]} -gt 0 ]]; then
+			return 0
+		fi
+
 		# End of the line
 		if [[ -z $toc_version ]]; then
 			if [[ -z $toc_game_type ]]; then
