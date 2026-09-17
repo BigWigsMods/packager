@@ -1172,7 +1172,7 @@ set_info_toc_interface() {
 	local toc_name=${toc_path##*/}
 
 	local toc_suffix toc_file_game_type
-	if [[ $toc_name =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists|Forever|Camelot)\.toc$ ]]; then
+	if [[ $toc_name =~ "$package_name"[-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists|Camelot)\.toc$ ]]; then
 		toc_suffix="${BASH_REMATCH[1],,}"
 		toc_file_game_type="${game_flavor[$toc_suffix]}"
 	fi
@@ -1392,14 +1392,14 @@ if [[ -z "$package" ]]; then
 		exit 1
 	fi
 	package=${package%.toc}
-	if [[ $package =~ ^(.*)([-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists|Forever|Camelot))$ ]]; then
+	if [[ $package =~ ^(.*)([-_](Mainline|Classic|Vanilla|BCC|TBC|Wrath|WOTLKC|Cata|Mists|Camelot))$ ]]; then
 		echo "Ambiguous addon name. No fallback TOC file or addon name includes an expansion suffix (${BASH_REMATCH[2]}). Set 'package-as' in .pkgmeta" >&2
 		exit 1
 	fi
 fi
 
 # Parse the project root TOC files for info first
-for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Forever,_Forever,-Camelot,_Camelot}.toc; do
+for toc_path in "$topdir/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Camelot,_Camelot}.toc; do
 	if [[ -f "$toc_path" ]]; then
 		set_toc_project_info "$toc_path"
 		toc_paths+=("$toc_path")
@@ -1409,7 +1409,7 @@ done
 # Try parsing the project addon in move-folders for info next
 for path in "${!toc_root_paths[@]}"; do
 	if [[ ${toc_root_paths[$path]} == "$package" && $path != "$topdir" ]]; then
-		for toc_path in "$path/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Forever,_Forever,-Camelot,_Camelot}.toc; do
+		for toc_path in "$path/$package"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Camelot,_Camelot}.toc; do
 			if [[ -f "$toc_path" ]]; then
 				set_toc_project_info "$toc_path"
 			fi
@@ -1419,7 +1419,7 @@ done
 
 # Parse project TOC files
 for path in "${!toc_root_paths[@]}"; do
-	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Forever,_Forever,-Camelot,_Camelot}.toc; do
+	for toc_path in "$path/${toc_root_paths[$path]}"{,-Mainline,_Mainline,-Classic,_Classic,-Vanilla,_Vanilla,-BCC,_BCC,-TBC,_TBC,-Wrath,_Wrath,-WOTLKC,_WOTLKC,-Cata,_Cata,-Mists,_Mists,-Camelot,_Camelot}.toc; do
 		if [[ -f "$toc_path" ]]; then
 			set_toc_project_info "$toc_path"
 			set_info_toc_interface "$toc_path" "${toc_root_paths[$path]}"
