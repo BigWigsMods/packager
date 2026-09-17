@@ -2945,17 +2945,15 @@ upload_wowinterface() {
 	local _wowi_versions _wowi_game_version
 	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json )
 	if [ -n "$_wowi_versions" ]; then
-		local wowi_type invalid_version
+		local wowi_type invalid_version invalid_type
 		for type in "${!game_type_version[@]}"; do
 			case $type in
 				classic) wowi_type="Classic" ;;
 				bcc) wowi_type="TBC-Classic" ;;
 				wrath) wowi_type="WOTLK-Classic" ;;
-				cata) wowi_type="Cata-Classic" ;;
-				mists) wowi_type="MOP-Classic" ;; # XXX nyi
-				titan) wowi_type="Titan-Classic" ;; # XXX nyi
-				forever)
-					echo "WARNING: WoW Forever uploads to WoWInterface are not supported, ignoring" >&2
+				cata|mists) wowi_type="Cata-Classic" ;;
+				titan|forever)
+					echo "WARNING: No WoWInterface game type match for \"$type\", \"$type\" is not supported, ignoring" >&2
 					continue
 					;;
 				*) wowi_type="Retail"
@@ -2968,14 +2966,16 @@ upload_wowinterface() {
 					# use the next highest version (try to avoid testing versions)
 					version=$( echo "$_wowi_versions" | jq -r --arg v "$invalid_version" --arg t "$wowi_type" 'map(select(.game == $t and .id < $v)) | max_by(.id) | .id // empty' )
 					if [[ -z $version ]]; then
-						if [[ $wowi_type == "MOP-Classic" ]]; then # XXX compat: not supported yet or I guessed the wrong name
+						if [[ $wowi_type == "MOP-Classic" ]]; then # XXX wowi dead, yo
+							invalid_type="$wowi_type"
 							wowi_type="Cata-Classic"
+							echo "WARNING: No WoWInterface game type match for \"$invalid_type\", using \"$wowi_type\"" >&2
 						fi
 						# just grab the highest version
 						version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" 'map(select(.game == $t)) | max_by(.id) | .id // empty' )
 					fi
 					if [[ -z $version ]]; then
-						echo "WARNING: No WoWInterface game version match for \"$invalid_version\", \"$wowi_type\" is not supported" >&2
+						echo "WARNING: No WoWInterface game version match for \"$invalid_version\", \"$wowi_type\" is not supported, ignoring" >&2
 					else
 						echo "WARNING: No WoWInterface game version match for \"$invalid_version\", using \"$version\"" >&2
 					fi
