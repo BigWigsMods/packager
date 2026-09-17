@@ -195,7 +195,7 @@ toc_to_type() {
 	local -n game_type="$2" || return 1
 	case $toc_version in
 		11???) game_type="classic" ;;
-		160??) game_type="forever" ;;
+		16???) game_type="forever" ;;
 		20???) game_type="bcc" ;;
 		30???) game_type="wrath" ;;
 		40???) game_type="cata" ;;
@@ -211,7 +211,7 @@ toc_to_file_type() {
 	local -n game_type="$2" || return 1
 	case $toc_version in
 		11???) game_type="classic" ;;
-		160??) game_type="forever" ;;
+		16???) game_type="forever" ;;
 		20???) game_type="bcc" ;;
 		30???) game_type="wrath" ;;
 		40???) game_type="cata" ;;
@@ -305,7 +305,7 @@ while getopts ":celLzusSop:dw:a:r:t:g:m:n:" opt; do
 							exit 1
 						fi
 						if [[ ${BASH_REMATCH[1]} == "1" ]]; then
-							if [[ ${BASH_REMATCH[2]} == "60" ]]; then
+							if [[ ${BASH_REMATCH[2]} == 6[0-9] ]]; then
 								game_type="forever"
 							else
 								game_type="classic"
@@ -1280,7 +1280,7 @@ set_info_toc_interface() {
 				cata) game_type_toc_prefix="40" ;;
 				mists) game_type_toc_prefix="50" ;;
 				titan) game_type_toc_prefix="380" ;;
-				forever) game_type_toc_prefix="160" ;;
+				forever) game_type_toc_prefix="16[0-9]" ;;
 				*) game_type_toc_prefix=
 			esac
 			if [[ -n $game_type_toc_prefix ]]; then
