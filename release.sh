@@ -1989,7 +1989,7 @@ copy_directory_tree() {
 								wrath) new_file+="_Wrath.toc" ;;
 								cata) new_file+="_Cata.toc" ;;
 								mists) new_file+="_Mists.toc" ;;
-								forever) new_file+="_Forever.toc" ;;
+								forever) new_file+="_Camelot.toc" ;;
 								# titan) new_file+="_Wrath.toc" ;;
 							esac
 
