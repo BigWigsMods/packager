@@ -2945,7 +2945,7 @@ upload_wowinterface() {
 	local _wowi_versions _wowi_game_version
 	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json )
 	if [ -n "$_wowi_versions" ]; then
-		local wowi_type invalid_version invalid_type
+		local wowi_type invalid_version
 		for type in "${!game_type_version[@]}"; do
 			case $type in
 				classic) wowi_type="Classic" ;;
@@ -2966,10 +2966,9 @@ upload_wowinterface() {
 					# use the next highest version (try to avoid testing versions)
 					version=$( echo "$_wowi_versions" | jq -r --arg v "$invalid_version" --arg t "$wowi_type" 'map(select(.game == $t and .id < $v)) | max_by(.id) | .id // empty' )
 					if [[ -z $version ]]; then
-						if [[ $wowi_type == "MOP-Classic" ]]; then # XXX wowi dead, yo
-							invalid_type="$wowi_type"
+						if [[ $type == "mists" ]]; then # XXX wowi dead, yo
 							wowi_type="Cata-Classic"
-							echo "WARNING: No WoWInterface game type match for \"$invalid_type\", using \"$wowi_type\"" >&2
+							echo "WARNING: No WoWInterface game type match for \"$type\", using \"$wowi_type\"" >&2
 						fi
 						# just grab the highest version
 						version=$( echo "$_wowi_versions" | jq -r --arg t "$wowi_type" 'map(select(.game == $t)) | max_by(.id) | .id // empty' )
