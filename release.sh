@@ -888,7 +888,7 @@ yaml_keyvalue() {
 	yaml_value=${1#"$yaml_key":}
 	yaml_value=${yaml_value#"${yaml_value%%[! ]*}"} # trim leading whitespace
 	if [[ -n "$yaml_value" && -n "${yaml_bool[${yaml_value,,}]}" ]]; then # normalize booleans
-		yaml_value="${yaml_bool[$yaml_value]}"
+		yaml_value="${yaml_bool[${yaml_value,,}]}"
 	fi
 	yaml_value=${yaml_value#[\'\"]} # trim leading quotes
 	yaml_value=${yaml_value%[\'\"]} # trim trailing quotes
