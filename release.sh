@@ -491,10 +491,10 @@ elif [ -f ".env" ]; then
 	# shellcheck disable=SC1091
 	. ".env"
 fi
-[ -z "$cf_token" ] && cf_token=$CF_API_KEY
 [ -z "$cf_token" ] && cf_token=$CF_API_TOKEN
-[ -z "$github_token" ] && github_token=$GITHUB_OAUTH
+[ -z "$cf_token" ] && cf_token=$CF_API_KEY # deprecated
 [ -z "$github_token" ] && github_token=$GITHUB_API_TOKEN
+[ -z "$github_token" ] && github_token=$GITHUB_OAUTH # deprecated
 [ -z "$wowi_token" ] && wowi_token=$WOWI_API_TOKEN
 [ -z "$wago_token" ] && wago_token=$WAGO_API_TOKEN
 
