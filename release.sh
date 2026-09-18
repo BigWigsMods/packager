@@ -972,7 +972,7 @@ parse_ignore() {
 					pattern=${yaml_item#$sub_path} # match relative to sub_path
 					if [ -d "$check_path$yaml_item" ]; then
 						pattern="$copy_path$pattern/*"
-					elif [ ! -f "$copy_path$yaml_item" ]; then
+					elif [ ! -f "$check_path$yaml_item" ]; then
 						# doesn't exist so match both a file and a path
 						pattern="$copy_path$pattern:$copy_path$pattern/*"
 					else
