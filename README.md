@@ -259,7 +259,7 @@ reorganize your includes in the appropriate TOC files.
 
 ### Multiple TOC files
 
-You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Multiple_client_flavors),
+You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Naming),
 one for each supported game type, and __release.sh__ will use them to set the
 build's game version.
 
