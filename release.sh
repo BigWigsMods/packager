@@ -493,6 +493,7 @@ elif [ -f ".env" ]; then
 fi
 [ -z "$cf_token" ] && cf_token=$CF_API_TOKEN
 [ -z "$cf_token" ] && cf_token=$CF_API_KEY # deprecated
+[ -z "$github_token" ] && github_token=$GH_API_TOKEN
 [ -z "$github_token" ] && github_token=$GITHUB_API_TOKEN
 [ -z "$github_token" ] && github_token=$GITHUB_OAUTH # deprecated
 [ -z "$wowi_token" ] && wowi_token=$WOWI_API_TOKEN

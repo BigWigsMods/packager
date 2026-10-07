@@ -391,7 +391,7 @@ __release.sh__ uses following environment variables for uploading:
   required for uploading to WoWInterface.
 - `WAGO_API_TOKEN` - a [Wago Addons API token](https://addons.wago.io/account/apikeys),
   required for uploading to Wago Addons.
-- `GITHUB_API_TOKEN` - a [GitHub personal access token](https://github.com/settings/personal-access-tokens),
+- `GH_API_TOKEN` - a [GitHub personal access token](https://github.com/settings/personal-access-tokens),
   required for uploading to GitHub.
 
 __release.sh__ will attempt to load environment variables from a `.env` file in
