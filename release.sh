@@ -2831,7 +2831,7 @@ upload_curseforge() {
 	fi
 
 	local _cf_game_version_id _cf_game_version _cf_versions
-	_cf_versions=$( curl -s -H "x-api-token: $cf_token" "$project_site/api/game/wow/versions" )
+	_cf_versions=$( curl -s -H "x-api-token: $cf_token" "$project_site/api/game/wow/versions" | jq -c '.' 2>/dev/null )
 	if [[ -n $_cf_versions && $_cf_versions != *"errorMessage"* ]]; then
 		_cf_game_version_id=
 		_cf_game_version=
@@ -2954,7 +2954,7 @@ upload_wowinterface() {
 	fi
 
 	local _wowi_versions _wowi_game_version
-	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json )
+	_wowi_versions=$( curl -s https://api.wowinterface.com/addons/compatible.json | jq -c '.' 2>/dev/null )
 	if [ -n "$_wowi_versions" ]; then
 		local wowi_type invalid_version
 		for type in "${!game_type_version[@]}"; do
