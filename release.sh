@@ -33,7 +33,8 @@
 #   SC2031: var was modified in a subshell. That change might be lost.
 #   SC2317: Command appears to be unreachable.
 #   SC2329: This function is never invoked.
-# shellcheck disable=SC2295,SC2030,SC2031,SC2317,SC2329
+#   SC1091: Not following, file does not exist.
+# shellcheck disable=SC2295,SC2030,SC2031,SC2317,SC2329,SC1091
 
 ## USER OPTIONS
 
@@ -103,8 +104,7 @@ retry() {
 		count="$((count + 1))"
 		sleep 3
 	done
-	# shellcheck disable=SC2086
-	return $result
+	return "$result"
 }
 
 retry_svn_checkout() {
@@ -122,8 +122,7 @@ retry_svn_checkout() {
 		count="$((count + 1))"
 		sleep 3
 	done
-	# shellcheck disable=SC2086
-	return $result
+	return "$result"
 }
 
 # Fetch a file from an svn repository. The file not existing is not an error.
@@ -500,10 +499,8 @@ fi
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
-	# shellcheck disable=SC1090,SC1091
 	. "$topdir/.env"
 elif [ -f ".env" ]; then
-	# shellcheck disable=SC1091
 	. ".env"
 fi
 [ -z "$cf_token" ] && cf_token=$CF_API_TOKEN
@@ -866,14 +863,13 @@ else
 fi
 
 # Add some GitHub Actions outputs
-if [[ -n $GITHUB_ACTIONS ]]; then
-	# shellcheck disable=SC2129
-	echo "project_version=${project_version}" >> "$GITHUB_OUTPUT"
-	echo "previous_version=${previous_version}" >> "$GITHUB_OUTPUT"
-	echo "project_hash=${project_hash}" >> "$GITHUB_OUTPUT"
-	echo "project_timestamp=${project_timestamp}" >> "$GITHUB_OUTPUT"
-	echo "release_type=${file_type}" >> "$GITHUB_OUTPUT"
-fi
+[[ -n $GITHUB_ACTIONS ]] && {
+	echo "project_version=${project_version}"
+	echo "previous_version=${previous_version}"
+	echo "project_hash=${project_hash}"
+	echo "project_timestamp=${project_timestamp}"
+	echo "release_type=${file_type}"
+} >> "$GITHUB_OUTPUT"
 
 # Bare carriage-return character.
 carriage_return=$( printf "\r" )
@@ -886,7 +882,7 @@ match_pattern() {
 	while [ -n "$_mp_list" ]; do
 		_mp_pattern=${_mp_list%%:*}
 		_mp_list=${_mp_list#*:}
-		# shellcheck disable=SC2254
+		# shellcheck disable=SC2254 # _mp_pattern is a glob
 		case $_mp_file in
 			$_mp_pattern)
 				return 0
@@ -1411,8 +1407,8 @@ set_build_version() {
 
 # Set the package name from a TOC file name
 if [[ -z "$package" ]]; then
-	# shellcheck disable=SC2035
-	package=$( cd "$topdir" && find *.toc -maxdepth 0 2>/dev/null | awk '{ print length(), $0 }' | sort -n | cut -d" " -f2- | head -n1 )
+	# grab the shortest toc file in the top directory
+	package=$( cd "$topdir" && find ./*.toc -maxdepth 0 2>/dev/null | awk '{ print length(), substr($0, 3) }' | sort -n | cut -d" " -f2- | head -n1 )
 	if [[ -z "$package" ]]; then
 		echo "Could not find an addon TOC file. In another directory? Set 'package-as' in .pkgmeta" >&2
 		exit 1
@@ -1612,7 +1608,7 @@ localization_filter() {
 				# Generate a URL parameter string from the localization parameters.
 				# https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-upload-api#Localization
 				_ul_url_params=""
-				# shellcheck disable=SC2086
+				# shellcheck disable=SC2086 # split on spaces to iterate key=value pairs
 				set -- ${_ul_params}
 				for _ul_param; do
 					_ul_key=${_ul_param%%=*}
@@ -1820,7 +1816,7 @@ copy_directory_tree() {
 	_cdt_split=
 	OPTIND=1
 	while getopts :adi:lnpu:g:eS _cdt_opt "$@"; do
-		# shellcheck disable=SC2220
+		# shellcheck disable=SC2220 # not user facing, don't need to handle invalid options
 		case $_cdt_opt in
 			a)	_cdt_alpha="true" ;;
 			d)	_cdt_debug="true" ;;
@@ -2083,8 +2079,8 @@ checkout_external() {
 	local _external_uri="$2"
 	local _external_tag="$3"
 	local _external_type="$4"
-	# shellcheck disable=SC2034
-	local _external_slug="$5" # unused until we can easily fetch the project id
+	# shellcheck disable=SC2034 # _external_slug unused until we can easily fetch the project id
+	local _external_slug="$5"
 	local _external_checkout_type="$6"
 	local _external_path="$7"
 
@@ -2612,8 +2608,7 @@ else
 		$changelog_url $changelog_previous
 
 		EOF
-		# ignore sed matching backticks
-		# shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # don't expand backticks
 		git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e ':a;s/^\(\(`[^`]*`\|[^`_]*\)*\)_/\1\\###/;ta' -e 's/###/_/g' \
@@ -2656,8 +2651,7 @@ else
 
 		EOF
 		_svn_changelog=$( retry svn log "$topdir" "$_changelog_range" --xml )
-		# ignore sed matching backticks
-		# shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # don't expand backticks
 		echo "$_svn_changelog" \
 			| awk '/<msg>/,/<\/msg>/' \
 			| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
@@ -2878,8 +2872,7 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -f "$nolib_archive" ]; then
 			rm -f "$nolib_archive"
 		fi
-		# set noglob so each nolib_exclude path gets quoted instead of expanded
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086 # set noglob so each nolib_exclude path gets quoted instead of expanded
 		( set -f; cd "$releasedir" && zip -X -r -q "$nolib_archive" "${zip_root_dirs[@]}" -x $nolib_exclude )
 
 		if [ ! -f "$nolib_archive" ]; then
@@ -3011,8 +3004,7 @@ upload_curseforge() {
 
 	rm -f "$resultfile" 2>/dev/null
 
-	# shellcheck disable=SC2086
-	return $return_code
+	return "$return_code"
 }
 
 # Upload tags to WoWInterface.
@@ -3129,8 +3121,7 @@ upload_wowinterface() {
 
 	rm -f "$resultfile" 2>/dev/null
 
-	# shellcheck disable=SC2086
-	return $return_code
+	return "$return_code"
 }
 
 # Upload to Wago
@@ -3248,8 +3239,7 @@ upload_wago() {
 
 	rm -f "$resultfile" 2>/dev/null
 
-	# shellcheck disable=SC2086
-	return $return_code
+	return "$return_code"
 }
 
 # Create a GitHub Release for tags and upload the zipfile as an asset.
@@ -3300,8 +3290,7 @@ upload_github_asset() {
 
 	rm -f "$_ghf_resultfile" 2>/dev/null
 
-	# shellcheck disable=SC2086
-	return $return_code
+	return "$return_code"
 }
 
 upload_github() {
@@ -3423,8 +3412,7 @@ upload_github() {
 	rm -f "$resultfile" 2>/dev/null
 	[ -z "$CI" ] && rm -f "$versionfile" 2>/dev/null
 
-	# shellcheck disable=SC2086
-	return $return_code
+	return "$return_code"
 }
 
 
@@ -3435,7 +3423,7 @@ if [[ -z $skip_upload && -n $archive && -s $archive ]]; then
 		exit_code=1
 	else
 		if ! retry upload_curseforge; then
-			echo "Uploading to CurseForge failed, aborting upload." >&2
+			echo "Uploading to CurseForge failed, aborting uploads." >&2
 			exit 1
 		fi
 		upload_wowinterface || exit_code=1
@@ -3450,5 +3438,4 @@ echo
 echo "Packaging complete."
 echo
 
-# shellcheck disable=SC2086
-exit $exit_code
+exit "$exit_code"
