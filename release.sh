@@ -2881,8 +2881,7 @@ upload_curseforge() {
 		echo
 		echo "Skipping upload to CurseForge."
 		echo
-		exit_code=1
-		return 0
+		return 1
 	fi
 
 	local _cf_payload _cf_payload_relations
@@ -3003,7 +3002,6 @@ upload_wowinterface() {
 		echo
 		echo "Skipping upload to WoWInterface."
 		echo
-		exit_code=1
 		return 1
 	fi
 
@@ -3119,7 +3117,6 @@ upload_wago() {
 		echo
 		echo "Skipping upload to Wago."
 		echo
-		exit_code=1
 		return 1
 	fi
 
@@ -3368,7 +3365,10 @@ if [[ -z $skip_upload && -n $archive && -s $archive ]]; then
 		echo
 		exit_code=1
 	else
-		retry upload_curseforge || exit_code=1
+		if ! retry upload_curseforge; then
+			echo "Uploading to CurseForge failed, aborting upload." >&2
+			exit 1
+		fi
 		upload_wowinterface || exit_code=1
 		upload_wago || exit_code=1
 		upload_github || exit_code=1
