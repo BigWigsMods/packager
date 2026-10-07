@@ -1224,12 +1224,22 @@ set_info_toc_interface() {
 			exit 1
 		fi
 		if [[ $toc_suffix == "classic" ]]; then
-			# Special check for _Classic (any classic game type)
+			# Special check for _Classic (the classic game family) to allow any classic version
 			IFS=':' read -ra V <<< "$toc_version"
 			for i in "${V[@]}"; do
 				toc_to_type "$i" "toc_file_game_type"
 				if [[ $toc_file_game_type == "retail" ]]; then
 					echo "$toc_name has an interface version ($i) that is not compatible with the game type \"Classic\"." >&2
+					exit 1
+				fi
+			done
+		elif [[ $toc_suffix == "mainline" ]]; then
+			# Special check for _Mainline (the "modern" game family) to allow retail (standard) and forever versions
+			IFS=':' read -ra V <<< "$toc_version"
+			for i in "${V[@]}"; do
+				toc_to_type "$i" "toc_file_game_type"
+				if [[ $toc_file_game_type != "retail" && $toc_file_game_type != "forever" ]]; then
+					echo "$toc_name has an interface version ($i) that is not compatible with the game type \"Mainline\"." >&2
 					exit 1
 				fi
 			done
