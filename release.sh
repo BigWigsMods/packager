@@ -1228,7 +1228,7 @@ set_info_toc_interface() {
 			IFS=':' read -ra V <<< "$toc_version"
 			for i in "${V[@]}"; do
 				toc_to_type "$i" "toc_file_game_type"
-				if [[ $toc_file_game_type == "retail" ]]; then
+				if [[ $toc_file_game_type == "retail" || $toc_file_game_type == "forever" ]]; then
 					echo "$toc_name has an interface version ($i) that is not compatible with the game type \"Classic\"." >&2
 					exit 1
 				fi
