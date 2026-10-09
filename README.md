@@ -28,29 +28,6 @@ For a full example workflow, please check out the [wiki page](https://github.com
     args: -p 1234 -w 5678 -a he54k6bL
 ```
 
-### What changed with v2.3.0?
-
-1. The `## Interface:` and `## Interface-[Type]:` values can be a comma
-   separated list of values.
-2. Every interface value in every (non-external) TOC file will be included as a
-   supported version when uploading to CurseForge, Wago, and WowInterface.  This
-   behavior differs from v2.2.2.
-
-   When detecting versions, the `package-as` TOC file is parsed first, then TOC
-   files in `move-folders` paths.  In v2.2.2, the first interface value found
-   for a game type was used and the rest were ignored.  So if you had 100207 in
-   your main TOC file, but missed updating 100206 in your modules, the final
-   version would just be `10.2.7`.  But now the final version will include *all*
-   interface versions, meaning it will be `10.2.7,10.2.6`.
-
-   You can still use `-g` to override version detection entirely, but it is
-   still kind of the nuclear option.
-3. Fallback TOC files are no longer needed.  If you create a TOC file with only
-   `## Interface-[Type]:` lines and use TOC file creation (splitting), the
-   original TOC file is not included.
-4. The base `## Interface:` doesn't affect splitting, and will just be carried
-   through to the fallback TOC file.
-
 ## Customizing the build
 
 __release.sh__ uses the TOC file to determine the package name for the project.
@@ -259,6 +236,23 @@ switch to plain old Lua control statements.  Fortunately, there are some
 can use for this.  If you use these keywords in XML files, you will have to
 reorganize your includes in the appropriate TOC files.
 
+### Multiple Interface values
+
+You can specify multiple interface versions delimited by commas. If you don't
+set an interface version that matches the game client, then the addon is flagged
+out-of-date.
+
+```toc
+## Interface: 11509, 20506, 30405, 38002, 40402, 50504, 120100, 16001
+```
+
+The above example would mark an addon compatible with the latest version of all
+client flavors and Forever Beta.
+
+That said, just because you *can* include a bunch of interface versions doesn't
+mean you *should* start adding upcoming versions you haven't tested your addon
+against.
+
 ### Multiple TOC files
 
 You can create [multiple TOC files](https://warcraft.wiki.gg/wiki/TOC_format#Naming),
@@ -267,16 +261,61 @@ build's game version.
 
 ### Single TOC file
 
+Most clients support a variety of directives to allow conditional loading of the
+TOC file using [Loading conditions](https://warcraft.wiki.gg/wiki/TOC_format#Loading_conditions)
+or each individual listed file with [Inline directives](https://warcraft.wiki.gg/wiki/TOC_format#Inline_directives).
+
+Example from the [wiki](https://warcraft.wiki.gg/wiki/TOC_format) (mash up of
+variables, loading conditions, inline directives, and multiple values):
+
+```toc
+## Interface: 11509, 20506, 30405, 38002, 40402, 50504, 120100, 16001
+## Title: My Cool AddOn
+## Title: My Cool AddOn in Classic [AllowLoadGameType classic]
+## Notes: My addon is working in [Game].
+## AllowLoadGameType: standard, classic
+## ExcludeLoadGameType: titan, wrath
+
+# This will load "Mainline\File.lua" or "Classic\File.lua"
+# as appropriate for the client.
+[Family]\File.lua
+
+# This will load "Standard\File.lua", "Mists\File.lua", "Cata\File.lua", ...
+# as appropriate for the client.
+[Game]\File.lua
+
+# This will load "Localization\enUS.lua", "Localization\frFR.lua", ...
+# as appropriate for the client text locale.
+Localization\[TextLocale].lua
+
+# This will only be loaded on Standard (retail).
+StandardOnly.lua [AllowLoadGameType standard]
+
+# This will only be loaded on Camelot (forever).
+ForeverOnly.lua [AllowLoadGameType camelot][ExcludeLoadGameType standard, classic]
+
+# This will only be loaded in Vanilla or TBC.
+VanillaOrTBC.lua [AllowLoadGameType vanilla, tbc]
+
+# This will only be loaded under English or French client locales.
+EnglishOrFrenchOnly.lua [AllowLoadTextLocale enUS, frFR]
+```
+
+__release.sh__ has provided quality of life features to make packaging an addon
+for multiple versions easier, but with the TOC features Blizzard has added, most
+of the versioning "magic" (build keywords, splitting, multiple packages) is no
+longer necessary!
+
+#### Using TOC file creation (splitting)
+
 __release.sh__ can support multiple game versions with the use of additional
 `## Interface-[Type]` lines in your TOC file.
 
 ```toc
-## Interface: 100207
-## Interface-Classic: 11502
-## Interface-Cata: 40400
+## Interface: 120100
+## Interface-Classic: 11509
+## Interface-Mists: 50504
 ```
-
-#### Using TOC file creation (splitting)
 
 When using multiple `## Interface-[Type]` lines in a single TOC file, you
 can use the `-S` command line option or add `enable-toc-creation: yes` to your
@@ -286,32 +325,11 @@ interface value as it's version.
 
 For each `## Interface-[Type]` line, a new TOC file is created. In the above
 example, __release.sh__ would create `MyAddon_Vanilla.toc` and
-`MyAddon_Cata.toc`, based on `MyAddon.toc` applying each game type's processing
+`MyAddon_Mists.toc`, based on `MyAddon.toc` applying each game type's processing
 logic and rewriting the interface version and also copy `MyAddon.toc` processed
 as retail.  You can also not include a fallback TOC file to prevent the addon
 from displaying for unsupported versions by not including a base interface
 value.
-
-#### Using comma separated interface values
-
-The game client for 10.2.7 and 4.4.0 have added the option to specify multiple
-interface versions delimited by commas.
-
-```toc
-## Interface: 11502, 100207, 40400, 110000
-```
-
-The above example would mark an addon compatible with the latest version of all
-client flavors and The War Within alpha.
-
-Other game client versions will stop processing the line when it hits the comma,
-So until Classic Era also supports multiple versions, if you include the Classic
-Era interface version first, all three game clients will load the addon
-correctly.
-
-That said, just because you *can* include a bunch of interface versions doesn't
-mean you *should* start adding upcoming versions you haven't tested your addon
-against.
 
 ### Single game version
 
@@ -323,7 +341,7 @@ uploading multiple packages.
 If you specify a single game type (`release.sh -g classic`), the game version
 will be set based on the appropriate TOC `## Interface-[Type]` value.  You can
 also completely override version detection by passing a version number
-(`release.sh -g 1.15.2`) or a list of versions (`release.sh -g "3.4.3,1.15.2"`).
+(`release.sh -g 1.15.9`) or a list of versions (`release.sh -g "5.5.4,1.15.9"`).
 
 ## Building locally
 
