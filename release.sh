@@ -2207,6 +2207,10 @@ checkout_external() {
 		if [ -n "$_external_path" ]; then
 			echo "Changing to /$_external_path"
 			_cqe_checkout_dir="$_cqe_checkout_dir/$_external_path"
+			if [ ! -d "$_cqe_checkout_dir" ]; then
+				echo "  ERROR! Root directory set by \"path\" does not exist." >&2
+				return 1
+			fi
 			cd "$_cqe_checkout_dir" || return 1
 		fi
 		copy_directory_tree -dnpe -i "$ignore" -u "$unchanged" "$_cqe_checkout_dir" "$pkgdir/$_external_dir"
