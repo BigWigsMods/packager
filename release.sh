@@ -2734,6 +2734,10 @@ if [ -f "$pkgmeta_file" ]; then
 								fi
 								# update external dir
 								nolib_exclude=${nolib_exclude//$srcdir/$destdir}
+								# update changelog path
+								if [[ "$changelog_path" == "$srcdir/"* && -f "$destdir/${changelog_path#"$srcdir/"}" ]]; then
+									changelog_path="$destdir/${changelog_path#"$srcdir/"}"
+								fi
 								;;
 						esac
 						;;
