@@ -1991,9 +1991,10 @@ copy_directory_tree() {
 					# Make sure we're not causing any surprises
 					if [[ -z $_cdt_file_gametype && ( $file == *".lua" || $file == *".xml" || ( -z $_cdt_external && $file == *".toc" ) ) ]] && grep -q '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\|titan\|forever\)@' "$_cdt_source_file"; then
 						echo "    Error! Build type version keywords are not allowed in a multi-version build." >&2
-						echo "           These should be replaced with lua conditional statements:" >&2
+						echo "           These should be replaced with lua conditional statements and/or TOC loading conditions:" >&2
 						grep -n '@\(non-\)\?version-\(retail\|classic\|vanilla\|bcc\|wrath\|cata\|mists\|titan\|forever\)@' "$_cdt_source_file" | sed 's/^/             /' >&2
-						echo "           See https://wowpedia.fandom.com/wiki/WOW_PROJECT_ID" >&2
+						echo "           See https://warcraft.wiki.gg/wiki/WOW_PROJECT_ID" >&2
+						echo "           See https://warcraft.wiki.gg/wiki/TOC_format" >&2
 						exit 1
 					fi
 
