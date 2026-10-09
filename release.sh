@@ -126,6 +126,21 @@ retry_svn_checkout() {
 	return $result
 }
 
+# Fetch a file from an svn repository. The file not existing is not an error.
+svn_cat_optional() {
+	local url="$1"
+	local path="$2"
+	local error
+	if ! error=$( svn cat "$url" 2>&1 > "$path" ); then
+		rm -f "$path"
+		# 160013 is "path not found"
+		if [[ $error != *"160013"* ]]; then
+			echo "$error" >&2
+			return 1
+		fi
+	fi
+}
+
 # Escape a string for use in sed substitutions.
 escape_substr() {
 	local s="$1"
@@ -2079,6 +2094,9 @@ checkout_external() {
 		rm -rf "$_cqe_checkout_dir"
 	fi
 	mkdir -p "$_cqe_checkout_dir"
+	# The .pkgmeta to read "ignore" and "plain-copy" from, and the path its patterns are matched in.
+	local _cqe_pkgmeta="$_cqe_checkout_dir/.pkgmeta"
+	local _cqe_pkgmeta_path="$_external_path"
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
@@ -2115,6 +2133,7 @@ checkout_external() {
 			_cqe_svn_trunk_url="${_external_uri%/trunk/*}/trunk"
 			_cqe_svn_subdir=${_external_uri#${_cqe_svn_trunk_url}/}
 		fi
+		_cqe_svn_root_url=$_cqe_svn_trunk_url
 
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
@@ -2133,6 +2152,7 @@ checkout_external() {
 				retry_svn_checkout "$_external_uri" "$_cqe_checkout_dir" || return 1
 			else
 				_cqe_external_uri="${_cqe_svn_tag_url}/$_external_tag"
+				_cqe_svn_root_url=$_cqe_external_uri
 				if [ -n "$_cqe_svn_subdir" ]; then
 					_cqe_external_uri="${_cqe_external_uri}/$_cqe_svn_subdir"
 				fi
@@ -2142,6 +2162,12 @@ checkout_external() {
 		fi
 		set_info_svn "$_cqe_checkout_dir" || return 1
 		echo "Checked out r$si_project_revision"
+
+		# A checkout of a subdirectory leaves the .pkgmeta in the root behind, so fetch it.
+		if [[ $_external_uri == *"/trunk/"* && ! -f "$_cqe_pkgmeta" ]]; then
+			retry svn_cat_optional "$_cqe_svn_root_url/.pkgmeta" "$_cqe_pkgmeta" || return 1
+			_cqe_pkgmeta_path="$_cqe_svn_subdir${_external_path:+/$_external_path}"
+		fi
 	elif [ "$_external_type" = "hg" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
@@ -2183,6 +2209,7 @@ checkout_external() {
 		fi
 
 		# An archive is used as it is, so copy all of its files without processing them.
+		_cqe_pkgmeta=
 		unchanged="${unchanged:+$unchanged:}$_external_dir/*"
 		echo "Extracted $( find "$_cqe_checkout_dir" -type f | wc -l | tr -d ' ' ) files"
 	else
@@ -2203,7 +2230,7 @@ checkout_external() {
 		fi
 
 		# If a .pkgmeta file is present, process it for "ignore" and "plain-copy" lists.
-		parse_ignore "$_cqe_checkout_dir/.pkgmeta" "$_external_dir" "$_external_path"
+		parse_ignore "$_cqe_pkgmeta" "$_external_dir" "$_cqe_pkgmeta_path"
 		if [ -n "$_external_path" ]; then
 			echo "Changing to /$_external_path"
 			_cqe_checkout_dir="$_cqe_checkout_dir/$_external_path"
