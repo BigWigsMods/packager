@@ -2161,6 +2161,30 @@ checkout_external() {
 		fi
 		set_info_hg "$_cqe_checkout_dir"
 		echo "Checked out r$si_project_revision"
+	elif [ "$_external_type" = "zip" ]; then
+		echo "Fetching archive $_external_uri"
+		local _cqe_zip_file="$_cqe_checkout_dir.zip"
+		local _cqe_zip_result=0
+		local _cqe_zip_root
+		if curl -sSfL --retry 3 --retry-delay 10 -o "$_cqe_zip_file" "$_external_uri"; then
+			unzip -qq "$_cqe_zip_file" -d "$_cqe_checkout_dir" || _cqe_zip_result=$?
+			# unzip exits with 1 for a warning, where everything was still extracted
+			[ "$_cqe_zip_result" -eq 1 ] && _cqe_zip_result=0
+		else
+			_cqe_zip_result=$?
+		fi
+		rm -f "$_cqe_zip_file"
+		[ "$_cqe_zip_result" -eq 0 ] || return 1
+
+		# Use a lone top-level directory as the root, like the one a GitHub archive is wrapped in.
+		_cqe_zip_root=$( find "$_cqe_checkout_dir" -mindepth 1 -maxdepth 1 )
+		if [ -d "$_cqe_zip_root" ]; then
+			_external_path="${_cqe_zip_root##*/}${_external_path:+/$_external_path}"
+		fi
+
+		# An archive is used as it is, so copy all of its files without processing them.
+		unchanged="${unchanged:+$unchanged:}$_external_dir/*"
+		echo "Extracted $( find "$_cqe_checkout_dir" -type f | wc -l | tr -d ' ' ) files"
 	else
 		echo "Unknown external: $_external_uri" >&2
 		return 1
@@ -2234,6 +2258,11 @@ process_external() {
 				# just in case
 				external_type="svn"
 				;;
+			*.zip|*.zip\?*)
+				if [ -z "$external_type" ]; then
+					external_type="zip"
+				fi
+				;;
 			*)
 				if [ -z "$external_type" ]; then
 					external_type="git"
@@ -2283,6 +2312,11 @@ process_external() {
 		elif [[ $external_type == "hg" ]]; then
 			if ! command -v hg &>/dev/null; then
 				echo "    ERROR! \"$external_uri\" is a mercurial repository, but hg is not available." >&2
+				exit 1
+			fi
+		elif [[ $external_type == "zip" ]]; then
+			if ! command -v unzip &>/dev/null; then
+				echo "    ERROR! \"$external_uri\" is a zip archive, but unzip is not available." >&2
 				exit 1
 			fi
 		fi

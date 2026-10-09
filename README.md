@@ -77,8 +77,10 @@ __release.sh__ can read a __.pkgmeta__ file and supports the following
 directives. See the [wiki page](https://github.com/BigWigsMods/packager/wiki/Preparing-the-PackageMeta-File)
 for more info.
 
-- *externals* (Git, SVN, and Mercurial) Caveats: An external's .pkgmeta is only
-  parsed for ignore and externals will not have localization keywords replaced.
+- *externals* (Git, SVN, Mercurial, and zip archives) Caveats: An external's
+  .pkgmeta is only parsed for ignore and externals will not have localization
+  keywords replaced. If zip and the archive holds a single top-level folder, the
+  contents of that folder are used.
 - *ignore*
 - *plain-copy*
 - *license-output*
